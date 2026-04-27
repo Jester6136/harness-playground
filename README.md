@@ -120,16 +120,50 @@ new `.md` file in there — no code changes needed.
 **Tools vs. skills, in one line:** tools are the verbs the model can use;
 skills are the playbooks for combining those verbs to accomplish a task well.
 
-## What's NOT in here (intentional next steps)
+## Sub-agents and compaction (the two scaling layers)
+
+Both are wired in. Together they let the agent run for many iterations
+without exploding the context window.
+
+### Sub-agents — `spawn_agent` tool
+
+The model can spin up a child agent with **isolated context**. The child
+runs its own loop, calls its own tools, and returns one final string. The
+parent's history grows by exactly one message no matter how many iterations
+the child uses internally.
+
+```
+parent context:    [system, user, ..., spawn_agent("research X"), "X is Y"]
+                                                                  ↑ one string back
+child context:     [system, "research X", read, list, read, ...]  ← gone after return
+```
+
+Use it when a sub-task would otherwise produce dozens of intermediate tool
+calls that aren't relevant to the parent's reasoning. Recursion is bounded
+by `MAX_AGENT_DEPTH` in [config.py](harness/config.py).
+
+### Compaction — automatic, before every LLM call
+
+`harness/compaction.py` estimates total tokens; once they exceed
+`COMPACT_THRESHOLD_TOKENS`, it asks the model to summarize the *middle* of
+the conversation, replacing many old turns with one short summary message.
+The system prompt, original user task, and last `KEEP_RECENT_TURNS` messages
+are always preserved verbatim.
+
+```
+before:  [system, user, A1, T1, A2, T2, A3, T3, A4, T4, A5, T5]   ~6500 tok
+after:   [system, user, "[summary of A1..A3]", A4, T4, A5, T5]    ~1800 tok
+```
+
+Tune the trigger and retention in [config.py](harness/config.py).
+
+## What's still NOT in here (further next steps)
 
 - **Streaming**: output appears at the end of each turn, not token-by-token.
-- **Context compaction**: long conversations will eventually exceed the
-  context window. Add a summarizer that compresses old turns.
-- **Sub-agents**: add a `spawn_agent` tool whose executor calls `loop.run()`
-  recursively. That's how Claude Code parallelizes work.
 - **Persistence**: every run starts fresh. Save `messages` to disk to resume.
-- **Concurrency**: tool calls run sequentially. Could `asyncio.gather` them.
+- **Parallel tool calls**: tool calls within one turn run sequentially. Could `asyncio.gather` them.
 - **Evals**: no test harness for measuring agent quality on a fixed task set.
+- **Real tokenizer**: compaction uses a char/4 estimate. Swap in `tiktoken` or the model's tokenizer for accuracy.
 
 These are the layers a production harness adds on top of the core loop.
 

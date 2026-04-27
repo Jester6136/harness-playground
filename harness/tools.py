@@ -222,3 +222,52 @@ register(Tool(
     },
     execute=_invoke_skill,
 ))
+
+
+# ---------------------------------------------------------------------------
+# Sub-agent — a tool whose executor runs another full agent loop in isolation.
+#
+# The sub-agent gets its OWN `messages` list (fresh system prompt, fresh user
+# task). Only its final string is returned to the parent. So the parent's
+# context grows by exactly one tool result, no matter how many iterations
+# the sub-agent runs internally.
+#
+# Use cases:
+#   - deep research that would otherwise generate dozens of intermediate
+#     tool calls in the main conversation
+#   - parallel exploration ("look at branch A while I look at branch B")
+#   - bounding the blast radius when running risky/experimental skills
+# ---------------------------------------------------------------------------
+
+def _spawn_agent(args: dict) -> str:
+    # Lazy imports break the circular dependency: loop.py imports tools.py
+    # at startup, and we don't want tools.py importing loop.py back at startup.
+    from .client import make_client
+    from .loop import run
+
+    return run(make_client(), args["task"])
+
+
+register(Tool(
+    name="spawn_agent",
+    description=(
+        "Spawn a sub-agent with its own isolated context to handle a sub-task. "
+        "The sub-agent's full conversation does NOT pollute the main context — "
+        "only its final answer comes back as one string. Use for: deep research, "
+        "parallel exploration, sub-tasks that would otherwise generate many "
+        "intermediate tool calls. The sub-agent has access to all the same "
+        "tools (including invoke_skill) but starts with NO memory of the "
+        "parent conversation, so the task description MUST be self-contained."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "task": {
+                "type": "string",
+                "description": "Self-contained task description for the sub-agent.",
+            },
+        },
+        "required": ["task"],
+    },
+    execute=_spawn_agent,
+))

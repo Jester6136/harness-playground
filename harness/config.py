@@ -9,6 +9,15 @@ VLLM_API_KEY = os.getenv("VLLM_API_KEY", "EMPTY")
 # Loop safety belt — refuses to run forever if the model keeps calling tools.
 MAX_ITERATIONS = 10
 
+# Sub-agent recursion limit (prevents accidental infinite spawning).
+MAX_AGENT_DEPTH = 3
+
+# Compaction — when estimated prompt tokens exceed the threshold, the loop
+# replaces the middle of the conversation with an LLM-generated summary.
+# KEEP_RECENT_TURNS messages at the tail are always preserved verbatim.
+COMPACT_THRESHOLD_TOKENS = 4000
+KEEP_RECENT_TURNS = 4
+
 # Sampling
 TEMPERATURE = 0.2
 

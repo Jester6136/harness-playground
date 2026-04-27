@@ -16,12 +16,39 @@ import json
 from openai import OpenAI
 
 from . import observability as obs
-from .config import MAX_ITERATIONS, SYSTEM_PROMPT, TEMPERATURE, VLLM_MODEL_NAME
+from .compaction import maybe_compact
+from .config import (
+    MAX_AGENT_DEPTH,
+    MAX_ITERATIONS,
+    SYSTEM_PROMPT,
+    TEMPERATURE,
+    VLLM_MODEL_NAME,
+)
 from .permissions import check as check_permission
 from .tools import REGISTRY, schemas
 
+# Module-level depth counter so a sub-agent (spawned by the spawn_agent tool)
+# can't recurse forever. Production code would use contextvars.ContextVar
+# instead, but for a single-threaded loop a global is clear and sufficient.
+_depth = 0
+
 
 def run(client: OpenAI, user_prompt: str) -> str:
+    global _depth
+    if _depth >= MAX_AGENT_DEPTH:
+        return f"ERROR: max sub-agent depth ({MAX_AGENT_DEPTH}) exceeded"
+    _depth += 1
+    label = "main agent" if _depth == 1 else f"sub-agent depth={_depth}"
+    obs.banner(f"▶ {label} starts: {user_prompt[:70]}")
+
+    try:
+        return _run_inner(client, user_prompt)
+    finally:
+        obs.banner(f"◀ {label} ends")
+        _depth -= 1
+
+
+def _run_inner(client: OpenAI, user_prompt: str) -> str:
     messages: list[dict] = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": user_prompt},
@@ -29,6 +56,8 @@ def run(client: OpenAI, user_prompt: str) -> str:
     tool_schemas = schemas()
 
     for iteration in range(1, MAX_ITERATIONS + 1):
+        # Compact BEFORE the LLM call — that's where token cost is paid.
+        messages = maybe_compact(messages, client)
         obs.turn(iteration)
 
         response = client.chat.completions.create(
