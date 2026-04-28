@@ -27,9 +27,11 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator
 
+from pathlib import Path
+
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from langgraph.types import Command
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
@@ -313,3 +315,9 @@ def _register_pipeline_endpoints() -> None:
 
 
 _register_pipeline_endpoints()
+
+
+@app.get("/ui", response_class=HTMLResponse, include_in_schema=False)
+async def ui():
+    p = Path(__file__).parent.parent / "static" / "index.html"
+    return HTMLResponse(p.read_text())
