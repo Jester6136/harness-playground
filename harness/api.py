@@ -188,7 +188,7 @@ async def chat_stream(
                 yield {"event": "done", "data": "{}"}
             else:
                 # "agent" — treat result as the prompt; fall through to agent stream.
-                prior = _agent.get_state(config)
+                prior = await _agent.aget_state(config)
                 seen = len(prior.values.get("messages", [])) if prior.values else 0
                 inputs = {"messages": [{"role": "user", "content": result}]}
                 async for event in _event_stream(_agent, inputs, config, seen):
@@ -196,7 +196,7 @@ async def chat_stream(
 
         return EventSourceResponse(generate_cmd())
 
-    prior = _agent.get_state(config)
+    prior = await _agent.aget_state(config)
     seen = len(prior.values.get("messages", [])) if prior.values else 0
 
     inputs = {"messages": [{"role": "user", "content": body.message}]}
@@ -214,7 +214,7 @@ async def resume(raw_thread_id: str, body: ResumeRequest):
     config = {"configurable": {"thread_id": raw_thread_id}}
 
     async def generate():
-        prior = _agent.get_state(config)
+        prior = await _agent.aget_state(config)
         seen = len(prior.values.get("messages", [])) if prior.values else 0
         async for event in _event_stream(_agent, Command(resume=body.resume), config, seen):
             yield event
@@ -237,7 +237,7 @@ async def get_messages(
     _get_user(x_user_id)
     tid = thread_id(user_id, session_id)
     config = {"configurable": {"thread_id": tid}}
-    state = _agent.get_state(config)
+    state = await _agent.aget_state(config)
     msgs = []
     for msg in (state.values.get("messages", []) if state.values else []):
         msgs.append({
