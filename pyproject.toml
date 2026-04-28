@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "harness-playground"
+version = "0.1.0"
+description = "Production-shaped agent harness on top of deepagents + LangGraph, talking to a local vLLM."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+authors = [{ name = "harness-playground" }]
+
+dependencies = [
+    # Agent core
+    "deepagents",
+    "langchain-openai",
+    "langgraph",
+
+    # Persistence
+    "langgraph-checkpoint-sqlite",
+    "langgraph-checkpoint-postgres",
+    "asyncpg",
+
+    # Dev server (langgraph dev)
+    "langgraph-cli[inmem]",
+
+    # API server (T1.4)
+    "fastapi",
+    "uvicorn[standard]",
+    "sse-starlette",
+    "python-multipart",
+
+    # Multimodal (T1.5)
+    "pdf2image",
+    "pillow",
+
+    # Eval / configs
+    "pyyaml",
+    "pydantic",
+
+    # Logging
+    "python-json-logger",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+    "ipython",
+]
+
+[project.scripts]
+harness = "main:main"
+
+[tool.setuptools.packages.find]
+include = ["harness*"]
+exclude = ["tests*", "evals*", "skills*", "docs*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]

@@ -1,69 +1,32 @@
 """Builds the deep agent — wires LLM + tools + skill-based subagents.
 
-The whole "harness" is now this one function plus a markdown loader.
+The whole "harness" is now this one function plus the skill loader.
 The agentic loop, sub-agents, state management, and compaction live inside
 deepagents/LangGraph.
 """
 from deepagents import create_deep_agent
 from langchain_openai import ChatOpenAI
 
-from .config import (
+from harness.config import (
     INSTRUCTIONS,
-    SKILLS_DIR,
     TEMPERATURE,
     VLLM_API_KEY,
     VLLM_BASE_URL,
     VLLM_MODEL_NAME,
 )
-from .tools import ALL_TOOLS
+from harness.skills import load_skills
+from harness.tools import ALL_TOOLS
 
 
-def _parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
-    """Tiny YAML-ish parser for `--- key: value ---` skill frontmatter.
-
-    Avoids pulling PyYAML in for this one tiny use case.
-    """
-    if not text.startswith("---\n"):
-        return {}, text
-    end = text.find("\n---\n", 4)
-    if end == -1:
-        return {}, text
-    meta: dict[str, str] = {}
-    for line in text[4:end].splitlines():
-        if ":" in line:
-            k, v = line.split(":", 1)
-            meta[k.strip()] = v.strip()
-    return meta, text[end + 5:]
-
-
-def _load_skills_as_subagents() -> list[dict]:
-    """Each skill .md becomes one deepagents subagent.
-
-    The mapping is direct:
-      frontmatter `name`        → subagent name (the model invokes it by this)
-      frontmatter `description` → subagent description (model uses to pick it)
-      body                      → subagent prompt (the playbook itself)
-    """
-    if not SKILLS_DIR.exists():
-        return []
-    out = []
-    for path in sorted(SKILLS_DIR.glob("*.md")):
-        meta, body = _parse_frontmatter(path.read_text())
-        out.append({
-            "name": meta.get("name", path.stem),
-            "description": meta.get("description", ""),
-            "system_prompt": body.strip(),
-            "tools": ALL_TOOLS,  # subagent gets the same toolbox as the main agent
-        })
-    return out
-
-
-def make_agent(checkpointer=None):
+def make_agent(checkpointer=None, store=None):
     """Returns a compiled LangGraph agent ready to invoke or stream.
 
     Pass a checkpointer (e.g. from harness.sessions.make_checkpointer()) to
     persist conversation state per thread_id. Without one the agent is
     stateless across runs.
+
+    Pass a store (e.g. from harness.store.get_store()) to enable long-term
+    memory tools (remember_about_user, recall_user_context).
     """
     llm = ChatOpenAI(
         base_url=VLLM_BASE_URL,
@@ -75,8 +38,9 @@ def make_agent(checkpointer=None):
         tools=ALL_TOOLS,
         system_prompt=INSTRUCTIONS,
         model=llm,
-        subagents=_load_skills_as_subagents(),
+        subagents=load_skills(),
         checkpointer=checkpointer,
+        store=store,
     )
 
 
