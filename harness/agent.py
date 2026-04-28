@@ -52,14 +52,19 @@ def _load_skills_as_subagents() -> list[dict]:
         out.append({
             "name": meta.get("name", path.stem),
             "description": meta.get("description", ""),
-            "prompt": body.strip(),
+            "system_prompt": body.strip(),
             "tools": ALL_TOOLS,  # subagent gets the same toolbox as the main agent
         })
     return out
 
 
-def make_agent():
-    """Returns a compiled LangGraph agent ready to invoke or stream."""
+def make_agent(checkpointer=None):
+    """Returns a compiled LangGraph agent ready to invoke or stream.
+
+    Pass a checkpointer (e.g. from harness.sessions.make_checkpointer()) to
+    persist conversation state per thread_id. Without one the agent is
+    stateless across runs.
+    """
     llm = ChatOpenAI(
         base_url=VLLM_BASE_URL,
         api_key=VLLM_API_KEY,
@@ -68,7 +73,8 @@ def make_agent():
     )
     return create_deep_agent(
         tools=ALL_TOOLS,
-        instructions=INSTRUCTIONS,
+        system_prompt=INSTRUCTIONS,
         model=llm,
         subagents=_load_skills_as_subagents(),
+        checkpointer=checkpointer,
     )

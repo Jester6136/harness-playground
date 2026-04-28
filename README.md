@@ -100,6 +100,48 @@ description: One-line summary the model uses to decide when to invoke this skill
 Restart `main.py`. The skill is now a subagent the main agent can invoke
 via the built-in `task` tool.
 
+## Multi-user / multi-session
+
+The agent remembers per-`(user, session)` conversations across runs. State
+lives in `sessions.db` (SQLite) via LangGraph's `SqliteSaver`.
+
+```bash
+# default user, default session
+python main.py "what's in this directory?"
+python main.py "and what does main.py do?"           # remembers the previous turn
+
+# named user + named session
+python main.py --user alice --session research "scan this project for secrets"
+python main.py --user alice --session research "summarize what you found"
+
+# alice has another session in parallel — completely isolated
+python main.py --user alice --session refactor "list files under harness/"
+
+# bob's sessions don't see alice's
+python main.py --user bob --session main "hi"
+
+# admin
+python main.py --list-users
+python main.py --list-sessions --user alice
+python main.py --delete-session --user alice --session research
+```
+
+How it works:
+
+- Every run computes `thread_id = "<user>:<session>"` and passes it via
+  `config={"configurable": {"thread_id": ...}}`.
+- LangGraph's checkpointer auto-loads/saves the full message history per
+  thread. The model sees the entire prior conversation every turn — no
+  extra plumbing.
+- `harness/sessions.py` adds a thin admin layer (list users, list sessions,
+  delete) by querying the SQLite tables directly.
+
+For production:
+- Swap `SqliteSaver` for `PostgresSaver` (one-liner change in `harness/sessions.py`).
+- Put real auth in front so users can't pass arbitrary `--user` ids.
+- Consider a separate metadata table for session titles / created-at /
+  last-active timestamps.
+
 ## What we gave up vs. the handwritten harness
 
 - **Visibility into the loop**: previously you could see compaction triggers,
