@@ -1,35 +1,24 @@
 """All tunable knobs in one place. Override with environment variables."""
 import os
+from pathlib import Path
 
 # vLLM serves an OpenAI-compatible API. Any string works as api_key.
 VLLM_BASE_URL = os.getenv("VLLM_BASE_URL", "http://192.168.120.11:2900/v1")
 VLLM_MODEL_NAME = os.getenv("VLLM_MODEL_NAME", "cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit")
 VLLM_API_KEY = os.getenv("VLLM_API_KEY", "EMPTY")
 
-# Loop safety belt — refuses to run forever if the model keeps calling tools.
-MAX_ITERATIONS = 10
-
-# Sub-agent recursion limit (prevents accidental infinite spawning).
-MAX_AGENT_DEPTH = 3
-
-# Compaction — when estimated prompt tokens exceed the threshold, the loop
-# replaces the middle of the conversation with an LLM-generated summary.
-# KEEP_RECENT_TURNS messages at the tail are always preserved verbatim.
-COMPACT_THRESHOLD_TOKENS = 4000
-KEEP_RECENT_TURNS = 4
-
-# Sampling
 TEMPERATURE = 0.2
 
-SYSTEM_PROMPT = """You are a helpful coding assistant with access to file and shell tools.
+# Skills directory — each .md file becomes a deepagents subagent at startup.
+SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
 
-You also have SKILLS — procedural playbooks for specific classes of tasks (e.g.
-summarizing a codebase, finding hardcoded secrets, adding a tool to this harness).
-The `invoke_skill` tool's description lists all available skills.
+INSTRUCTIONS = """You are a helpful coding assistant with access to file and shell tools.
 
-When the user's task matches one of the listed skills, FIRST call `invoke_skill`
-to load that skill's instructions, THEN follow them step by step using the regular
-tools (read_file, list_dir, run_bash, write_file).
+You also have specialized SUB-AGENTS built from skill playbooks. The `task`
+tool lists them. When the user's request matches a sub-agent's description,
+delegate to it via `task` — the sub-agent runs with its own isolated context
+and returns a concise result.
 
-When you have enough information to answer, stop calling tools and reply directly.
-Be concise."""
+Otherwise, use the regular file/shell tools (read_file, list_dir, write_file,
+run_bash) directly. Be concise. Stop calling tools once you have enough
+information to answer."""
