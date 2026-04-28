@@ -1,37 +1,38 @@
-"""Long-term memory store backed by Postgres (or in-memory for dev).
+"""Long-term memory store backed by Postgres (LangGraph Store API).
 
-Uses LangGraph's BaseStore API so the agent can remember facts about users
-across sessions. Namespace: ("users", user_id).
+Uses namespace ("users", user_id) to persist facts about users across sessions.
 
-USE_POSTGRES=true → AsyncPostgresStore (requires langgraph-checkpoint-postgres).
-USE_POSTGRES unset  → InMemoryStore (facts lost on restart — dev only).
+Requires: langgraph-checkpoint-postgres + psycopg[binary]
 """
 from __future__ import annotations
 
-from harness.config import POSTGRES_DSN, USE_POSTGRES
+from harness.config import POSTGRES_DSN
 
 _store = None
 
 
 async def get_store():
-    """Lazy-init and return the global store instance."""
+    """Lazy-init and return the global async Postgres store."""
     global _store
     if _store is not None:
         return _store
 
-    if USE_POSTGRES:
-        from langgraph.store.postgres.aio import AsyncPostgresStore
-        _store = AsyncPostgresStore.from_conn_string(POSTGRES_DSN)
-        await _store.setup()
-    else:
-        from langgraph.store.memory import InMemoryStore
-        _store = InMemoryStore()
+    from psycopg import AsyncConnection
+    from langgraph.store.postgres.aio import AsyncPostgresStore
 
+    conn = await AsyncConnection.connect(
+        POSTGRES_DSN, autocommit=True, prepare_threshold=0
+    )
+    _store = AsyncPostgresStore(conn)
+    await _store.setup()
     return _store
 
 
 async def close_store() -> None:
     global _store
-    if _store is not None and hasattr(_store, "close"):
-        await _store.close()
+    if _store is not None and hasattr(_store, "conn"):
+        try:
+            await _store.conn.close()
+        except Exception:
+            pass
     _store = None

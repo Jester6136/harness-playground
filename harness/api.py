@@ -158,11 +158,9 @@ class ResumeRequest(BaseModel):
 
 @app.get("/health")
 async def health():
-    from harness.config import USE_POSTGRES
+    from harness.db import healthcheck
     checks: dict[str, Any] = {"status": "ok"}
-    if USE_POSTGRES:
-        from harness.db import healthcheck
-        checks["postgres"] = "ok" if await healthcheck() else "error"
+    checks["postgres"] = "ok" if await healthcheck() else "error"
     return checks
 
 

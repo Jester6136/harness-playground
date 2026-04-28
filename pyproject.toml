@@ -18,9 +18,8 @@ dependencies = [
     "langgraph",
 
     # Persistence
-    "langgraph-checkpoint-sqlite",
     "langgraph-checkpoint-postgres",
-    "asyncpg",
+    "psycopg[binary]",
 
     # Dev server (langgraph dev)
     "langgraph-cli[inmem]",

@@ -10,12 +10,10 @@ VLLM_API_KEY = os.getenv("VLLM_API_KEY", "EMPTY")
 TEMPERATURE = 0.2
 
 # PostgreSQL DSN for checkpointer + store.
-# Set POSTGRES_DSN env var to enable; falls back to SQLite when unset.
 POSTGRES_DSN = os.getenv(
     "POSTGRES_DSN",
     "postgresql://harness:harness@localhost:5432/harness",
 )
-USE_POSTGRES = os.getenv("USE_POSTGRES", "false").lower() in ("1", "true", "yes")
 
 # Skills directory — each .md file becomes a deepagents subagent at startup.
 SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
