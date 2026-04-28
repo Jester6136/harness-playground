@@ -1,3 +1,4 @@
 deepagents
 langchain-openai
 langgraph-checkpoint-sqlite
+langgraph-cli[inmem]

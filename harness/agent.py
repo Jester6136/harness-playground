@@ -78,3 +78,13 @@ def make_agent(checkpointer=None):
         subagents=_load_skills_as_subagents(),
         checkpointer=checkpointer,
     )
+
+
+# ---------------------------------------------------------------------------
+# Module-level export consumed by `langgraph-cli` (`langgraph dev` / `up`).
+# The CLI injects its own checkpointer + thread management at the API layer,
+# so we don't pass our own here. For self-hosted production with persistent
+# storage, configure `store` / `checkpointer` in langgraph.json or deploy
+# to LangGraph Platform.
+# ---------------------------------------------------------------------------
+graph = make_agent()

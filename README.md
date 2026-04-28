@@ -142,6 +142,91 @@ For production:
 - Consider a separate metadata table for session titles / created-at /
   last-active timestamps.
 
+## Web UI with agent-chat-ui
+
+The CLI is fine for development. For a real product UX, run
+[`agent-chat-ui`](https://github.com/langchain-ai/agent-chat-ui) — Next.js
+frontend with a chat panel, threads sidebar (= sessions), tool-call rendering,
+and HITL approval prompts.
+
+### 1. Expose the agent over HTTP
+
+`langgraph.json` at the project root tells `langgraph-cli` which graph(s) to
+serve. Start the dev server:
+
+```bash
+pip install -r requirements.txt   # picks up langgraph-cli[inmem]
+langgraph dev
+```
+
+This serves the graph at `http://localhost:2024`. The CLI auto-creates an
+in-memory checkpointer + thread store, so multi-session works out of the box
+during the `dev` session (state is lost on restart — for persistent storage,
+see "Production" below).
+
+### 2. Run the frontend
+
+In a second terminal, in a separate directory:
+
+```bash
+git clone https://github.com/langchain-ai/agent-chat-ui
+cd agent-chat-ui
+pnpm install
+```
+
+Create `.env.local`:
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:2024
+NEXT_PUBLIC_ASSISTANT_ID=agent
+```
+
+(`agent` matches the graph name in `langgraph.json`.)
+
+```bash
+pnpm dev
+```
+
+Open `http://localhost:3000`. New chat → talk to the agent. Each chat in the
+sidebar is a LangGraph thread = one of your sessions.
+
+### Caveat: tool approval (HITL)
+
+The current `_ask()` in `harness/tools.py` blocks on `stdin` — it expects a
+human at the terminal. When running under `langgraph dev`, an approval prompt
+will pause the *server*, not the browser. For a proper web HITL flow, migrate
+`_ask()` to `langgraph.types.interrupt()`:
+
+```python
+from langgraph.types import interrupt
+
+def _ask(label: str) -> bool:
+    decision = interrupt({"type": "approval", "label": label})
+    return decision == "approve"
+```
+
+agent-chat-ui automatically renders an approve/deny dialog when a graph
+emits an interrupt, and resumes the run with the user's choice. The CLI then
+needs to handle resume too (see LangGraph docs on `Command(resume=...)`).
+
+For now, only read-only tools (`read_file`, `list_dir`) work cleanly through
+the web UI. `write_file` / `run_bash` will hang.
+
+### Production
+
+`langgraph dev` is dev-only. For prod:
+
+- **`langgraph up`** — Docker compose with Postgres + Redis. Self-hosted, full
+  persistence and threading. Free.
+- **LangGraph Platform** — managed service from LangChain. Click-to-deploy,
+  built-in auth, observability. Paid.
+- **Custom FastAPI** — wrap `make_agent()` yourself, expose `/threads` and
+  `/runs` endpoints matching the LangGraph SDK protocol. Most work, most
+  control.
+
+In all three, point `agent-chat-ui`'s `NEXT_PUBLIC_API_URL` at the deployed
+URL and ship.
+
 ## What we gave up vs. the handwritten harness
 
 - **Visibility into the loop**: previously you could see compaction triggers,
