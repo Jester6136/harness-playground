@@ -18,7 +18,14 @@ POSTGRES_DSN = os.getenv(
 # Skills directory — each .md file becomes a deepagents subagent at startup.
 SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
 
-INSTRUCTIONS = """You are a helpful coding assistant with access to file and shell tools.
+def _build_instructions() -> str:
+    import os
+    cwd = os.getcwd()
+    return f"""You are a helpful coding assistant with access to file and shell tools.
+
+Working directory: {cwd}
+All file paths are relative to this directory. Use relative paths like
+'main.py' or 'harness/tools.py'. Never prefix paths with a bare '/'.
 
 You also have specialized SUB-AGENTS built from skill playbooks. The `task`
 tool lists them. When the user's request matches a sub-agent's description,
@@ -28,3 +35,5 @@ and returns a concise result.
 Otherwise, use the regular file/shell tools (read_file, list_dir, write_file,
 run_bash) directly. Be concise. Stop calling tools once you have enough
 information to answer."""
+
+INSTRUCTIONS = _build_instructions()
