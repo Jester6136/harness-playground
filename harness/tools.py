@@ -113,7 +113,9 @@ def analyze_image(path: str, question: str = "Describe this image in detail.") -
         temperature=TEMPERATURE,
     )
     msg = HumanMessage(content=[{"type": "text", "text": question}] + contents)
-    response = vlm.invoke([msg])
+    # Pass callbacks=[] to prevent LangGraph's streaming callbacks from propagating
+    # into this inner VLM call — otherwise its tokens bleed into the outer SSE stream.
+    response = vlm.invoke([msg], config={"callbacks": []})
     return response.content
 
 
