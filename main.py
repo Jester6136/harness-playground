@@ -15,7 +15,7 @@ from langgraph.types import Command
 
 from harness.logging_config import setup_logging
 from harness.agent import make_agent
-from harness.sessions import (
+from harness.persistence.checkpoints import (
     delete_session,
     list_sessions,
     list_users,

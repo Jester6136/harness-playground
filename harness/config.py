@@ -1,25 +1,62 @@
-"""All tunable knobs in one place. Override with environment variables."""
+"""Centralized typed settings — one source for every tunable knob.
+
+Override any field via environment variable (case-insensitive) or `.env`:
+
+    VLLM_BASE_URL=http://...   POSTGRES_DSN=postgres://...   LOG_LEVEL=DEBUG
+
+`settings` is the canonical accessor. The UPPER_CASE module-level constants
+exposed below are kept as backward-compat aliases so existing imports
+(`from harness.config import POSTGRES_DSN`) keep working.
+"""
+from __future__ import annotations
+
 import os
 from pathlib import Path
 
-# vLLM serves an OpenAI-compatible API. Any string works as api_key.
-VLLM_BASE_URL = os.getenv("VLLM_BASE_URL", "http://192.168.120.11:2900/v1")
-VLLM_MODEL_NAME = os.getenv("VLLM_MODEL_NAME", "cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit")
-VLLM_API_KEY = os.getenv("VLLM_API_KEY", "EMPTY")
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-TEMPERATURE = 0.2
 
-# PostgreSQL DSN for checkpointer + store.
-POSTGRES_DSN = os.getenv(
-    "POSTGRES_DSN",
-    "postgresql://harness:harness@localhost:5432/harness",
-)
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
-# Skills directory — each .md file becomes a deepagents subagent at startup.
+    # vLLM (OpenAI-compatible API endpoint)
+    vllm_base_url: str = "http://192.168.120.11:2900/v1"
+    vllm_model_name: str = "cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit"
+    vllm_api_key: str = "EMPTY"
+    temperature: float = 0.2
+
+    # Postgres (checkpointer + long-term store)
+    postgres_dsn: str = "postgresql://harness:harness@localhost:5432/harness"
+
+    # Logging
+    log_level: str = "INFO"
+    log_file: str = "logs/harness.json"
+
+
+settings = Settings()
+
+# Back-compat aliases — UPPER_CASE module-level constants kept so legacy
+# imports continue to work without modification.
+VLLM_BASE_URL = settings.vllm_base_url
+VLLM_MODEL_NAME = settings.vllm_model_name
+VLLM_API_KEY = settings.vllm_api_key
+TEMPERATURE = settings.temperature
+POSTGRES_DSN = settings.postgres_dsn
+
+# Skills directory — each SKILL.md (or top-level .md) becomes a deepagents
+# subagent at startup.
 SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
 
-def _build_instructions() -> str:
-    import os
+
+def get_instructions() -> str:
+    """Build the system prompt. Called at agent-construction time, NOT at
+    import time, so the working directory is captured per-process correctly.
+    """
     cwd = os.getcwd()
     return f"""You are a helpful coding assistant with access to file and shell tools.
 
@@ -35,5 +72,3 @@ and returns a concise result.
 Otherwise, use the regular file/shell tools (read_file, list_dir, write_file,
 run_bash) directly. Be concise. Stop calling tools once you have enough
 information to answer."""
-
-INSTRUCTIONS = _build_instructions()

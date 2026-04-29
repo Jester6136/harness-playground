@@ -25,7 +25,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Type
 
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
+
+from harness.config import TEMPERATURE, VLLM_API_KEY, VLLM_BASE_URL, VLLM_MODEL_NAME
 
 
 @dataclass
@@ -61,11 +65,6 @@ def register_pipeline(
 
 def make_pipeline(pipeline: Pipeline):
     """Build a LangChain chain for the pipeline using structured output."""
-    from langchain_core.prompts import ChatPromptTemplate
-    from langchain_openai import ChatOpenAI
-
-    from harness.config import TEMPERATURE, VLLM_API_KEY, VLLM_BASE_URL, VLLM_MODEL_NAME
-
     llm = ChatOpenAI(
         base_url=VLLM_BASE_URL,
         api_key=VLLM_API_KEY,

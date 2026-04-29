@@ -16,13 +16,14 @@ from __future__ import annotations
 
 import functools
 import logging
-import os
 import time
 from pathlib import Path
 from typing import Any, Callable
 
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
-LOG_FILE = os.getenv("LOG_FILE", "logs/harness.json")
+from harness.config import settings
+
+LOG_LEVEL = settings.log_level.upper()
+LOG_FILE = settings.log_file
 
 
 def setup_logging() -> None:

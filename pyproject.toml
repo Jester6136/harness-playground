@@ -37,6 +37,7 @@ dependencies = [
     # Eval / configs
     "pyyaml",
     "pydantic",
+    "pydantic-settings",
 
     # Logging
     "python-json-logger",

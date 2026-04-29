@@ -8,24 +8,24 @@ from deepagents import create_deep_agent
 from langchain_openai import ChatOpenAI
 
 from harness.config import (
-    INSTRUCTIONS,
     TEMPERATURE,
     VLLM_API_KEY,
     VLLM_BASE_URL,
     VLLM_MODEL_NAME,
+    get_instructions,
 )
-from harness.skills import load_skills
+from harness.extensions.skills import load_skills
 from harness.tools import ALL_TOOLS
 
 
 def make_agent(checkpointer=None, store=None):
     """Returns a compiled LangGraph agent ready to invoke or stream.
 
-    Pass a checkpointer (e.g. from harness.sessions.make_checkpointer()) to
-    persist conversation state per thread_id. Without one the agent is
+    Pass a checkpointer (e.g. from harness.persistence.checkpoints.make_checkpointer())
+    to persist conversation state per thread_id. Without one the agent is
     stateless across runs.
 
-    Pass a store (e.g. from harness.store.get_store()) to enable long-term
+    Pass a store (e.g. from harness.persistence.store.get_store()) to enable long-term
     memory tools (remember_about_user, recall_user_context).
     """
     llm = ChatOpenAI(
@@ -36,7 +36,7 @@ def make_agent(checkpointer=None, store=None):
     )
     return create_deep_agent(
         tools=ALL_TOOLS,
-        system_prompt=INSTRUCTIONS,
+        system_prompt=get_instructions(),
         model=llm,
         subagents=load_skills(),
         checkpointer=checkpointer,

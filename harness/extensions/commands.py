@@ -22,10 +22,11 @@ GET /commands returns the metadata for frontend autocomplete.
 """
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
-from typing import Any, Callable, Coroutine
+from typing import Any, Callable
 
-from harness.skills import load_skills
+from harness.extensions.skills import load_skills
 
 
 @dataclass
@@ -87,7 +88,6 @@ async def dispatch(cmd: str, args: str) -> tuple[str, str]:
         return "direct", f"Unknown command: /{cmd}. Type /help for available commands."
 
     if command.handler == "direct" and command.fn:
-        import asyncio
         if asyncio.iscoroutinefunction(command.fn):
             result = await command.fn(args)
         else:
@@ -96,7 +96,6 @@ async def dispatch(cmd: str, args: str) -> tuple[str, str]:
 
     if command.handler == "agent":
         if command.fn:
-            import asyncio
             if asyncio.iscoroutinefunction(command.fn):
                 prompt = await command.fn(args)
             else:

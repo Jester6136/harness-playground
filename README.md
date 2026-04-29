@@ -15,17 +15,35 @@ harness-playground/
 ├── static/
 │   └── index.html            ← Demo UI served at GET /ui
 ├── harness/
-│   ├── config.py             ← vLLM endpoint, model name, system prompt
-│   ├── tools.py              ← @tool functions (file, shell, image, memory)
+│   ├── config.py             ← pydantic Settings (vLLM, Postgres, logs) + system prompt
 │   ├── agent.py              ← make_agent() factory
-│   ├── api.py                ← FastAPI app — all HTTP endpoints
-│   ├── sessions.py           ← PostgreSQL checkpointer + session admin
-│   ├── store.py              ← PostgreSQL long-term memory store
-│   ├── db.py                 ← async connection pool (asyncpg)
-│   ├── commands.py           ← slash command dispatcher
-│   ├── pipelines.py          ← single-shot LLM with structured output
 │   ├── multimodal.py         ← image / PDF → message content
-│   └── logging_config.py     ← structured JSON logging
+│   ├── logging_config.py     ← structured JSON logging + @log_tool_call
+│   ├── eval.py               ← YAML eval runner (python -m harness.eval)
+│   ├── api/                  ← FastAPI app split by concern
+│   │   ├── __init__.py       ←   app + lifespan + router wiring
+│   │   ├── chat.py           ←   /chat/stream + resume
+│   │   ├── threads.py        ←   /threads/* (list, history, delete)
+│   │   ├── pipelines.py      ←   /pipelines + auto-mounted /api/{name}
+│   │   ├── misc.py           ←   /health, /commands, /upload, /ui
+│   │   ├── streaming.py      ←   SSE event_stream() helper
+│   │   └── deps.py           ←   shared FastAPI deps (X-User-Id)
+│   ├── persistence/          ← Postgres-backed state
+│   │   ├── checkpoints.py    ←   PostgresSaver + session admin
+│   │   ├── store.py          ←   long-term memory (LangGraph Store)
+│   │   └── db.py             ←   healthcheck
+│   ├── tools/                ← @tool functions, one module per domain
+│   │   ├── files.py          ←   read_file, list_dir, write_file
+│   │   ├── shell.py          ←   run_bash + denylist
+│   │   ├── vision.py         ←   analyze_image (VLM)
+│   │   └── memory.py         ←   remember/recall_user_context
+│   ├── extensions/           ← agent plug-in mechanisms
+│   │   ├── commands.py       ←   slash command dispatcher
+│   │   ├── pipelines.py      ←   pipeline registry + run_pipeline
+│   │   └── skills.py         ←   skill loader (folder-based SKILL.md)
+│   └── utils/                ← cross-cutting helpers (no I/O, no state)
+│       ├── async_utils.py    ←   run_async() bridge
+│       └── paths.py          ←   resolve_relative_path()
 ├── skills/
 │   ├── summarize_codebase/SKILL.md
 │   ├── find_secrets/SKILL.md
@@ -130,7 +148,7 @@ Single-page HTML served from `static/index.html` — no build step needed.
 
 ## Tools
 
-Defined in `harness/tools.py` with `@tool`. All tools are in `ALL_TOOLS`.
+Defined under `harness/tools/` (one module per domain) with `@tool`. All tools are exported as `ALL_TOOLS` from the package.
 
 | Tool | Description |
 |---|---|
@@ -145,13 +163,13 @@ Defined in `harness/tools.py` with `@tool`. All tools are in `ALL_TOOLS`.
 ### Adding a tool
 
 ```python
-# harness/tools.py
+# harness/tools/files.py (or a new module)
 @tool
 def count_words(path: str) -> str:
     """Count words in a text file."""
     return f"{len(Path(path).read_text().split())} words"
 
-ALL_TOOLS.append(count_words)
+# Then export it from harness/tools/__init__.py and add to ALL_TOOLS.
 ```
 
 The docstring becomes the model-facing description; type hints become the JSON schema.
@@ -185,7 +203,7 @@ Drop the folder in `skills/` and restart — the skill appears automatically.
 
 ## Pipelines (structured output)
 
-Register in `harness/pipelines.py`:
+Register in `harness/extensions/pipelines.py`:
 
 ```python
 @register_pipeline
@@ -207,7 +225,7 @@ Handled before reaching the agent — zero LLM cost.
 | `/clear` | Info on clearing a session |
 | `/list-skills` | Show loaded skill sub-agents |
 
-Add commands in `harness/commands.py` via `@register_command`.
+Add commands in `harness/extensions/commands.py` via `@register_command`.
 
 ## HITL (Human-in-the-loop)
 
