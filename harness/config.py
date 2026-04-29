@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     vllm_api_key: str = "EMPTY"
     temperature: float = 0.2
 
+    # Reasoning ("thinking") — only some served models support this. When True,
+    # we pass `chat_template_kwargs.enable_thinking=True` via OpenAI extra_body.
+    # Reasoning tokens stream as `event: thinking` (separate from `event: token`).
+    enable_thinking: bool = False
+
     # Postgres (checkpointer + long-term store)
     postgres_dsn: str = "postgresql://harness:harness@localhost:5432/harness"
 

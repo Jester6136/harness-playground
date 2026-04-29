@@ -201,12 +201,29 @@ Content-Type: application/json
 | Event | When | Data shape |
 |---|---|---|
 | `token` | Partial AI response token (streaming) | `{"content": "..."}` |
+| `thinking` | Reasoning token (only when `ENABLE_THINKING=true` and the model supports it) | `{"content": "..."}` |
 | `tool_call` | Agent is about to call a tool | `{"tool": "list_dir", "args": {...}}` |
 | `tool_result` | Tool call completed | `{"tool": "list_dir", "content": "..."}` |
 | `interrupt` | Agent needs human approval | `{"type": "approval", "tool": "...", "args": {...}}` |
 | `done` | Stream finished | `{}` |
 | `error` | Unhandled exception | `{"message": "..."}` |
 | `message` | Legacy — direct slash-command response (no agent loop) | `{"type": "ai", "content": "..."}` |
+
+#### Thinking / reasoning
+
+When `ENABLE_THINKING=true` and the served model supports
+`chat_template_kwargs.enable_thinking` (e.g. Gemma reasoning checkpoints),
+the model streams its chain-of-thought as `thinking` events *before*
+the final answer's `token` events. Render them as a separate (collapsible)
+block — the regular response still arrives as ordinary `token` events.
+
+```
+event: thinking  data: {"content": "Let me work this out step by step. "}
+event: thinking  data: {"content": "Day 1: climbs to 3, slides to 1..."}
+event: token     data: {"content": "It will take "}
+event: token     data: {"content": "18 days."}
+event: done      data: {}
+```
 
 ### Streaming flow
 

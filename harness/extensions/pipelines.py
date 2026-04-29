@@ -26,10 +26,9 @@ from dataclasses import dataclass
 from typing import Any, Type
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
-from harness.config import TEMPERATURE, VLLM_API_KEY, VLLM_BASE_URL, VLLM_MODEL_NAME
+from harness.llm import make_llm
 
 
 @dataclass
@@ -64,13 +63,13 @@ def register_pipeline(
 
 
 def make_pipeline(pipeline: Pipeline):
-    """Build a LangChain chain for the pipeline using structured output."""
-    llm = ChatOpenAI(
-        base_url=VLLM_BASE_URL,
-        api_key=VLLM_API_KEY,
-        model=VLLM_MODEL_NAME,
-        temperature=TEMPERATURE,
-    )
+    """Build a LangChain chain for the pipeline using structured output.
+
+    Pipelines force `enable_thinking=False` regardless of global setting:
+    structured output already constrains the model and reasoning tokens
+    would just inflate latency without helping.
+    """
+    llm = make_llm(enable_thinking=False)
     prompt = ChatPromptTemplate.from_messages([
         ("system", pipeline.system_prompt),
         ("human", "{input}"),

@@ -27,6 +27,14 @@ async def event_stream(
             if mode == "messages":
                 msg, _meta = data
                 if getattr(msg, "type", "") == "AIMessageChunk":
+                    # Reasoning content (when enable_thinking is on) lives in
+                    # additional_kwargs.reasoning_content; surface it on a
+                    # dedicated event so the UI can render it as a separate block.
+                    extra = getattr(msg, "additional_kwargs", None) or {}
+                    reasoning = extra.get("reasoning_content") or extra.get("reasoning")
+                    if reasoning:
+                        yield {"event": "thinking", "data": json.dumps({"content": reasoning})}
+
                     content = getattr(msg, "content", "") or ""
                     if content:
                         yield {"event": "token", "data": json.dumps({"content": content})}

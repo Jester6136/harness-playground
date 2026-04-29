@@ -5,20 +5,14 @@ The agentic loop, sub-agents, state management, and compaction live inside
 deepagents/LangGraph.
 """
 from deepagents import create_deep_agent
-from langchain_openai import ChatOpenAI
 
-from harness.config import (
-    TEMPERATURE,
-    VLLM_API_KEY,
-    VLLM_BASE_URL,
-    VLLM_MODEL_NAME,
-    get_instructions,
-)
+from harness.config import get_instructions
 from harness.extensions.skills import load_skills
+from harness.llm import make_llm
 from harness.tools import ALL_TOOLS
 
 
-def make_agent(checkpointer=None, store=None):
+def make_agent(checkpointer=None, store=None, enable_thinking: bool | None = None):
     """Returns a compiled LangGraph agent ready to invoke or stream.
 
     Pass a checkpointer (e.g. from harness.persistence.checkpoints.make_checkpointer())
@@ -27,17 +21,13 @@ def make_agent(checkpointer=None, store=None):
 
     Pass a store (e.g. from harness.persistence.store.get_store()) to enable long-term
     memory tools (remember_about_user, recall_user_context).
+
+    `enable_thinking` controls model reasoning. None → use settings default.
     """
-    llm = ChatOpenAI(
-        base_url=VLLM_BASE_URL,
-        api_key=VLLM_API_KEY,
-        model=VLLM_MODEL_NAME,
-        temperature=TEMPERATURE,
-    )
     return create_deep_agent(
         tools=ALL_TOOLS,
         system_prompt=get_instructions(),
-        model=llm,
+        model=make_llm(enable_thinking=enable_thinking),
         subagents=load_skills(),
         checkpointer=checkpointer,
         store=store,
