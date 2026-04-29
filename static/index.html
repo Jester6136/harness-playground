@@ -172,6 +172,23 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 .md ul, .md ol { padding-left: 1.4em; margin: 3px 0; }
 .md strong { color: var(--text); }
 
+/* ─── Streaming cursor ───────────────────────────────────────────── */
+@keyframes cursor-blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+.stream-cursor::after { content:'▋'; display:inline-block; animation:cursor-blink .8s step-end infinite; font-size:.85em; margin-left:2px; }
+
+/* ─── File attachment ────────────────────────────────────────────── */
+.attach-btn { height:44px; width:36px; padding:0; display:flex; align-items:center; justify-content:center;
+              font-size:16px; background:transparent; border:1px solid var(--border); color:var(--muted);
+              flex-shrink:0; border-radius:var(--r); cursor:pointer; transition:background .15s; }
+.attach-btn:hover { background:var(--bg3); color:var(--text); }
+.attach-pill { display:none; align-items:center; gap:6px; background:rgba(59,130,246,.1);
+               border:1px solid var(--primary); border-radius:20px; padding:4px 10px;
+               font-size:12px; color:var(--primary); margin-bottom:6px; }
+.attach-pill.show { display:flex; }
+.attach-pill-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.attach-remove { background:none; border:none; color:var(--muted); cursor:pointer; font-size:12px; padding:0 2px; }
+.attach-remove:hover { color:var(--error); }
+
 /* ─── Scrollbar ──────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -250,7 +267,14 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
       </div>
       <div class="input-area">
         <div class="autocomplete" id="ac"></div>
+        <div class="attach-pill" id="attachPill">
+          <span>📎</span>
+          <span class="attach-pill-name" id="attachName"></span>
+          <button class="attach-remove" onclick="removeAttachment()" title="Remove">✕</button>
+        </div>
         <div class="row" style="align-items:flex-end;gap:8px;">
+          <input type="file" id="fileInput" accept="image/*,.pdf" style="display:none" onchange="handleFileSelect(event)">
+          <button class="attach-btn" onclick="document.getElementById('fileInput').click()" title="Attach image or PDF">📎</button>
           <textarea class="chat-input" id="chatInput"
             placeholder="Type a message or /command…" rows="1"
             onkeydown="handleKey(event)" oninput="handleInput(event)"></textarea>
@@ -279,6 +303,9 @@ const S = {
   streaming: false,
   intrTid: null,
   acIdx: -1,
+  streamBubble: null,   // current streaming AI message element
+  streamContent: '',    // raw accumulated text being streamed
+  attachedFile: null,   // {path, name} or null
 };
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -410,9 +437,20 @@ function addHistoryMsg(type, content, name) {
 async function sendMessage() {
   const inp = document.getElementById('chatInput');
   const msg = inp.value.trim();
-  if (!msg || S.streaming) return;
+  if (!msg && !S.attachedFile) return;
+  if (S.streaming) return;
   hideAC();
-  addHistoryMsg('human', msg);
+
+  // Build display text and API payload separately
+  let displayMsg = msg;
+  let apiMsg = msg;
+  if (S.attachedFile) {
+    displayMsg = `📎 ${S.attachedFile.name}${msg ? '\n\n' + msg : ''}`;
+    apiMsg = `[Attached file at: ${S.attachedFile.path} — please call analyze_image to view it]${msg ? '\n\n' + msg : ''}`;
+    removeAttachment();
+  }
+
+  addHistoryMsg('human', displayMsg);
   inp.value = ''; inp.style.height = 'auto';
   showTyping();
   setDisabled(true);
@@ -420,7 +458,7 @@ async function sendMessage() {
     const resp = await fetch(`${S.base}/chat/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...xuid() },
-      body: JSON.stringify({ session_id: S.session, message: msg }),
+      body: JSON.stringify({ session_id: S.session, message: apiMsg }),
     });
     if (!resp.ok) { const t = await resp.text(); throw new Error(`HTTP ${resp.status}: ${t}`); }
     await readSSE(resp, onEvent);
@@ -461,33 +499,67 @@ async function readSSE(resp, handler) {
   if (buf.trim()) parseChunks(buf + '\r\n\r\n');
 }
 
+function finalizeStream() {
+  if (!S.streamBubble) return;
+  const el = S.streamBubble.querySelector('.bubble');
+  if (el) { el.classList.remove('stream-cursor'); el.innerHTML = md(S.streamContent); }
+  S.streamBubble = null;
+  S.streamContent = '';
+}
+
 function onEvent(type, raw) {
-  removeTyping();
   const msgs = document.getElementById('messages');
   const payload = tryJSON(raw);
 
-  if (type === 'message') {
-    if (!payload) return;
-    if (payload.type === 'ai') {
-      if (payload.content?.trim()) {
-        const n = document.createElement('div');
-        n.className = 'msg msg-ai';
-        n.innerHTML = `<div class="msg-label">Assistant</div><div class="bubble md">${md(payload.content)}</div>`;
-        msgs.appendChild(n);
-      }
-      for (const tc of payload.tool_calls || []) {
-        const n = document.createElement('div');
-        n.className = 'tool-block';
-        n.innerHTML = `<div class="tb-header"><span class="badge badge-call">calling</span><span class="tool-name">${esc(tc.tool)}</span></div><div class="tool-content">${esc(JSON.stringify(tc.args, null, 2))}</div>`;
-        msgs.appendChild(n);
-      }
+  // Token streaming — accumulate into live bubble without removing typing indicator yet
+  if (type === 'token') {
+    const content = payload?.content || '';
+    if (!content) return;
+    removeTyping();
+    if (!S.streamBubble) {
+      const n = document.createElement('div');
+      n.className = 'msg msg-ai';
+      n.innerHTML = '<div class="msg-label">Assistant</div><div class="bubble md stream-cursor"></div>';
+      msgs.appendChild(n);
+      S.streamBubble = n;
+      S.streamContent = '';
     }
+    S.streamContent += content;
+    S.streamBubble.querySelector('.bubble').textContent = S.streamContent;
+    scrollBot();
+    return;
+  }
+
+  removeTyping();
+  finalizeStream(); // close any open streaming bubble before rendering other events
+
+  if (type === 'tool_call') {
+    if (!payload) return;
+    const n = document.createElement('div');
+    n.className = 'tool-block';
+    n.innerHTML = `<div class="tb-header"><span class="badge badge-call">calling</span><span class="tool-name">${esc(payload.tool)}</span></div><div class="tool-content">${esc(JSON.stringify(payload.args, null, 2))}</div>`;
+    msgs.appendChild(n);
   } else if (type === 'tool_result') {
     if (!payload) return;
     const n = document.createElement('div');
     n.className = 'tool-block result-block';
     n.innerHTML = `<div class="tb-header"><span class="badge badge-result">result</span><span class="tool-name">${esc(payload.tool||'tool')}</span></div><div class="tool-content">${esc(truncate(payload.content||'', 600))}</div>`;
     msgs.appendChild(n);
+  } else if (type === 'message') {
+    // Legacy fallback — emitted by old backend or slash-command direct handler
+    if (!payload) return;
+    if (payload.type === 'ai' && payload.content?.trim()) {
+      const n = document.createElement('div');
+      n.className = 'msg msg-ai';
+      n.innerHTML = `<div class="msg-label">Assistant</div><div class="bubble md">${md(payload.content)}</div>`;
+      msgs.appendChild(n);
+    }
+    for (const tc of payload.tool_calls || []) {
+      const n = document.createElement('div');
+      n.className = 'tool-block';
+      n.innerHTML = `<div class="tb-header"><span class="badge badge-call">calling</span><span class="tool-name">${esc(tc.tool)}</span></div><div class="tool-content">${esc(JSON.stringify(tc.args, null, 2))}</div>`;
+      msgs.appendChild(n);
+    }
   } else if (type === 'interrupt') {
     const detail = payload ?? { raw };
     const tid = `${S.user}:${S.session}`;
@@ -664,6 +736,28 @@ function switchTab(t) {
   document.getElementById('pipePanel').className = 'pipe-panel' + (t === 'pipe' ? ' show' : '');
   document.getElementById('tabChat').className = 'tab' + (t === 'chat' ? ' active' : '');
   document.getElementById('tabPipe').className = 'tab' + (t === 'pipe' ? ' active' : '');
+}
+
+// ─── File upload ──────────────────────────────────────────────────────────────
+async function handleFileSelect(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const r = await fetch(`${S.base}/upload`, { method: 'POST', headers: xuid(), body: form });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    S.attachedFile = { path: d.path, name: d.name || file.name };
+    document.getElementById('attachName').textContent = S.attachedFile.name;
+    document.getElementById('attachPill').classList.add('show');
+  } catch(err) { alert('Upload failed: ' + err.message); }
+  e.target.value = '';
+}
+
+function removeAttachment() {
+  S.attachedFile = null;
+  document.getElementById('attachPill').classList.remove('show');
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

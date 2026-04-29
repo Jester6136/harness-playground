@@ -24,12 +24,13 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import uuid
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator
 
 from pathlib import Path
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from langgraph.types import Command
@@ -91,54 +92,54 @@ async def _event_stream(
     config: dict,
     seen: int,
 ) -> AsyncGenerator[dict, None]:
-    """Yield SSE dicts from the agent stream, handling interrupt/resume."""
+    """Yield SSE dicts using dual stream_mode=['messages','values'].
+
+    'messages' mode gives AIMessageChunks for token-by-token streaming.
+    'values' mode gives full state snapshots for tool_call/tool_result/interrupt detection.
+    """
     current_input = inputs
     while True:
         interrupt_payloads: list[Any] = []
-        async for chunk in agent.astream(current_input, config=config, stream_mode="values"):
-            if "__interrupt__" in chunk:
-                interrupt_payloads = chunk["__interrupt__"]
-                break
-            msgs = chunk.get("messages", [])
-            for msg in msgs[seen:]:
-                yield _msg_to_event(msg)
-            seen = len(msgs)
+        async for mode, data in agent.astream(
+            current_input, config=config, stream_mode=["messages", "values"]
+        ):
+            if mode == "messages":
+                msg, _meta = data
+                if getattr(msg, "type", "") == "AIMessageChunk":
+                    content = getattr(msg, "content", "") or ""
+                    if content:
+                        yield {"event": "token", "data": json.dumps({"content": content})}
+
+            elif mode == "values":
+                if "__interrupt__" in data:
+                    interrupt_payloads = data["__interrupt__"]
+                    break
+                msgs = data.get("messages", [])
+                for msg in msgs[seen:]:
+                    t = getattr(msg, "type", "")
+                    if t == "ai":
+                        for tc in (getattr(msg, "tool_calls", []) or []):
+                            yield {"event": "tool_call", "data": json.dumps({"tool": tc["name"], "args": tc["args"]})}
+                    elif t == "tool":
+                        yield {
+                            "event": "tool_result",
+                            "data": json.dumps({
+                                "tool": getattr(msg, "name", "?"),
+                                "content": getattr(msg, "content", "") or "",
+                            }),
+                        }
+                seen = len(msgs)
 
         if not interrupt_payloads:
             break
 
-        # Emit interrupt events so the frontend can render approval dialogs.
         for intr in interrupt_payloads:
             val = intr.value if hasattr(intr, "value") else intr
             yield {"event": "interrupt", "data": json.dumps(val)}
 
-        # After emitting, stop — client must POST /runs/resume to continue.
         return
 
     yield {"event": "done", "data": "{}"}
-
-
-def _msg_to_event(msg) -> dict:
-    t = getattr(msg, "type", "")
-    content = getattr(msg, "content", "") or ""
-
-    if t == "ai":
-        tool_calls = [
-            {"tool": tc["name"], "args": tc["args"]}
-            for tc in (getattr(msg, "tool_calls", []) or [])
-        ]
-        payload: dict = {"type": "ai", "content": content}
-        if tool_calls:
-            payload["tool_calls"] = tool_calls
-        return {"event": "message", "data": json.dumps(payload)}
-
-    if t == "tool":
-        return {
-            "event": "tool_result",
-            "data": json.dumps({"tool": getattr(msg, "name", "?"), "content": content}),
-        }
-
-    return {"event": "message", "data": json.dumps({"type": t, "content": content})}
 
 
 # ---------------------------------------------------------------------------
@@ -315,6 +316,22 @@ def _register_pipeline_endpoints() -> None:
 
 
 _register_pipeline_endpoints()
+
+
+@app.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    x_user_id: str | None = Header(default=None),
+):
+    """Accept a file upload, persist it under ./uploads/, return its path."""
+    _get_user(x_user_id)
+    uploads_dir = Path(__file__).parent.parent / "uploads"
+    uploads_dir.mkdir(exist_ok=True)
+    ext = Path(file.filename or "upload").suffix or ".bin"
+    fname = f"{uuid.uuid4().hex}{ext}"
+    dest = uploads_dir / fname
+    dest.write_bytes(await file.read())
+    return {"path": str(dest.resolve()), "name": file.filename}
 
 
 @app.get("/ui", response_class=HTMLResponse, include_in_schema=False)
