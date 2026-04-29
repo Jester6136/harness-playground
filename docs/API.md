@@ -45,8 +45,11 @@ Send a message and receive the agent's response as an SSE stream.
 Each line is an SSE event:
 
 ```
-event: message
-data: {"type": "ai", "content": "Here is the summary..."}
+event: token
+data: {"content": "Here "}
+
+event: token
+data: {"content": "is the summary..."}
 
 event: tool_call
 data: {"tool": "list_dir", "args": {"path": "."}}
@@ -197,11 +200,30 @@ Content-Type: application/json
 
 | Event | When | Data shape |
 |---|---|---|
-| `message` | AI response text or tool calls | `{"type": "ai", "content": "...", "tool_calls"?: [...]}` |
-| `tool_result` | Tool call completed | `{"tool": "...", "content": "..."}` |
+| `token` | Partial AI response token (streaming) | `{"content": "..."}` |
+| `tool_call` | Agent is about to call a tool | `{"tool": "list_dir", "args": {...}}` |
+| `tool_result` | Tool call completed | `{"tool": "list_dir", "content": "..."}` |
 | `interrupt` | Agent needs human approval | `{"type": "approval", "tool": "...", "args": {...}}` |
 | `done` | Stream finished | `{}` |
 | `error` | Unhandled exception | `{"message": "..."}` |
+| `message` | Legacy — direct slash-command response (no agent loop) | `{"type": "ai", "content": "..."}` |
+
+### Streaming flow
+
+`token` events arrive first, building up the AI response word by word.
+When the agent invokes a tool, the partial stream is finalized, then `tool_call` + `tool_result` follow.
+The final AI synthesis streams as `token` events again before `done`.
+
+```
+event: token       data: {"content": "Here "}
+event: token       data: {"content": "is "}
+event: token       data: {"content": "what I found:\n"}
+event: tool_call   data: {"tool": "list_dir", "args": {"path": "."}}
+event: tool_result data: {"tool": "list_dir", "content": "d harness\n..."}
+event: token       data: {"content": "The project has "}
+event: token       data: {"content": "three directories."}
+event: done        data: {}
+```
 
 ---
 
@@ -217,8 +239,34 @@ Standard HTTP errors for non-stream endpoints:
 
 ---
 
+---
+
+### `POST /upload`
+
+Upload a file (image or PDF) to the server. Returns the absolute path that can be passed to `analyze_image`.
+
+**Request:** `multipart/form-data`, field `file`.
+
+**Headers:** `X-User-Id: alice`
+
+**Response:**
+```json
+{"path": "/abs/path/to/uploads/abc123.jpg", "name": "photo.jpg"}
+```
+
+Files are saved under `./uploads/` with a UUID filename. The demo UI automatically embeds the path in the chat message so the agent calls `analyze_image`.
+
+Supported formats: JPEG, PNG, GIF, WebP, PDF.
+
+---
+
+### `GET /ui`
+
+Returns the single-page demo UI (`static/index.html`). Open in a browser — no build step or separate server needed.
+
+---
+
 ## Open integration TODOs
 
 - **JWT verification**: currently assumes `X-User-Id` is pre-verified at the gateway. To verify inside harness, add a FastAPI dependency that decodes the JWT and extracts `sub` → `user_id`.
-- **File uploads**: multipart upload for `/chat/stream` (`attachments` field) — files are saved to `./uploads/` and passed to `analyze_image`. Not yet implemented.
 - **Rate limiting**: handle at the gateway level, not in harness.
