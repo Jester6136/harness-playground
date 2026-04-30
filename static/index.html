@@ -182,26 +182,6 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 .md hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
 .md a { color: var(--primary); text-decoration: none; } .md a:hover { text-decoration: underline; }
 
-/* ─── Thinking block ─────────────────────────────────────────────── */
-@keyframes think-pulse { 0%,100% { opacity:.35; } 50% { opacity:1; } }
-.think-dot { display:inline-block; width:5px; height:5px; border-radius:50%;
-             background:var(--purple); margin:0 2px;
-             animation:think-pulse 1.4s ease-in-out infinite; }
-.think-dot:nth-child(2) { animation-delay:.22s; }
-.think-dot:nth-child(3) { animation-delay:.44s; }
-.think-block { background:rgba(139,92,246,.07); border:1px solid rgba(139,92,246,.25);
-               border-radius:var(--r); padding:9px 12px; max-width:90%;
-               align-self:flex-start; animation:fadeIn .2s ease; }
-.think-header { display:flex; align-items:center; gap:7px; cursor:pointer; user-select:none; }
-.think-label { font-size:12px; color:var(--purple); font-weight:600; }
-.think-chevron { font-size:9px; color:var(--purple); transition:transform .2s; margin-left:auto; }
-.think-block.open .think-chevron { transform:rotate(90deg); }
-.think-body { font-size:11px; font-family:var(--mono); color:var(--muted);
-              background:var(--bg); border-radius:5px; padding:8px; margin-top:8px;
-              max-height:180px; overflow-y:auto; white-space:pre-wrap; word-break:break-word;
-              display:none; }
-.think-block.open .think-body { display:block; }
-
 /* ─── Streaming cursor ───────────────────────────────────────────── */
 @keyframes cursor-blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
 .stream-cursor-el { display:inline; animation:cursor-blink .8s step-end infinite; color:var(--muted); font-size:.9em; margin-left:1px; }
@@ -336,8 +316,6 @@ const S = {
   acIdx: -1,
   streamBubble: null,   // current streaming AI message element
   streamContent: '',    // raw accumulated text being streamed
-  streamThink: null,    // current thinking block element (while thinking events arrive)
-  streamThinkContent: '', // accumulated thinking text
   attachedFile: null,   // {path, name} or null
 };
 
@@ -532,22 +510,6 @@ async function readSSE(resp, handler) {
   if (buf.trim()) parseChunks(buf + '\r\n\r\n');
 }
 
-function finalizeThink() {
-  if (!S.streamThink) return;
-  const block = S.streamThink;
-  // Swap pulsing dots out for a static "Thought" label, then collapse
-  const header = block.querySelector('.think-header');
-  header.innerHTML = '<span class="think-label">💭 Thought</span><span class="think-chevron">▶</span>';
-  header.onclick = function() { toggleThink(this); };
-  block.classList.remove('open');
-  S.streamThink = null;
-  S.streamThinkContent = '';
-}
-
-function toggleThink(header) {
-  header.closest('.think-block').classList.toggle('open');
-}
-
 function finalizeStream() {
   if (!S.streamBubble) return;
   const el = S.streamBubble.querySelector('.bubble');
@@ -560,37 +522,11 @@ function onEvent(type, raw) {
   const msgs = document.getElementById('messages');
   const payload = tryJSON(raw);
 
-  // Thinking tokens — accumulate into collapsible block while model reasons
-  if (type === 'thinking') {
-    const content = payload?.content || '';
-    if (!content) return;
-    removeTyping();
-    if (!S.streamThink) {
-      const n = document.createElement('div');
-      n.className = 'think-block open';
-      n.innerHTML = `
-        <div class="think-header" onclick="toggleThink(this)">
-          <span class="think-dot"></span><span class="think-dot"></span><span class="think-dot"></span>
-          <span class="think-label">Thinking…</span>
-          <span class="think-chevron">▶</span>
-        </div>
-        <div class="think-body"></div>`;
-      document.getElementById('messages').appendChild(n);
-      S.streamThink = n;
-      S.streamThinkContent = '';
-    }
-    S.streamThinkContent += content;
-    S.streamThink.querySelector('.think-body').textContent = S.streamThinkContent;
-    scrollBot();
-    return;
-  }
-
   // Token streaming — accumulate into live bubble without removing typing indicator yet
   if (type === 'token') {
     const content = payload?.content || '';
     if (!content) return;
     removeTyping();
-    finalizeThink(); // seal the thinking block when first answer token arrives
     if (!S.streamBubble) {
       const n = document.createElement('div');
       n.className = 'msg msg-ai';
@@ -607,7 +543,6 @@ function onEvent(type, raw) {
   }
 
   removeTyping();
-  finalizeThink();  // seal thinking block if still open
   finalizeStream(); // close any open streaming bubble before rendering other events
 
   if (type === 'tool_call') {
