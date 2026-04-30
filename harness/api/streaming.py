@@ -67,7 +67,19 @@ async def event_stream(
 
         for intr in interrupt_payloads:
             val = intr.value if hasattr(intr, "value") else intr
-            yield {"event": "interrupt", "data": json.dumps(val)}
+            if isinstance(val, dict) and "action_requests" in val:
+                # Normalize deepagents HumanInTheLoopMiddleware format to our contract.
+                for req in val["action_requests"]:
+                    yield {
+                        "event": "interrupt",
+                        "data": json.dumps({
+                            "type": "approval",
+                            "tool": req.get("name", "unknown"),
+                            "args": req.get("args", {}),
+                        }),
+                    }
+            else:
+                yield {"event": "interrupt", "data": json.dumps(val)}
 
         return
 

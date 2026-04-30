@@ -49,13 +49,24 @@ def _display(msg) -> None:
         print(f"  [←result]  {name}: {indented}")
 
 
-def _prompt_approval(payload: dict) -> str:
-    """Ask the human to approve/deny an interrupt. Returns 'approve' or 'deny'."""
-    tool_name = payload.get("tool", "action")
-    args = payload.get("args", {})
-    print(f"\n  [approve?] {tool_name}({args})  [y/N]: ", end="", flush=True)
-    answer = input().strip().lower()
-    return "approve" if answer == "y" else "deny"
+def _prompt_deepagents_hitl(val: dict) -> dict:
+    """Handle deepagents HumanInTheLoopMiddleware interrupt format.
+
+    Returns the decisions dict expected by the middleware:
+        {"decisions": [{"type": "approve"}, ...]}
+    One entry per action_request, in the same order.
+    """
+    decisions = []
+    for req in val.get("action_requests", []):
+        tool_name = req.get("name", "action")
+        args = req.get("args", {})
+        print(f"\n  [approve?] {tool_name}({args})  [y/N]: ", end="", flush=True)
+        answer = input().strip().lower()
+        if answer == "y":
+            decisions.append({"type": "approve"})
+        else:
+            decisions.append({"type": "reject", "message": "Denied by user"})
+    return {"decisions": decisions}
 
 
 def _stream(agent, inputs, config: dict, seen: int) -> int:
@@ -75,12 +86,13 @@ def _stream(agent, inputs, config: dict, seen: int) -> int:
         if not interrupt_payloads:
             break
 
-        # Handle each interrupt — LangGraph emits one at a time but we loop defensively.
-        resume_val = "deny"
+        # Handle each interrupt — LangGraph emits one interrupt object per HITL batch.
+        resume_val: dict | str = {"decisions": [{"type": "reject", "message": "Denied by user"}]}
         for intr in interrupt_payloads:
             val = intr.value if hasattr(intr, "value") else intr
-            if isinstance(val, dict) and val.get("type") == "approval":
-                resume_val = _prompt_approval(val)
+            if isinstance(val, dict) and "action_requests" in val:
+                # deepagents HumanInTheLoopMiddleware format.
+                resume_val = _prompt_deepagents_hitl(val)
             else:
                 print(f"\n  [interrupt] {val}")
                 print("  resume? [y/N]: ", end="", flush=True)

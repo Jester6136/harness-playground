@@ -5,6 +5,7 @@ edit_file, glob, grep, execute, task) and a native HITL approval mechanism
 via `interrupt_on=`. We only add tools it doesn't have.
 """
 from deepagents import create_deep_agent
+from deepagents.backends import FilesystemBackend
 
 from harness.config import get_instructions
 from harness.extensions.skills import load_skills
@@ -38,6 +39,7 @@ def make_agent(checkpointer=None, store=None, enable_thinking: bool | None = Non
         system_prompt=get_instructions(),
         model=make_llm(enable_thinking=enable_thinking),
         subagents=load_skills(),
+        backend=FilesystemBackend(),
         interrupt_on=HITL_TOOLS,
         checkpointer=checkpointer,
         store=store,

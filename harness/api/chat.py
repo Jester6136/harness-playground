@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from langgraph.types import Command
@@ -65,6 +66,28 @@ async def chat_stream(
     return EventSourceResponse(generate())
 
 
+async def _build_resume_command(agent, config: dict, decision: str) -> Command:
+    """Convert 'approve'/'deny' to deepagents decisions dict when needed.
+
+    deepagents' HumanInTheLoopMiddleware expects:
+        {"decisions": [{"type": "approve"}, ...]}   (one entry per action_request)
+    Plain string resume is used as fallback for non-deepagents interrupts.
+    """
+    state = await agent.aget_state(config)
+    for task in getattr(state, "tasks", []) or []:
+        for intr in getattr(task, "interrupts", []) or []:
+            val: Any = getattr(intr, "value", None)
+            if isinstance(val, dict) and "action_requests" in val:
+                dtype = "approve" if decision == "approve" else "reject"
+                decisions = [
+                    {"type": "approve"} if dtype == "approve"
+                    else {"type": "reject", "message": "Denied by user"}
+                    for _ in val["action_requests"]
+                ]
+                return Command(resume={"decisions": decisions})
+    return Command(resume=decision)
+
+
 @router.post("/threads/{raw_thread_id:path}/runs/resume")
 async def resume(raw_thread_id: str, body: ResumeRequest, request: Request):
     """Resume an interrupted run. raw_thread_id = '{user}:{session}'."""
@@ -74,7 +97,8 @@ async def resume(raw_thread_id: str, body: ResumeRequest, request: Request):
     async def generate():
         prior = await agent.aget_state(config)
         seen = len(prior.values.get("messages", [])) if prior.values else 0
-        async for event in event_stream(agent, Command(resume=body.resume), config, seen):
+        cmd = await _build_resume_command(agent, config, body.resume)
+        async for event in event_stream(agent, cmd, config, seen):
             yield event
 
     return EventSourceResponse(generate())

@@ -66,15 +66,19 @@ def get_instructions() -> str:
     return f"""You are a helpful coding assistant.
 
 Working directory: {cwd}
-Use relative paths like 'main.py' or 'harness/tools/__init__.py'.
-Never prefix paths with a bare '/'.
+
+Path conventions (IMPORTANT):
+  - `ls` requires an absolute path. Use '{cwd}' for the project root, '{cwd}/harness' for a subdirectory.
+  - `read_file`, `write_file`, `edit_file`, `glob`, `grep` accept relative paths like 'main.py' or 'harness/config.py'.
 
 Built-in tools you can use directly:
-  - ls, read_file, glob, grep      — explore the filesystem
-  - write_file, edit_file          — modify files (require human approval)
-  - execute                         — run shell commands (require human approval)
-  - write_todos                     — break down multi-step work
-  - task                            — delegate to a specialized sub-agent (skills)
+  - ls             — list a directory (absolute path required)
+  - read_file      — read a file
+  - glob, grep     — find files / search content
+  - write_file, edit_file — modify files (require human approval)
+  - execute        — run shell commands (require human approval)
+  - write_todos    — break down multi-step work
+  - task           — delegate to a specialized sub-agent (skills)
 
 Custom tools added by this harness:
   - analyze_image                   — describe an image or PDF via the vision model
