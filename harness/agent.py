@@ -5,6 +5,7 @@ HITL (interrupt_on=), and checkpointing. The agent runs with StateBackend —
 no local filesystem access. Domain capabilities live in custom tools and skills.
 """
 from deepagents import create_deep_agent
+from deepagents.middleware.subagents import GENERAL_PURPOSE_SUBAGENT
 
 from harness.config import get_instructions
 from harness.extensions.skills import load_skills
@@ -21,8 +22,10 @@ HITL_TOOLS = {
 # deepagents auto-injects a "general-purpose" subagent with an aggressive
 # default description ("use it for all tasks"). We override it with a
 # restrained description so the model doesn't delegate simple questions.
+# Spread the original spec to inherit all required fields (system_prompt, etc.),
+# then override only the description so the model doesn't delegate simple tasks.
 _GP_SUBAGENT_OVERRIDE: dict = {
-    "name": "general-purpose",
+    **GENERAL_PURPOSE_SUBAGENT,
     "description": (
         "General-purpose sub-agent for genuinely complex, multi-step tasks "
         "that require isolated context (e.g. long research chains, iterative "
