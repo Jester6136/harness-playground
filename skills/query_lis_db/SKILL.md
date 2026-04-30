@@ -19,26 +19,21 @@ Khi user dùng từ "sức khoẻ", "tình trạng", "đầy đủ", "thiếu", 
 
 ## Tools
 
-| Tool | Khi gọi |
-|---|---|
-| `lookup_gcn_by_so_hieu(so_hieu_gcn)` | Số hiệu GCN ("CH...", "BA...", chuỗi chữ+số) |
-| `lookup_gcn_by_giay_to_dinh_danh(so_giay_to)` | Số CMND/CCCD/hộ chiếu/MST của chủ |
-| `check_don_dang_ky(don_dang_ky_id)` | UUID đơn đăng ký |
-| `lis_schema_doc(topic)` | Tra schema reference — **gọi trước khi diễn giải nếu chưa rõ format** |
+| Tool | Khi gọi | Output |
+|---|---|---|
+| `lookup_gcn_by_so_hieu(so_hieu_gcn)` | Số hiệu GCN ("CH...", "BA...", chuỗi chữ+số) | Text đã format: chủ, thửa, mục đích, nhà/ctxd, file scan |
+| `lookup_gcn_by_giay_to_dinh_danh(so_giay_to)` | Số CMND/CCCD/hộ chiếu/MST của chủ | Text đã format: danh sách GCN + thửa đất |
+| `check_don_dang_ky(don_dang_ky_id)` | UUID đơn đăng ký | Text đã format: 4 nhóm + tình trạng đầy đủ/thiếu |
+| `lis_schema_doc(topic)` | Chỉ dùng khi cần tra schema cho flex query | Raw markdown schema |
 
 ## Quy trình
 
 1. Xác định loại định danh user cung cấp → chọn 1 trong 3 lookup tool. Nếu mơ hồ, hỏi lại trước khi gọi.
 2. Truyền nguyên văn chuỗi định danh (KHÔNG tự thêm dấu nháy, không format).
-3. Tool trả `{rows, count, capped}`. Nếu `count = 0` → "không tìm thấy". Nếu `error` → báo lỗi DB.
-4. **Trước khi diễn giải raw JSON cho user, gọi `lis_schema_doc(topic=<tên tool vừa gọi>)`** để load schema chính xác (lazy, chỉ load khi cần). Mỗi tool query có 1 doc reference riêng:
-   - Sau `lookup_gcn_by_so_hieu(...)` → `lis_schema_doc(topic="lookup_gcn_by_so_hieu")`.
-   - Sau `lookup_gcn_by_giay_to_dinh_danh(...)` → `lis_schema_doc(topic="lookup_gcn_by_giay_to_dinh_danh")`.
-   - Sau `check_don_dang_ky(...)` → `lis_schema_doc(topic="check_don_dang_ky")`.
-   - Khi user hỏi thuật ngữ chéo (snake↔camel) hoặc giá trị mã (loaiDoiTuong, ...) → `lis_schema_doc(topic="glossary")`.
-   - Không nhớ topic nào có → `lis_schema_doc(topic="index")`.
-5. Tóm tắt kết quả bằng tiếng Việt: chủ sở hữu, vị trí thửa đất, mục đích sử dụng, diện tích, tài sản. KHÔNG in raw JSON trừ khi user yêu cầu.
-6. `capped = true` → nói thêm "kết quả đã giới hạn 50 dòng đầu, có thể còn thêm".
+3. Tool trả **text đã định dạng sẵn bằng tiếng Việt** — relay trực tiếp cho user, KHÔNG diễn giải lại.
+4. Nếu tool trả `"Lỗi DB: ..."` → báo lỗi kết nối DB cho user.
+5. Nếu tool trả `"Không tìm thấy..."` → thông báo không có kết quả.
+6. Nếu kết quả có dòng `*(Kết quả đã giới hạn 50 dòng...)*` → giữ nguyên dòng đó.
 
 ## Lưu ý an toàn
 
