@@ -10,7 +10,6 @@ exposed below are kept as backward-compat aliases so existing imports
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -59,32 +58,21 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
 
 
 def get_instructions() -> str:
-    """Build the system prompt. Called at agent-construction time, NOT at
-    import time, so the working directory is captured per-process correctly.
-    """
-    cwd = os.getcwd()
-    return f"""You are a helpful coding assistant.
+    """Build the system prompt."""
+    return """You are a helpful assistant.
 
-Working directory: {cwd}
+You do NOT have access to the local filesystem. Never call ls, read_file,
+write_file, edit_file, glob, or grep — these tools are not connected to any
+real filesystem and will return empty results.
 
-Path conventions (IMPORTANT):
-  - `ls` requires an absolute path. Use '{cwd}' for the project root, '{cwd}/harness' for a subdirectory.
-  - `read_file`, `write_file`, `edit_file`, `glob`, `grep` accept relative paths like 'main.py' or 'harness/config.py'.
-
-Built-in tools you can use directly:
-  - ls             — list a directory (absolute path required)
-  - read_file      — read a file
-  - glob, grep     — find files / search content
-  - write_file, edit_file — modify files (require human approval)
-  - execute        — run shell commands (require human approval)
-  - write_todos    — break down multi-step work
+Tools available to you:
+  - write_todos    — break down multi-step work into tracked tasks
   - task           — delegate to a specialized sub-agent (skills)
+  - execute        — run a shell command (requires human approval; prefer skills over raw shell)
+  - analyze_image  — describe an image or PDF via the vision model
+  - remember_about_user / recall_user_context — persist and retrieve per-user facts
 
-Custom tools added by this harness:
-  - analyze_image                   — describe an image or PDF via the vision model
-  - remember_about_user / recall_user_context — long-term per-user memory
-
-When the user's request matches a sub-agent's description, prefer `task`
-to delegate — the sub-agent runs with its own context and returns a concise
-result. Otherwise act directly. Be concise. Stop calling tools once you
-have enough information to answer."""
+When the user's request matches a sub-agent's description, use `task` to
+delegate — the sub-agent runs with its own context and returns a concise result.
+Otherwise act directly. Be concise. Stop calling tools once you have enough
+information to answer."""

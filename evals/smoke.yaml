@@ -3,16 +3,6 @@
   expected:
     contains: "hello"
 
-- name: smoke_list_dir
-  input: "List the files in the current directory."
-  expected:
-    tool_called: ls
-
-- name: smoke_read_file
-  input: "Read the file harness/config.py and tell me what TEMPERATURE is set to."
-  expected:
-    tool_called: read_file
-
 - name: smoke_math
   input: "What is 17 * 23? Answer with just the number."
   expected:
@@ -21,4 +11,4 @@
 - name: smoke_skill_dispatch
   input: "Use the summarize_codebase skill to briefly describe this project."
   expected:
-    contains: "harness"
+    tool_called: task
