@@ -1,24 +1,18 @@
 """Skill-local tools for the `query_lis_db` skill.
 
-Connects to the external `geohub_lis` Postgres (separate from the harness's
-own Postgres). Pool is lazy + lock-guarded; connection params come from
-`harness.config.settings.lis_db_dsn`.
-
-Three tools, one per parametric SQL template in `queries.py`. Each accepts
-a single string argument bound via psycopg `%s` placeholder — no string
-formatting of user input into SQL.
+Three tools, one per parametric SQL template in `queries.py`. All input is
+bound via psycopg `%s` placeholders — no string formatting of user input
+into SQL. The connection pool lives in `harness.persistence.lis_db` so it
+can be shared with slash commands (e.g. /status).
 """
 from __future__ import annotations
 
-import asyncio
 import json
 
 from langchain_core.tools import tool
-from psycopg.rows import dict_row
-from psycopg_pool import AsyncConnectionPool
 
-from harness.config import settings
 from harness.logging_config import log_tool_call
+from harness.persistence.lis_db import run_query
 from harness.utils.async_utils import run_async
 
 from skills.query_lis_db.queries import (
@@ -29,35 +23,10 @@ from skills.query_lis_db.queries import (
 
 _ROW_CAP = 50
 
-_pool: AsyncConnectionPool | None = None
-_pool_lock = asyncio.Lock()
 
-
-async def _get_pool() -> AsyncConnectionPool:
-    global _pool
-    if _pool is not None:
-        return _pool
-    async with _pool_lock:
-        if _pool is not None:
-            return _pool
-        pool = AsyncConnectionPool(
-            conninfo=settings.lis_db_dsn,
-            min_size=1,
-            max_size=4,
-            kwargs={"autocommit": True, "row_factory": dict_row},
-            open=False,
-        )
-        await pool.open()
-        _pool = pool
-    return _pool
-
-
-async def _run(sql: str, params: tuple) -> str:
+async def _run_and_format(sql: str, params: tuple) -> str:
     try:
-        pool = await _get_pool()
-        async with pool.connection() as conn, conn.cursor() as cur:
-            await cur.execute(sql, params)
-            rows = await cur.fetchmany(_ROW_CAP)
+        rows = await run_query(sql, params, row_cap=_ROW_CAP)
     except Exception as exc:
         return json.dumps(
             {"error": f"{type(exc).__name__}: {exc}"}, ensure_ascii=False
@@ -78,7 +47,7 @@ def lookup_gcn_by_so_hieu(so_hieu_gcn: str) -> str:
     (số tờ bản đồ, số thửa, diện tích, địa chỉ, xã), mục đích sử dụng,
     tài sản trên đất (nhà, công trình xây dựng), sơ đồ và file scan hồ sơ.
     """
-    return run_async(_run(GET_GCN_BY_SO_HIEU, (so_hieu_gcn,)))
+    return run_async(_run_and_format(GET_GCN_BY_SO_HIEU, (so_hieu_gcn,)))
 
 
 @tool
@@ -90,7 +59,7 @@ def lookup_gcn_by_giay_to_dinh_danh(so_giay_to: str) -> str:
     Trả về danh sách các GCN mà người/tổ chức đó đứng tên, kèm thông tin
     thửa đất, mục đích sử dụng, hồ sơ quét.
     """
-    return run_async(_run(GET_GCN_BY_GIAY_TO_DINH_DANH, (so_giay_to,)))
+    return run_async(_run_and_format(GET_GCN_BY_GIAY_TO_DINH_DANH, (so_giay_to,)))
 
 
 @tool
@@ -98,8 +67,13 @@ def lookup_gcn_by_giay_to_dinh_danh(so_giay_to: str) -> str:
 def check_don_dang_ky(don_dang_ky_id: str) -> str:
     """Lấy snapshot đầy đủ một Đơn đăng ký theo id (UUID).
 
-    Trả về JSON gồm pháp nhân (cá nhân / hộ gia đình / vợ chồng / tổ chức /
-    cộng đồng dân cư), danh sách thửa đất, mục đích sử dụng đất, và các
-    GCN liên quan kèm hồ sơ quét.
+    Trả về JSON 1 row với các nhóm con quan trọng:
+      - phapNhanSdds:    danh sách pháp nhân sử dụng đất (chủ sở hữu)
+      - thuaDats:        danh sách thửa đất
+      - daMdsdds:        danh sách mục đích sử dụng đất
+      - giayChungNhans:  danh sách Giấy chứng nhận liên quan
+
+    Đơn được coi là "khoẻ" / "đầy đủ" khi cả 4 nhóm trên đều có ít nhất 1
+    phần tử. Nhóm nào rỗng → đơn thiếu thông tin, cần bổ sung.
     """
-    return run_async(_run(CHECK_DON_DANG_KY, (don_dang_ky_id,)))
+    return run_async(_run_and_format(CHECK_DON_DANG_KY, (don_dang_ky_id,)))

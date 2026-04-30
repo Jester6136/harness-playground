@@ -15,6 +15,7 @@ from langgraph.types import Command
 
 from harness.logging_config import setup_logging
 from harness.agent import make_agent
+from harness.extensions.commands import dispatch, parse_command
 from harness.persistence.checkpoints import (
     delete_session,
     list_sessions,
@@ -22,6 +23,7 @@ from harness.persistence.checkpoints import (
     make_checkpointer,
     thread_id,
 )
+from harness.utils.async_utils import run_async
 
 
 def _display(msg) -> None:
@@ -164,6 +166,16 @@ def main() -> None:
         f" ({prior_count} prior msgs) ──────"
     )
     print(f"user: {prompt}\n")
+
+    parsed = parse_command(prompt)
+    if parsed:
+        cmd, cmd_args = parsed
+        handler_type, result = run_async(dispatch(cmd, cmd_args))
+        if handler_type == "direct":
+            print(f"  [assistant] {result}")
+            return
+        # "agent" handler — feed the rewritten prompt into the agent loop.
+        prompt = result
 
     inputs = {"messages": [{"role": "user", "content": prompt}]}
     _stream(agent, inputs, config, prior_count)

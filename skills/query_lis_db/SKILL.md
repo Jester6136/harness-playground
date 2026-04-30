@@ -9,9 +9,32 @@ Main agent nên delegate cho `query_lis_db` khi user hỏi về:
 
 - **Giấy chứng nhận (GCN) quyền sử dụng đất**: "tra cứu GCN số ...", "thửa đất của ai", "diện tích / mục đích sử dụng / tài sản trên đất của GCN ...".
 - **Chủ sở hữu**: "ai là chủ thửa đất", "các GCN của người có CMND/CCCD/MST ...".
-- **Đơn đăng ký**: "thông tin đơn đăng ký id ...", "snapshot đơn đăng ký".
+- **Đơn đăng ký**: "thông tin đơn đăng ký id ...", "snapshot đơn đăng ký", **"sức khoẻ"/"tình trạng"/"đầy đủ"/"thiếu" đơn đăng ký**.
 
 KHÔNG dùng cho câu hỏi chung không có mã định danh cụ thể (ví dụ: "có bao nhiêu GCN trong hệ thống") — skill chỉ hỗ trợ tra cứu theo định danh.
+
+## Domain concept: "sức khoẻ" của Đơn đăng ký
+
+Khi user hỏi **"sức khoẻ", "tình trạng", "đầy đủ", "thiếu", "khoẻ không"** kèm 1 id đơn đăng ký → đây KHÔNG phải sức khoẻ con người. Đó là khái niệm domain: kiểm tra đơn đăng ký có đủ 4 nhóm dữ liệu liên quan hay không.
+
+Một đơn đăng ký được coi là **đầy đủ / "khoẻ"** khi cả 4 nhóm đều có ít nhất 1 phần tử:
+
+| Nhóm | Ý nghĩa | Thiếu nghĩa là |
+|---|---|---|
+| `phapNhanSdds`   | Pháp nhân sử dụng đất (chủ sở hữu)        | Chưa có chủ sở hữu |
+| `thuaDats`       | Thửa đất                                  | Chưa gắn thửa đất nào |
+| `daMdsdds`       | Mục đích sử dụng đất                      | Chưa khai báo mục đích |
+| `giayChungNhans` | Giấy chứng nhận liên quan                 | Chưa cấp / liên kết GCN |
+
+Cách kiểm tra:
+1. Gọi `check_don_dang_ky(don_dang_ky_id)`.
+2. Parse JSON → row đầu tiên có 4 trường array trên.
+3. Đếm length từng nhóm. Nhóm nào length=0 hoặc null → thiếu.
+4. Trả về cho user dạng:
+   - "Đơn ĐẦY ĐỦ" + tóm tắt count 4 nhóm; HOẶC
+   - "Đơn THIẾU: nhóm X, Y. Cần bổ sung ..." + count các nhóm còn lại.
+
+KHÔNG đi tìm thông tin sức khoẻ con người trong dữ liệu đơn — không có cột nào như vậy.
 
 ## Tools available
 
