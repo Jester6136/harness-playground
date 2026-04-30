@@ -263,7 +263,7 @@ Handled before reaching the agent — zero LLM cost.
 | `/help` | List all available commands |
 | `/clear` | Info on clearing a session |
 | `/list-skills` | Show loaded skill sub-agents |
-| `/status <id>` | Sức khoẻ Đơn đăng ký — đếm 4 nhóm bắt buộc (phapNhanSdds, thuaDats, daMdsdds, giayChungNhans), báo đầy đủ / thiếu |
+| `/status <id>` | Sức khoẻ chi tiết Đơn đăng ký — kiểm tra cả 4 nhóm (phapNhanSdds, thuaDats, daMdsdds, giayChungNhans) lẫn các trường con quan trọng (giấy tờ định danh chủ sở hữu, kích thước thửa đất, file scan trong GCN…); báo từng item thiếu gì để bổ sung |
 
 Add commands in `harness/extensions/commands.py` via `@register_command`.
 

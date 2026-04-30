@@ -15,7 +15,7 @@ from harness.logging_config import log_tool_call
 from harness.persistence.lis_db import run_query
 from harness.utils.async_utils import run_async
 
-from skills.query_lis_db.queries import (
+from harness.persistence.lis_queries import (
     CHECK_DON_DANG_KY,
     GET_GCN_BY_GIAY_TO_DINH_DANH,
     GET_GCN_BY_SO_HIEU,

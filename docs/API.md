@@ -72,7 +72,7 @@ If `message` starts with `/`, it is dispatched as a slash command before reachin
 /help               — list commands
 /clear              — info on clearing a session
 /list-skills        — show loaded skill sub-agents
-/status <id>        — sức khoẻ Đơn đăng ký: 4 nhóm phapNhanSdds/thuaDats/daMdsdds/giayChungNhans
+/status <id>        — sức khoẻ chi tiết Đơn đăng ký (4 nhóm + sub-fields như giấy tờ định danh, file scan…)
 ```
 
 Custom commands return `message` events directly (no agent loop).
