@@ -57,22 +57,39 @@ POSTGRES_DSN = settings.postgres_dsn
 SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
 
 
-def get_instructions() -> str:
-    """Build the system prompt."""
-    return """You are a helpful assistant.
+def get_instructions(skills: list[dict] | None = None) -> str:
+    """Build the system prompt.
+
+    Pass the loaded skill specs so the prompt lists exactly which sub-agents
+    exist and when to use them. When no skills are loaded, `task` is disabled.
+    """
+    if skills:
+        skill_lines = "\n".join(
+            f"  - {s['name']}: {s['description']}" for s in skills
+        )
+        task_section = (
+            "Available skills — delegate via `task` ONLY for these:\n"
+            + skill_lines
+            + "\n\nDo NOT use `task` for anything outside this list."
+        )
+    else:
+        task_section = (
+            "No skills are loaded. Do NOT call `task` — there are no sub-agents. "
+            "Answer directly."
+        )
+
+    return f"""You are a helpful assistant.
 
 You do NOT have access to the local filesystem. Never call ls, read_file,
 write_file, edit_file, glob, or grep — these tools are not connected to any
 real filesystem and will return empty results.
 
-Tools available to you:
+{task_section}
+
+Other tools available:
   - write_todos    — break down multi-step work into tracked tasks
-  - task           — delegate to a specialized sub-agent (skills)
-  - execute        — run a shell command (requires human approval; prefer skills over raw shell)
+  - execute        — run a shell command (requires human approval)
   - analyze_image  — describe an image or PDF via the vision model
   - remember_about_user / recall_user_context — persist and retrieve per-user facts
 
-When the user's request matches a sub-agent's description, use `task` to
-delegate — the sub-agent runs with its own context and returns a concise result.
-Otherwise act directly. Be concise. Stop calling tools once you have enough
-information to answer."""
+Answer simple questions directly without calling any tools. Be concise."""

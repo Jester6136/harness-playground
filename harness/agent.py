@@ -1,8 +1,8 @@
 """Builds the deep agent — wires LLM + tools + skill-based subagents.
 
-deepagents ships built-in tools (write_todos, ls, read_file, write_file,
-edit_file, glob, grep, execute, task) and a native HITL approval mechanism
-via `interrupt_on=`. We only add tools it doesn't have.
+deepagents is used as orchestration layer: agent loop, skill routing (task),
+HITL (interrupt_on=), and checkpointing. The agent runs with StateBackend —
+no local filesystem access. Domain capabilities live in custom tools and skills.
 """
 from deepagents import create_deep_agent
 
@@ -11,13 +11,24 @@ from harness.extensions.skills import load_skills
 from harness.llm import make_llm
 from harness.tools import ALL_TOOLS
 
-# Built-in tools that should pause for human approval. Same protocol
-# (LangGraph `interrupt`) as before — the API streams `event: interrupt`
-# and resumes via /threads/.../runs/resume; the CLI prompts y/N.
+# Tools that pause for human approval before executing.
 HITL_TOOLS = {
     "execute": True,
     "write_file": True,
     "edit_file": True,
+}
+
+# deepagents auto-injects a "general-purpose" subagent with an aggressive
+# default description ("use it for all tasks"). We override it with a
+# restrained description so the model doesn't delegate simple questions.
+_GP_SUBAGENT_OVERRIDE: dict = {
+    "name": "general-purpose",
+    "description": (
+        "General-purpose sub-agent for genuinely complex, multi-step tasks "
+        "that require isolated context (e.g. long research chains, iterative "
+        "refinement across many steps). Do NOT use for simple questions, "
+        "single-step tasks, or anything you can answer directly."
+    ),
 }
 
 
@@ -33,11 +44,15 @@ def make_agent(checkpointer=None, store=None, enable_thinking: bool | None = Non
 
     `enable_thinking` controls model reasoning. None → use settings default.
     """
+    skills = load_skills()
+    # _GP_SUBAGENT_OVERRIDE must come last so its name matches the auto-inject
+    # guard and suppresses deepagents' default GP description.
+    subagents = skills + [_GP_SUBAGENT_OVERRIDE]
     return create_deep_agent(
         tools=ALL_TOOLS,
-        system_prompt=get_instructions(),
+        system_prompt=get_instructions(skills),
         model=make_llm(enable_thinking=enable_thinking),
-        subagents=load_skills(),
+        subagents=subagents,
         interrupt_on=HITL_TOOLS,
         checkpointer=checkpointer,
         store=store,
