@@ -218,6 +218,28 @@ When the user asks about data in the database.
 - Skill-specific tools go in `helpers.py`; tools shared across skills go in `harness/tools/ALL_TOOLS`.
 - Skills receive `ALL_TOOLS` (global custom tools) plus their own `helpers.py` tools.
 
+### Built-in skill: `query_lis_db`
+
+Looks up Vietnamese land-information records (Giấy chứng nhận / thửa đất / đơn đăng ký) in the external `geohub_lis` Postgres. Three parametric lookups:
+
+| Tool | By |
+|---|---|
+| `lookup_gcn_by_so_hieu(so_hieu_gcn)` | GCN serial number |
+| `lookup_gcn_by_giay_to_dinh_danh(so_giay_to)` | Owner ID document (CMND/CCCD/MST) |
+| `check_don_dang_ky(don_dang_ky_id)` | Đơn đăng ký UUID |
+
+Configure via `.env`:
+
+```
+LIS_DB_HOST=192.168.20.10
+LIS_DB_PORT=5432
+LIS_DB_NAME=geohub_lis
+LIS_DB_USER=lis_readonly      # recommended: read-only role, NOT a superuser
+LIS_DB_PASSWORD=...
+```
+
+Connection pool is lazy + lock-guarded; queries are read-only via psycopg parametric binding (`%s`) — safe against SQL injection. Output is capped at 50 rows per call.
+
 ## Pipelines (structured output)
 
 Register in `harness/extensions/pipelines.py`:

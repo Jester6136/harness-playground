@@ -20,6 +20,7 @@ dependencies = [
     # Persistence
     "langgraph-checkpoint-postgres",
     "psycopg[binary]",
+    "psycopg-pool",
 
     # Dev server (langgraph dev)
     "langgraph-cli[inmem]",

@@ -37,6 +37,22 @@ class Settings(BaseSettings):
     # Postgres (checkpointer + long-term store)
     postgres_dsn: str = "postgresql://harness:harness@localhost:5432/harness"
 
+    # External LIS Postgres (geohub_lis) — used by skills/query_lis_db.
+    # Required: set LIS_DB_PASSWORD via .env. Read-only role recommended.
+    lis_db_host: str = "192.168.20.10"
+    lis_db_port: int = 5432
+    lis_db_name: str = "geohub_lis"
+    lis_db_user: str = "postgres"
+    lis_db_password: str = ""
+
+    @property
+    def lis_db_dsn(self) -> str:
+        return (
+            f"postgresql://{self.lis_db_user}:{self.lis_db_password}"
+            f"@{self.lis_db_host}:{self.lis_db_port}/{self.lis_db_name}"
+            f"?connect_timeout=5"
+        )
+
     # Logging
     log_level: str = "INFO"
     log_file: str = "logs/harness.json"
