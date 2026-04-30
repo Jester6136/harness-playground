@@ -90,18 +90,37 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 .msg-user .bubble { background: var(--primary); color: #fff; border-radius: 12px 12px 4px 12px; }
 .msg-ai  .bubble  { background: var(--bg2); border: 1px solid var(--border); border-radius: 4px 12px 12px 12px; }
 
-/* tool blocks */
+/* tool blocks — native <details> toggle, compact when empty */
 .tool-block { background: var(--bg2); border: 1px solid var(--purple);
-              border-radius: var(--r); padding: 9px 12px; max-width: 88%;
-              align-self: flex-start; animation: fadeIn .2s ease; }
+              border-radius: var(--r); max-width: 88%; align-self: flex-start;
+              animation: fadeIn .2s ease; overflow: hidden; }
 .tool-block.result-block { border-color: var(--success); }
-.tb-header { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
-.badge { font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 700; font-family: var(--mono); }
+.tool-block details { width: 100%; }
+.tool-block details > summary,
+.tool-block .tb-pill {
+  list-style: none;
+  cursor: pointer;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+  transition: background .12s;
+}
+.tool-block .tb-pill { cursor: default; }
+.tool-block details > summary::-webkit-details-marker { display: none; }
+.tool-block details > summary:hover { background: var(--bg3); }
+.badge { font-size: 10px; padding: 2px 8px; border-radius: 20px; font-weight: 700; font-family: var(--mono); flex-shrink: 0; }
 .badge-call   { background: rgba(139,92,246,.2); color: var(--purple); }
 .badge-result { background: rgba(16,185,129,.15); color: var(--success); }
-.tool-name { font-size: 12px; font-family: var(--mono); font-weight: 700; }
+.tool-name { font-size: 12px; font-family: var(--mono); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tool-meta { margin-left: auto; font-size: 10px; color: var(--muted); font-family: var(--mono); flex-shrink: 0; }
+.chevron { font-size: 10px; color: var(--muted); transition: transform .15s ease;
+           display: inline-block; flex-shrink: 0; }
+.tool-block details[open] .chevron { transform: rotate(90deg); }
 .tool-content { font-size: 11px; font-family: var(--mono); color: var(--muted);
-                background: var(--bg); border-radius: 5px; padding: 7px; max-height: 180px;
+                background: var(--bg); border-radius: 5px; padding: 9px 11px;
+                margin: 0 10px 10px; max-height: 420px;
                 overflow: auto; white-space: pre-wrap; word-break: break-all; }
 
 /* interrupt */
@@ -426,22 +445,57 @@ async function loadMessages() {
 
 function addHistoryMsg(type, content, name) {
   const el = document.getElementById('messages');
-  const node = document.createElement('div');
   if (type === 'human') {
+    const node = document.createElement('div');
     node.className = 'msg msg-user';
     node.innerHTML = `<div class="msg-label">You</div><div class="bubble">${esc(content)}</div>`;
+    el.appendChild(node);
   } else if (type === 'ai') {
+    const node = document.createElement('div');
     node.className = 'msg msg-ai';
     node.innerHTML = `<div class="msg-label">Assistant</div><div class="bubble md">${md(content)}</div>`;
+    el.appendChild(node);
   } else if (type === 'tool') {
-    node.className = 'tool-block result-block';
-    const short = truncate(content, 400);
-    node.innerHTML = `<div class="tb-header"><span class="badge badge-result">result</span><span class="tool-name">${esc(name||'tool')}</span></div><div class="tool-content">${esc(short)}</div>`;
+    el.appendChild(makeToolBlock('result', name, content || ''));
   } else {
+    const node = document.createElement('div');
     node.className = 'msg msg-center';
     node.innerHTML = `<div style="font-size:11px;color:var(--muted);">[${type}] ${esc(content||'')}</div>`;
+    el.appendChild(node);
   }
-  el.appendChild(node);
+}
+
+// Tool call/result renderer. `kind` is 'call' or 'result'. `body` is the
+// pre-formatted string to show inside the toggle (args JSON or raw output).
+// When body is empty/`{}`, render a compact non-toggleable pill.
+function makeToolBlock(kind, toolName, body) {
+  const n = document.createElement('div');
+  n.className = 'tool-block' + (kind === 'result' ? ' result-block' : '');
+  const badgeCls = kind === 'result' ? 'badge-result' : 'badge-call';
+  const badgeTxt = kind === 'result' ? 'result' : 'calling';
+  const name = esc(toolName || 'tool');
+  const trimmed = (body || '').trim();
+  const compact = !trimmed || trimmed === '{}' || trimmed === '""';
+  if (compact) {
+    n.innerHTML = `
+      <div class="tb-pill">
+        <span class="badge ${badgeCls}">${badgeTxt}</span>
+        <span class="tool-name">${name}</span>
+      </div>`;
+  } else {
+    const meta = `${trimmed.length.toLocaleString()} chars`;
+    n.innerHTML = `
+      <details>
+        <summary>
+          <span class="badge ${badgeCls}">${badgeTxt}</span>
+          <span class="tool-name">${name}</span>
+          <span class="tool-meta">${meta}</span>
+          <span class="chevron">▸</span>
+        </summary>
+        <div class="tool-content">${esc(trimmed)}</div>
+      </details>`;
+  }
+  return n;
 }
 
 // ─── Send + SSE ───────────────────────────────────────────────────────────────
@@ -547,16 +601,12 @@ function onEvent(type, raw) {
 
   if (type === 'tool_call') {
     if (!payload) return;
-    const n = document.createElement('div');
-    n.className = 'tool-block';
-    n.innerHTML = `<div class="tb-header"><span class="badge badge-call">calling</span><span class="tool-name">${esc(payload.tool)}</span></div><div class="tool-content">${esc(JSON.stringify(payload.args, null, 2))}</div>`;
-    msgs.appendChild(n);
+    const args = payload.args && Object.keys(payload.args).length
+      ? JSON.stringify(payload.args, null, 2) : '';
+    msgs.appendChild(makeToolBlock('call', payload.tool, args));
   } else if (type === 'tool_result') {
     if (!payload) return;
-    const n = document.createElement('div');
-    n.className = 'tool-block result-block';
-    n.innerHTML = `<div class="tb-header"><span class="badge badge-result">result</span><span class="tool-name">${esc(payload.tool||'tool')}</span></div><div class="tool-content">${esc(truncate(payload.content||'', 600))}</div>`;
-    msgs.appendChild(n);
+    msgs.appendChild(makeToolBlock('result', payload.tool, payload.content || ''));
   } else if (type === 'message') {
     // Legacy fallback — emitted by old backend or slash-command direct handler
     if (!payload) return;
@@ -567,10 +617,9 @@ function onEvent(type, raw) {
       msgs.appendChild(n);
     }
     for (const tc of payload.tool_calls || []) {
-      const n = document.createElement('div');
-      n.className = 'tool-block';
-      n.innerHTML = `<div class="tb-header"><span class="badge badge-call">calling</span><span class="tool-name">${esc(tc.tool)}</span></div><div class="tool-content">${esc(JSON.stringify(tc.args, null, 2))}</div>`;
-      msgs.appendChild(n);
+      const args = tc.args && Object.keys(tc.args).length
+        ? JSON.stringify(tc.args, null, 2) : '';
+      msgs.appendChild(makeToolBlock('call', tc.tool, args));
     }
   } else if (type === 'interrupt') {
     const detail = payload ?? { raw };
@@ -818,7 +867,6 @@ function esc(s) {
 function enc(s) { return encodeURIComponent(s); }
 function xuid() { return { 'X-User-Id': S.user }; }
 function tryJSON(s) { try { return JSON.parse(s); } catch { return null; } }
-function truncate(s, n) { return s.length > n ? s.slice(0, n) + '\n…(truncated)' : s; }
 </script>
 </body>
 </html>
