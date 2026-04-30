@@ -1,6 +1,7 @@
 """Skill-local tools for the `query_lis_db` skill."""
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from langchain_core.tools import tool
@@ -23,8 +24,12 @@ async def _run_query(sql: str, params: tuple) -> str:
     try:
         rows = await run_query(sql, params, row_cap=_ROW_CAP)
     except Exception as exc:
-        return f"Lỗi DB: {type(exc).__name__}: {exc}"
-    return str(rows)
+        return json.dumps({"error": f"{type(exc).__name__}: {exc}"}, ensure_ascii=False)
+    return json.dumps(
+        {"rows": rows, "count": len(rows), "capped": len(rows) >= _ROW_CAP},
+        ensure_ascii=False,
+        default=str,
+    )
 
 
 @tool
@@ -44,10 +49,8 @@ def lookup_gcn_by_giay_to_dinh_danh(so_giay_to: str) -> str:
 @tool
 @log_tool_call
 def check_don_dang_ky(don_dang_ky_id: str) -> str:
-    """Lấy thông tin tổng hợp một Đơn đăng ký theo id (UUID)."""
-    output = run_async(_run_query(CHECK_DON_DANG_KY, (don_dang_ky_id,)))
-    print(f"  [check_don_dang_ky] {output}")
-    return output
+    """Lấy snapshot đầy đủ một Đơn đăng ký theo id (UUID)."""
+    return run_async(_run_query(CHECK_DON_DANG_KY, (don_dang_ky_id,)))
 
 
 @tool
