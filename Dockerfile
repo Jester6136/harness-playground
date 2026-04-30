@@ -6,13 +6,14 @@ WORKDIR /build
 RUN pip install --upgrade pip setuptools wheel
 
 COPY requirements.txt pyproject.toml ./
+RUN pip install -e .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY harness/ harness/
 COPY skills/ skills/
+COPY static/ static/
 COPY main.py ./
 
-RUN pip install --no-cache-dir -e . --no-deps
 
 # ── Stage 2: runtime ────────────────────────────────────────────────────────
 FROM python:3.11-slim AS runtime
