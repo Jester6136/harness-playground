@@ -12,7 +12,6 @@ from sse_starlette.sse import EventSourceResponse
 from harness.api.deps import get_user
 from harness.api.streaming import event_stream
 from harness.extensions.commands import dispatch, parse_command
-from harness.logging_config import FlowTraceCallback
 from harness.persistence.checkpoints import thread_id
 
 router = APIRouter()
@@ -35,10 +34,7 @@ async def chat_stream(
 ):
     agent = request.app.state.agent
     tid = thread_id(user, body.session_id)
-    config = {
-        "configurable": {"thread_id": tid},
-        "callbacks": [FlowTraceCallback()],
-    }
+    config = {"configurable": {"thread_id": tid}}
 
     parsed = parse_command(body.message)
     if parsed:
@@ -96,10 +92,7 @@ async def _build_resume_command(agent, config: dict, decision: str) -> Command:
 async def resume(raw_thread_id: str, body: ResumeRequest, request: Request):
     """Resume an interrupted run. raw_thread_id = '{user}:{session}'."""
     agent = request.app.state.agent
-    config = {
-        "configurable": {"thread_id": raw_thread_id},
-        "callbacks": [FlowTraceCallback()],
-    }
+    config = {"configurable": {"thread_id": raw_thread_id}}
 
     async def generate():
         prior = await agent.aget_state(config)
