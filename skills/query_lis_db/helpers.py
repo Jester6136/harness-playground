@@ -8,6 +8,7 @@ can be shared with slash commands (e.g. /status).
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from langchain_core.tools import tool
 
@@ -22,6 +23,8 @@ from harness.persistence.lis_queries import (
 )
 
 _ROW_CAP = 50
+
+_REFERENCE_DIR = Path(__file__).parent / "reference"
 
 
 async def _run_and_format(sql: str, params: tuple) -> str:
@@ -60,6 +63,33 @@ def lookup_gcn_by_giay_to_dinh_danh(so_giay_to: str) -> str:
     thửa đất, mục đích sử dụng, hồ sơ quét.
     """
     return run_async(_run_and_format(GET_GCN_BY_GIAY_TO_DINH_DANH, (so_giay_to,)))
+
+
+@tool
+@log_tool_call
+def lis_schema_doc(topic: str) -> str:
+    """Trả schema reference của 1 query trong query_lis_db (progressive disclosure).
+
+    Gọi tool này TRƯỚC khi diễn giải raw JSON nếu chưa rõ format các trường.
+
+    `topic` = tên tool vừa gọi (vd. "lookup_gcn_by_so_hieu",
+    "lookup_gcn_by_giay_to_dinh_danh", "check_don_dang_ky"), hoặc:
+      - "glossary": map snake↔camel + bảng mã + quy tắc diễn giải chung.
+      - "index":    liệt kê các topic có sẵn.
+
+    Mỗi tool query có 1 file reference riêng — schema không trùng nhau,
+    đọc đúng file của tool mình vừa gọi để tránh diễn giải nhầm.
+    """
+    if topic == "index":
+        topics = sorted(p.stem for p in _REFERENCE_DIR.glob("*.md"))
+        return "Topic có sẵn:\n" + "\n".join(f"  - {t}" for t in topics)
+    path = _REFERENCE_DIR / f"{topic}.md"
+    if not path.exists():
+        return (
+            f"ERROR: không có doc cho topic '{topic}'. "
+            f"Gọi `lis_schema_doc(topic='index')` để xem danh sách."
+        )
+    return path.read_text(encoding="utf-8")
 
 
 @tool
