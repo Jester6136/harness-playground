@@ -6,7 +6,7 @@
 - name: smoke_list_dir
   input: "List the files in the current directory."
   expected:
-    tool_called: list_dir
+    tool_called: ls
 
 - name: smoke_read_file
   input: "Read the file harness/config.py and tell me what TEMPERATURE is set to."

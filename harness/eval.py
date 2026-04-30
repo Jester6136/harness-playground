@@ -18,7 +18,7 @@ Each YAML file in evals/ defines one or more cases:
     - name: list_dir_works
       input: "list files in current directory"
       expected:
-        tool_called: list_dir
+        tool_called: ls
 
 Cases run against a stateless agent (no checkpointer) to avoid state bleed.
 """

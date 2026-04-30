@@ -52,13 +52,13 @@ event: token
 data: {"content": "is the summary..."}
 
 event: tool_call
-data: {"tool": "list_dir", "args": {"path": "."}}
+data: {"tool": "ls", "args": {"path": "."}}
 
 event: tool_result
-data: {"tool": "list_dir", "content": "d harness\nd skills\n..."}
+data: {"tool": "ls", "content": "d harness\nd skills\n..."}
 
 event: interrupt
-data: {"type": "approval", "tool": "run_bash", "args": {"command": "ls /"}}
+data: {"type": "approval", "tool": "execute", "args": {"command": "ls /"}}
 
 event: done
 data: {}
@@ -202,8 +202,8 @@ Content-Type: application/json
 |---|---|---|
 | `token` | Partial AI response token (streaming) | `{"content": "..."}` |
 | `thinking` | Reasoning token (only when `ENABLE_THINKING=true` and the model supports it) | `{"content": "..."}` |
-| `tool_call` | Agent is about to call a tool | `{"tool": "list_dir", "args": {...}}` |
-| `tool_result` | Tool call completed | `{"tool": "list_dir", "content": "..."}` |
+| `tool_call` | Agent is about to call a tool | `{"tool": "ls", "args": {...}}` |
+| `tool_result` | Tool call completed | `{"tool": "ls", "content": "..."}` |
 | `interrupt` | Agent needs human approval | `{"type": "approval", "tool": "...", "args": {...}}` |
 | `done` | Stream finished | `{}` |
 | `error` | Unhandled exception | `{"message": "..."}` |
@@ -235,8 +235,8 @@ The final AI synthesis streams as `token` events again before `done`.
 event: token       data: {"content": "Here "}
 event: token       data: {"content": "is "}
 event: token       data: {"content": "what I found:\n"}
-event: tool_call   data: {"tool": "list_dir", "args": {"path": "."}}
-event: tool_result data: {"tool": "list_dir", "content": "d harness\n..."}
+event: tool_call   data: {"tool": "ls", "args": {"path": "."}}
+event: tool_result data: {"tool": "ls", "content": "d harness\n..."}
 event: token       data: {"content": "The project has "}
 event: token       data: {"content": "three directories."}
 event: done        data: {}

@@ -5,7 +5,7 @@ description: Scan a codebase for hardcoded secrets, API keys, and credentials. R
 
 # Find hardcoded secrets
 
-1. Use `run_bash` to grep for common secret patterns. Run these from the project root:
+1. Use `execute` to grep for common secret patterns. Run these from the project root:
    - `grep -rEn "(api[_-]?key|secret|password|token)\s*=\s*['\"][^'\"]{8,}" --include='*.py' --include='*.js' --include='*.ts' --include='*.env*' .`
    - `grep -rEn "(AKIA|AIza|ghp_|sk-)[A-Za-z0-9]{16,}" .`
    - Skip noisy dirs: append ` --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.venv --exclude-dir=__pycache__`.

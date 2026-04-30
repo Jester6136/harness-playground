@@ -1,8 +1,8 @@
 """Builds the deep agent — wires LLM + tools + skill-based subagents.
 
-The whole "harness" is now this one function plus the skill loader.
-The agentic loop, sub-agents, state management, and compaction live inside
-deepagents/LangGraph.
+deepagents ships built-in tools (write_todos, ls, read_file, write_file,
+edit_file, glob, grep, execute, task) and a native HITL approval mechanism
+via `interrupt_on=`. We only add tools it doesn't have.
 """
 from deepagents import create_deep_agent
 
@@ -10,6 +10,15 @@ from harness.config import get_instructions
 from harness.extensions.skills import load_skills
 from harness.llm import make_llm
 from harness.tools import ALL_TOOLS
+
+# Built-in tools that should pause for human approval. Same protocol
+# (LangGraph `interrupt`) as before — the API streams `event: interrupt`
+# and resumes via /threads/.../runs/resume; the CLI prompts y/N.
+HITL_TOOLS = {
+    "execute": True,
+    "write_file": True,
+    "edit_file": True,
+}
 
 
 def make_agent(checkpointer=None, store=None, enable_thinking: bool | None = None):
@@ -29,6 +38,7 @@ def make_agent(checkpointer=None, store=None, enable_thinking: bool | None = Non
         system_prompt=get_instructions(),
         model=make_llm(enable_thinking=enable_thinking),
         subagents=load_skills(),
+        interrupt_on=HITL_TOOLS,
         checkpointer=checkpointer,
         store=store,
     )

@@ -32,9 +32,7 @@ harness-playground/
 │   │   ├── checkpoints.py    ←   PostgresSaver + session admin
 │   │   ├── store.py          ←   long-term memory (LangGraph Store)
 │   │   └── db.py             ←   healthcheck
-│   ├── tools/                ← @tool functions, one module per domain
-│   │   ├── files.py          ←   read_file, list_dir, write_file
-│   │   ├── shell.py          ←   run_bash + denylist
+│   ├── tools/                ← custom @tool functions (deepagents built-ins not listed)
 │   │   ├── vision.py         ←   analyze_image (VLM)
 │   │   └── memory.py         ←   remember/recall_user_context
 │   ├── extensions/           ← agent plug-in mechanisms
@@ -102,7 +100,7 @@ python main.py --user alice --session research "scan for secrets"
 python main.py --user alice --session research "what did you find?"  # remembers
 ```
 
-HITL: when the agent calls `write_file` or `run_bash`, the CLI prompts `y/N`.
+HITL: when the agent calls `execute`, `write_file`, or `edit_file`, the CLI prompts `y/N`.
 
 Session admin:
 
@@ -148,14 +146,26 @@ Single-page HTML served from `static/index.html` — no build step needed.
 
 ## Tools
 
-Defined under `harness/tools/` (one module per domain) with `@tool`. All tools are exported as `ALL_TOOLS` from the package.
+Custom tools live under `harness/tools/` with `@tool`. All are exported as `ALL_TOOLS`.
+
+**Built-in tools** (provided by deepagents — no code needed):
 
 | Tool | Description |
 |---|---|
-| `read_file` | Read a UTF-8 file from disk |
-| `list_dir` | List directory contents |
-| `write_file` | Write/overwrite a file (requires HITL approval) |
-| `run_bash` | Run a shell command (requires HITL approval) |
+| `ls` | List directory contents |
+| `read_file` | Read a file from disk |
+| `write_file` | Write/overwrite a file (HITL approval required) |
+| `edit_file` | Edit an existing file (HITL approval required) |
+| `glob` | Find files by glob pattern |
+| `grep` | Search file contents |
+| `execute` | Run a shell command (HITL approval required) |
+| `write_todos` | Break down multi-step work into tracked tasks |
+| `task` | Delegate to a skill sub-agent |
+
+**Custom tools** (defined in `harness/tools/`):
+
+| Tool | Description |
+|---|---|
 | `analyze_image` | Describe an image or PDF using the vision model |
 | `remember_about_user` | Persist a key-value fact to long-term memory |
 | `recall_user_context` | Retrieve all remembered facts for the current user |
@@ -163,13 +173,13 @@ Defined under `harness/tools/` (one module per domain) with `@tool`. All tools a
 ### Adding a tool
 
 ```python
-# harness/tools/files.py (or a new module)
+# harness/tools/vision.py (or a new module)
 @tool
 def count_words(path: str) -> str:
     """Count words in a text file."""
     return f"{len(Path(path).read_text().split())} words"
 
-# Then export it from harness/tools/__init__.py and add to ALL_TOOLS.
+# Then add it to ALL_TOOLS in harness/tools/__init__.py.
 ```
 
 The docstring becomes the model-facing description; type hints become the JSON schema.
@@ -229,7 +239,7 @@ Add commands in `harness/extensions/commands.py` via `@register_command`.
 
 ## HITL (Human-in-the-loop)
 
-`write_file` and `run_bash` call `langgraph.types.interrupt()` before executing. The stream emits an `interrupt` SSE event; the frontend renders an Approve / Deny dialog. On user action, POST to `/threads/{user}:{session}/runs/resume`.
+`execute`, `write_file`, and `edit_file` are registered in `HITL_TOOLS` in `harness/agent.py` via deepagents' native `interrupt_on=` mechanism. The stream emits an `interrupt` SSE event; the frontend renders an Approve / Deny dialog. On user action, POST to `/threads/{user}:{session}/runs/resume`.
 
 See [`docs/API.md`](docs/API.md) for the full HITL protocol.
 

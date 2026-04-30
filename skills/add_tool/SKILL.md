@@ -11,15 +11,16 @@ schema; the docstring becomes the model-facing description.
 ## 1. Decide the shape
 
 - **Name**: snake_case `verb_noun` (e.g. `count_lines`, `fetch_url`, `query_database`).
-- **Side effects?** If yes (writes, network, shell, mutating DB), require human approval via
-  `langgraph.types.interrupt(...)` — see how `run_bash` and `write_file` do it in `harness/tools.py`.
+- **Side effects?** Built-in tools that need human approval (`execute`, `write_file`, `edit_file`) are
+  already covered by `interrupt_on=` in `harness/agent.py`. For a brand-new custom tool with
+  side effects, add its name to the `HITL_TOOLS` dict in `harness/agent.py`.
 - **Output size?** If unbounded, truncate inside the function. Large outputs blow up the context window.
 
 ## 2. Pick the right location
 
 | Scope | Where it goes |
 |---|---|
-| Generic, used across many skills | `harness/tools.py`, append to `ALL_TOOLS` at bottom |
+| Generic, used across many skills | `harness/tools/` — pick the most fitting domain file (`vision.py`, `memory.py`) or create a new one, then add to `ALL_TOOLS` in `harness/tools/__init__.py` |
 | Specific to one skill | New `*.py` file in `skills/<skill_name>/` (auto-imported by skill loader) |
 
 ## 3. Write the tool
@@ -38,25 +39,10 @@ def my_new_tool(arg1: str, arg2: int = 10) -> str:
     return result
 ```
 
-For tools with side effects:
-
-```python
-from langgraph.types import interrupt
-
-@tool
-def dangerous_action(target: str) -> str:
-    """Mutates external state. Asks for human approval first."""
-    decision = interrupt({"type": "approval", "tool": "dangerous_action", "target": target})
-    if decision != "approve":
-        return "ERROR: denied by user"
-    # ... actually do the thing
-    return "done"
-```
-
 ## 4. Register & verify
 
-- For generic tools, append to the `ALL_TOOLS` list at the bottom of `harness/tools.py`.
+- For generic tools in `harness/tools/`, add to `ALL_TOOLS` in `harness/tools/__init__.py`.
 - For skill-local tools, no registration needed — the skill loader auto-imports any `@tool`-decorated callables it finds in the skill folder.
 - Run `python main.py "use the new <tool_name> to ..."` and watch the trace.
 
-You do NOT need to edit `harness/agent.py` or any loader code. Both pick up new tools automatically.
+You do NOT need to edit `harness/agent.py` unless the new tool needs HITL approval. Both the agent and skill loader pick up new tools automatically.

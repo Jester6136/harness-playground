@@ -7,7 +7,7 @@ description: Walk through a project directory and produce a structured summary c
 
 Follow these steps in order:
 
-1. **List the top-level directory** with `list_dir` to see the project structure.
+1. **List the top-level directory** with `ls` to see the project structure.
 2. **Read the README** if one exists (README.md, README.rst, etc.).
 3. **Identify the entry point**: look for `main.py`, `index.ts`, `cmd/main.go`, `package.json` scripts, etc.
 4. **Read the entry point** to understand how the app starts.
