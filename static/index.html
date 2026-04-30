@@ -78,6 +78,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 /* ─── Chat panel ─────────────────────────────────────────────────── */
 .chat-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.messages > * { flex-shrink: 0; }
 @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
 
 /* bubbles */
