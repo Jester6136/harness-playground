@@ -34,7 +34,7 @@ Send a message and receive the agent's response as an SSE stream.
 ```json
 {
   "session_id": "main",
-  "message": "summarize this codebase"
+  "message": "what can you help me with?"
 }
 ```
 
@@ -46,19 +46,19 @@ Each line is an SSE event:
 
 ```
 event: token
-data: {"content": "Here "}
+data: {"content": "I can help you "}
 
 event: token
-data: {"content": "is the summary..."}
+data: {"content": "with the following..."}
 
 event: tool_call
-data: {"tool": "ls", "args": {"path": "."}}
+data: {"tool": "remember_about_user", "args": {"key": "name", "value": "Alice"}}
 
 event: tool_result
-data: {"tool": "ls", "content": "d harness\nd skills\n..."}
+data: {"tool": "remember_about_user", "content": "remembered"}
 
 event: interrupt
-data: {"type": "approval", "tool": "execute", "args": {"command": "ls /"}}
+data: {"type": "approval", "tool": "execute", "args": {"command": "pg_dump mydb"}}
 
 event: done
 data: {}
@@ -100,6 +100,8 @@ Resume a run that was interrupted (e.g., awaiting HITL approval).
    - `data` contains `{"type": "approval", "tool": "...", "args": {...}}`.
 3. On user confirm/deny, POST to `/threads/{user}:{session}/runs/resume` with `{"resume": "approve" | "deny"}`.
 4. Continue streaming the response from the resume endpoint.
+
+The resume endpoint reads the pending interrupt from thread state and translates `"approve"`/`"deny"` into the format expected by deepagents' `HumanInTheLoopMiddleware` internally — the frontend only ever sends the simple string.
 
 ---
 
@@ -196,71 +198,9 @@ Content-Type: application/json
 
 ---
 
-## SSE Event Reference
-
-| Event | When | Data shape |
-|---|---|---|
-| `token` | Partial AI response token (streaming) | `{"content": "..."}` |
-| `thinking` | Reasoning token (only when `ENABLE_THINKING=true` and the model supports it) | `{"content": "..."}` |
-| `tool_call` | Agent is about to call a tool | `{"tool": "ls", "args": {...}}` |
-| `tool_result` | Tool call completed | `{"tool": "ls", "content": "..."}` |
-| `interrupt` | Agent needs human approval | `{"type": "approval", "tool": "...", "args": {...}}` |
-| `done` | Stream finished | `{}` |
-| `error` | Unhandled exception | `{"message": "..."}` |
-| `message` | Legacy — direct slash-command response (no agent loop) | `{"type": "ai", "content": "..."}` |
-
-#### Thinking / reasoning
-
-When `ENABLE_THINKING=true` and the served model supports
-`chat_template_kwargs.enable_thinking` (e.g. Gemma reasoning checkpoints),
-the model streams its chain-of-thought as `thinking` events *before*
-the final answer's `token` events. Render them as a separate (collapsible)
-block — the regular response still arrives as ordinary `token` events.
-
-```
-event: thinking  data: {"content": "Let me work this out step by step. "}
-event: thinking  data: {"content": "Day 1: climbs to 3, slides to 1..."}
-event: token     data: {"content": "It will take "}
-event: token     data: {"content": "18 days."}
-event: done      data: {}
-```
-
-### Streaming flow
-
-`token` events arrive first, building up the AI response word by word.
-When the agent invokes a tool, the partial stream is finalized, then `tool_call` + `tool_result` follow.
-The final AI synthesis streams as `token` events again before `done`.
-
-```
-event: token       data: {"content": "Here "}
-event: token       data: {"content": "is "}
-event: token       data: {"content": "what I found:\n"}
-event: tool_call   data: {"tool": "ls", "args": {"path": "."}}
-event: tool_result data: {"tool": "ls", "content": "d harness\n..."}
-event: token       data: {"content": "The project has "}
-event: token       data: {"content": "three directories."}
-event: done        data: {}
-```
-
----
-
-## Error responses
-
-Standard HTTP errors for non-stream endpoints:
-
-| Code | Meaning |
-|---|---|
-| 401 | `X-User-Id` header missing |
-| 404 | Pipeline or resource not found |
-| 500 | Internal server error |
-
----
-
----
-
 ### `POST /upload`
 
-Upload a file (image or PDF) to the server. Returns the absolute path that can be passed to `analyze_image`.
+Upload a file (image or PDF) to the server. Returns the path that can be passed to `analyze_image`.
 
 **Request:** `multipart/form-data`, field `file`.
 
@@ -280,6 +220,64 @@ Supported formats: JPEG, PNG, GIF, WebP, PDF.
 ### `GET /ui`
 
 Returns the single-page demo UI (`static/index.html`). Open in a browser — no build step or separate server needed.
+
+---
+
+## SSE Event Reference
+
+| Event | When | Data shape |
+|---|---|---|
+| `token` | Partial AI response token (streaming) | `{"content": "..."}` |
+| `thinking` | Reasoning token (only when `ENABLE_THINKING=true` and model supports it) | `{"content": "..."}` |
+| `tool_call` | Agent is about to call a tool | `{"tool": "remember_about_user", "args": {...}}` |
+| `tool_result` | Tool call completed | `{"tool": "remember_about_user", "content": "..."}` |
+| `interrupt` | Agent needs human approval before executing a command | `{"type": "approval", "tool": "execute", "args": {...}}` |
+| `done` | Stream finished | `{}` |
+| `error` | Unhandled exception | `{"message": "..."}` |
+| `message` | Direct slash-command response (no agent loop) | `{"type": "ai", "content": "..."}` |
+
+### Thinking / reasoning
+
+When `ENABLE_THINKING=true` and the served model supports
+`chat_template_kwargs.enable_thinking` (e.g. Gemma reasoning checkpoints),
+the model streams its chain-of-thought as `thinking` events *before*
+the final answer's `token` events. Render them as a separate (collapsible)
+block — the regular response still arrives as ordinary `token` events.
+
+```
+event: thinking  data: {"content": "Let me work this out step by step. "}
+event: thinking  data: {"content": "First I need to check..."}
+event: token     data: {"content": "The answer is "}
+event: token     data: {"content": "42."}
+event: done      data: {}
+```
+
+### Streaming flow
+
+`token` events arrive first, building up the AI response word by word.
+When the agent invokes a tool, the partial stream is finalized, then `tool_call` + `tool_result` follow.
+The final AI synthesis streams as `token` events again before `done`.
+
+```
+event: token       data: {"content": "Let me "}
+event: token       data: {"content": "remember that for you.\n"}
+event: tool_call   data: {"tool": "remember_about_user", "args": {"key": "name", "value": "Alice"}}
+event: tool_result data: {"tool": "remember_about_user", "content": "remembered"}
+event: token       data: {"content": "Done! I've saved your name."}
+event: done        data: {}
+```
+
+---
+
+## Error responses
+
+Standard HTTP errors for non-stream endpoints:
+
+| Code | Meaning |
+|---|---|
+| 401 | `X-User-Id` header missing |
+| 404 | Pipeline or resource not found |
+| 500 | Internal server error |
 
 ---
 
