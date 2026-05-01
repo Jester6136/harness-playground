@@ -36,6 +36,7 @@ Tool trả chuỗi JSON đã hoàn chỉnh dạng `{"rows": [...], "count": N, "
 <chuỗi JSON tool trả về, NGUYÊN VĂN>
 ```
 ````
+extra: check_don_dang_ky nếu có trường nào bị thiếu trong response thì đơn đó không đầy đủ, dù có thể có nhiều thửa đất, GCN, pháp nhân đi nữa. Nhưng nếu tất cả trường đều có thì đơn đó chắc chắn đầy đủ. Cần đưa ra thêm đánh giá này trong response để downstream system có thể sử dụng luôn, không phải parse lại. Đưa ra rõ ràng cái gì, điều gì bị thiếu thì cảnh báo.
 
 Vì sao copy nguyên văn (không tóm tắt, không trim, không reformat):
 - Response sẽ được parse bởi frontend / downstream system. Bỏ 1 field = mất dữ liệu nghiệp vụ không khôi phục được.
