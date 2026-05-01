@@ -649,6 +649,13 @@ function onEvent(type, raw) {
   } else if (type === 'error') {
     appendErr('Error: ' + (payload?.message || raw));
   }
+
+  // Re-show typing indicator between agent steps so user knows it's still working.
+  // Terminal events (done/error/interrupt/session_cleared) end the stream — no more typing.
+  const TERMINAL = ['done', 'error', 'interrupt', 'session_cleared'];
+  if (!TERMINAL.includes(type)) {
+    showTyping();
+  }
   scrollBot();
 }
 
@@ -845,8 +852,11 @@ function appendErr(msg) {
 function setDisabled(v) {
   S.streaming = v;
   document.getElementById('sendBtn').disabled = v;
-  document.getElementById('chatInput').disabled = v;
+  const inp = document.getElementById('chatInput');
+  inp.disabled = v;
   document.getElementById('sendBtn').textContent = v ? '⏳' : '➤';
+  // When re-enabled (assistant done responding), put focus back on input.
+  if (!v) inp.focus();
 }
 function scrollBot() {
   const el = document.getElementById('messages');
