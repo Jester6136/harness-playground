@@ -30,6 +30,7 @@ dependencies = [
     "uvicorn[standard]",
     "sse-starlette",
     "python-multipart",
+    "httpx",
 
     # Multimodal (T1.5)
     "pdf2image",

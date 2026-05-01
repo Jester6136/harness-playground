@@ -53,6 +53,12 @@ class Settings(BaseSettings):
             f"?connect_timeout=5"
         )
 
+    # DataLens internal-docs retriever — used by tools/search_docs.
+    # POST {datalens_url}/retrieve/react/ with {query, chatbot_code, ...}.
+    datalens_url: str = "http://192.168.120.12:37001"
+    datalens_chatbot_code: str = "bags_code"
+    datalens_timeout: float = 60.0
+
     # Logging
     log_level: str = "INFO"
     log_file: str = "logs/harness.json"
@@ -103,9 +109,14 @@ real filesystem and will return empty results.
 {task_section}
 
 Other tools available:
-  - write_todos    — break down multi-step work into tracked tasks
-  - execute        — run a shell command (requires human approval)
-  - analyze_image  — describe an image or PDF via the vision model
+  - write_todos          — break down multi-step work into tracked tasks
+  - execute              — run a shell command (requires human approval)
+  - analyze_image        — describe an image or PDF via the vision model
+  - search_internal_docs — search the internal knowledge base (DataLens). Use
+                           when the user asks about internal policies,
+                           processes, documents, or anything that would live
+                           in company docs. Returns ranked passages — cite
+                           document_name and pages when answering.
   - remember_about_user / recall_user_context — persist and retrieve per-user facts
 
 Answer simple questions directly without calling any tools. Be concise."""
