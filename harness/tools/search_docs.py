@@ -65,8 +65,20 @@ def search_internal_docs(query: str) -> str:
     mơ hồ (vd. "còn cái kia?"), tự viết lại thành câu đầy đủ trước khi gọi.
 
     Trả về JSON `{"ranked_contexts": [...], "count": N, "elapsed_ms": ms}`.
-    Mỗi context có `text`, `document_name`, `pages`, `score`. Khi trả lời
-    user, hãy tổng hợp từ `text` và trích nguồn theo `document_name` + `pages`.
-    `count: 0` = KB không có nội dung khớp — nói thẳng "không tìm thấy".
+    Mỗi context gồm: `text` (nội dung chunk), `document_name` (tên file),
+    `pages` (số trang), `score`, và `presigned_url` (link MinIO TTL 1h, có
+    thể null).
+
+    QUY TẮC TRẢ LỜI:
+    1. Tổng hợp câu trả lời CHỈ từ `text` của các chunk. Không bịa.
+    2. **Bắt buộc trích nguồn** ngay sau mỗi ý/đoạn lấy từ chunk, dùng
+       Markdown link tới `presigned_url` + anchor `#page=N` (N = `pages[0]`):
+         `[document_name (tr. X-Y)](presigned_url#page=X)`
+       Nếu `presigned_url` là null thì chỉ ghi `(document_name, tr. X-Y)`.
+    3. Nếu nhiều chunk cùng đóng góp, cite lần lượt từng nguồn ở chỗ liên quan
+       — không gộp cuối bài.
+    4. `count: 0` → trả lời "Không tìm thấy nội dung phù hợp trong kho tri
+       thức nội bộ." Không cố đoán.
+    5. Có lỗi (`error` field) → báo lỗi ngắn gọn, không retry.
     """
     return run_async(_retrieve(query))

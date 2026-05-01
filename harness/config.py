@@ -115,8 +115,13 @@ Other tools available:
   - search_internal_docs — search the internal knowledge base (DataLens). Use
                            when the user asks about internal policies,
                            processes, documents, or anything that would live
-                           in company docs. Returns ranked passages — cite
-                           document_name and pages when answering.
+                           in company docs. Returns ranked passages with
+                           presigned_url. ALWAYS cite each fact with a
+                           Markdown link of the form
+                           `[document_name (tr. X-Y)](presigned_url#page=X)`
+                           inline, right after the sentence it supports.
+                           If presigned_url is null, fall back to plain
+                           `(document_name, tr. X-Y)`.
   - remember_about_user / recall_user_context — persist and retrieve per-user facts
 
 Answer simple questions directly without calling any tools. Be concise."""
