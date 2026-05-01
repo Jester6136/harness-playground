@@ -343,7 +343,7 @@ def _format_gcn_rows(rows: list[dict]) -> str:
     lines: list[str] = []
 
     lines.append(f"**GCN: {r0.get('so_hieu_gcn', '?')}**")
-    meta = [v for v in (r0.get("loai_gcn"), r0.get("tinh_trang_gcn")) if v]
+    meta = [str(v) for v in (r0.get("loai_gcn"), r0.get("tinh_trang_gcn")) if v]
     if meta:
         lines.append(" | ".join(meta))
     if r0.get("so_ho_so_goc"):
@@ -469,7 +469,7 @@ def _format_giay_to_rows(rows: list[dict]) -> str:
 
 @register_command(
     "sohieu",
-    "Tra cứu GCN theo số hiệu (vd. /sohieu CH00123)",
+    "Tra cứu GCN theo số hiệu (vd. /sohieu CH 00123)",
     handler="direct",
     args_schema={"so_hieu_gcn": "str — số hiệu GCN"},
 )
@@ -492,9 +492,9 @@ async def _cmd_sohieu(args: str) -> str:
 
 @register_command(
     "giayto",
-    "Tra cứu GCN theo số giấy tờ chủ sở hữu (CMND/CCCD/MST...)",
+    "Tra cứu GCN theo số giấy tờ chủ sở hữu (CMND/CCCD)",
     handler="direct",
-    args_schema={"so_giay_to": "str — số CMND/CCCD/hộ chiếu/MST"},
+    args_schema={"so_giay_to": "str — số CMND/CCCD"},
 )
 async def _cmd_giayto(args: str) -> str:
     so_gt = args.strip()
