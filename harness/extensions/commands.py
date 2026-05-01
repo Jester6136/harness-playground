@@ -82,17 +82,18 @@ async def dispatch(cmd: str, args: str) -> tuple[str, str]:
     For 'direct': result is the string to stream back.
     For 'agent': result is the message to send to the agent.
     For 'pipeline': result is the pipeline name (api.py calls the pipeline).
+    For 'clear': caller must delete the current session, then display result string.
     """
     command = COMMANDS.get(cmd)
     if command is None:
         return "direct", f"Unknown command: /{cmd}. Type /help for available commands."
 
-    if command.handler == "direct" and command.fn:
+    if command.handler in ("direct", "clear") and command.fn:
         if asyncio.iscoroutinefunction(command.fn):
             result = await command.fn(args)
         else:
             result = command.fn(args)
-        return "direct", str(result)
+        return command.handler, str(result)
 
     if command.handler == "agent":
         if command.fn:
@@ -121,9 +122,9 @@ def _cmd_help(args: str) -> str:
     return "\n".join(lines)
 
 
-@register_command("clear", "Clear the current session (use via UI or delete endpoint)", handler="direct")
+@register_command("clear", "Xoá toàn bộ lịch sử của session hiện tại", handler="clear")
 def _cmd_clear(args: str) -> str:
-    return "To clear a session, use DELETE /threads/{user}/{session} or start a new session."
+    return "Đã xoá lịch sử session."
 
 
 @register_command("list-skills", "List all loaded skill sub-agents", handler="direct")
@@ -312,3 +313,201 @@ async def _cmd_status(args: str) -> str:
             + ", ".join(f"`{m}`" for m in overall_missing)
         )
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# GCN lookup commands — flat snake_case rows, dedup by entity id.
+# ---------------------------------------------------------------------------
+
+def _fmt_date(val) -> str:
+    if val is None:
+        return "?"
+    from datetime import date, datetime
+    if isinstance(val, (date, datetime)):
+        return val.strftime("%d/%m/%Y")
+    return str(val)
+
+
+def _fmt_area(val) -> str:
+    if val is None:
+        return "?"
+    try:
+        return f"{float(val):,.1f} m²".replace(",", ".")
+    except (TypeError, ValueError):
+        return str(val)
+
+
+def _format_gcn_rows(rows: list[dict]) -> str:
+    """Render flat rows (1 GCN, multiple JOINs) into Markdown."""
+    r0 = rows[0]
+    lines: list[str] = []
+
+    lines.append(f"**GCN: {r0.get('so_hieu_gcn', '?')}**")
+    meta = [v for v in (r0.get("loai_gcn"), r0.get("tinh_trang_gcn")) if v]
+    if meta:
+        lines.append(" | ".join(meta))
+    if r0.get("so_ho_so_goc"):
+        lines.append(f"Hồ sơ gốc: {r0['so_ho_so_goc']}")
+    if r0.get("so_vao_so"):
+        lines.append(f"Vào sổ: {r0['so_vao_so']} ngày {_fmt_date(r0.get('ngay_vao_so'))}")
+    if r0.get("ten_nguoi_ky"):
+        lines.append(f"Người ký: {r0['ten_nguoi_ky']}")
+
+    seen_pn:    dict[str, dict] = {}
+    seen_td:    dict[str, dict] = {}
+    seen_nha:   dict[str, dict] = {}
+    seen_ctxd:  dict[str, dict] = {}
+    seen_paper: dict[str, dict] = {}
+    for row in rows:
+        for key, store in (
+            ("phap_nhan_id", seen_pn),
+            ("thua_dat_id",  seen_td),
+            ("nha_id",       seen_nha),
+            ("ctxd_id",      seen_ctxd),
+        ):
+            v = row.get(key)
+            if v and v not in store:
+                store[v] = row
+        fp = row.get("file_scan_path")
+        if fp and fp not in seen_paper:
+            seen_paper[fp] = row
+
+    if seen_pn:
+        lines.append(f"\n**Chủ sở hữu ({len(seen_pn)}):**")
+        for row in seen_pn.values():
+            if row.get("loai_doi_tuong") == 1:
+                lines.append(
+                    f"  Cá nhân: **{row.get('ho_ten') or '?'}**"
+                    + (f" | sinh {_fmt_date(row['ngay_sinh'])}" if row.get("ngay_sinh") else "")
+                    + (f" | {row['dia_chi_chu']}" if row.get("dia_chi_chu") else "")
+                )
+            elif row.get("loai_doi_tuong") == 2:
+                lines.append(
+                    f"  Tổ chức: **{row.get('ten_to_chuc') or '?'}**"
+                    + (f" | MSDN: {row['ma_so_doanh_nghiep']}" if row.get("ma_so_doanh_nghiep") else "")
+                )
+
+    if seen_td:
+        lines.append(f"\n**Thửa đất ({len(seen_td)}):**")
+        for row in seen_td.values():
+            desc = f"  Tờ {row.get('so_hieu_to_ban_do','?')}, thửa {row.get('so_thu_tu_thua','?')}"
+            if row.get("dien_tich"):
+                desc += f" — {_fmt_area(row['dien_tich'])}"
+            if row.get("muc_dich_su_dung"):
+                desc += f" | {row['muc_dich_su_dung']}"
+            location = ", ".join(filter(None, [row.get("dia_chi_thua_dat"), row.get("ten_xa")]))
+            if location:
+                desc += f" | {location}"
+            lines.append(desc)
+
+    if seen_nha:
+        lines.append(f"\n**Nhà ({len(seen_nha)}):**")
+        for row in seen_nha.values():
+            parts = []
+            if row.get("so_tang"): parts.append(f"{row['so_tang']} tầng")
+            if row.get("dien_tich_san"): parts.append(f"sàn {_fmt_area(row['dien_tich_san'])}")
+            if row.get("ket_cau_nha"): parts.append(row["ket_cau_nha"])
+            if row.get("nam_xay_dung"): parts.append(f"XD {row['nam_xay_dung']}")
+            lines.append(f"  Số {row.get('so_nha','?')}" + (f" ({', '.join(parts)})" if parts else ""))
+
+    if seen_ctxd:
+        lines.append(f"\n**Công trình XD ({len(seen_ctxd)}):**")
+        for row in seen_ctxd.values():
+            desc = f"  {row.get('ten_cong_trinh','?')}"
+            if row.get("dt_ctxd"): desc += f" ({_fmt_area(row['dt_ctxd'])})"
+            lines.append(desc)
+
+    if seen_paper:
+        lines.append(f"\n**File scan ({len(seen_paper)}):**")
+        for row in seen_paper.values():
+            lines.append(f"  {row.get('file_scan_name') or row['file_scan_path']}")
+
+    return "\n".join(lines)
+
+
+def _format_giay_to_rows(rows: list[dict]) -> str:
+    """Render rows from lookup_gcn_by_giay_to_dinh_danh."""
+    r0 = rows[0]
+    lines = [f"**Chủ sở hữu: {r0.get('ten_chu') or '?'}**"]
+    gt_parts = [r0.get("so_giay_to") or "?"]
+    if r0.get("loai_giay_to"): gt_parts.append(r0["loai_giay_to"])
+    if r0.get("ngay_cap"): gt_parts.append(f"cấp {_fmt_date(r0['ngay_cap'])}")
+    if r0.get("noi_cap"): gt_parts.append(f"tại {r0['noi_cap']}")
+    lines.append("Giấy tờ: " + " | ".join(gt_parts))
+
+    seen_gcn:    dict[str, dict]       = {}
+    gcn_td_keys: dict[str, set[tuple]] = {}
+    gcn_tds:     dict[str, list[dict]] = {}
+
+    for row in rows:
+        gid = row.get("gcn_id")
+        if not gid:
+            continue
+        if gid not in seen_gcn:
+            seen_gcn[gid] = row
+            gcn_td_keys[gid] = set()
+            gcn_tds[gid] = []
+        td_key = (row.get("so_hieu_to_ban_do"), row.get("so_thu_tu_thua"))
+        if any(v is not None for v in td_key) and td_key not in gcn_td_keys[gid]:
+            gcn_td_keys[gid].add(td_key)
+            gcn_tds[gid].append(row)
+
+    lines.append(f"\n**Tìm thấy {len(seen_gcn)} GCN:**")
+    for i, (gid, row) in enumerate(seen_gcn.items(), 1):
+        hdr = f"\n**{i}. GCN {row.get('so_hieu_gcn','?')}**"
+        if row.get("tinh_trang_gcn"): hdr += f" — {row['tinh_trang_gcn']}"
+        lines.append(hdr)
+        if row.get("loai_gcn"): lines.append(f"   Loại: {row['loai_gcn']}")
+        for td in gcn_tds[gid]:
+            desc = f"   Thửa: tờ {td.get('so_hieu_to_ban_do','?')}, thửa {td.get('so_thu_tu_thua','?')}"
+            if td.get("dien_tich"): desc += f" — {_fmt_area(td['dien_tich'])}"
+            if td.get("muc_dich_su_dung"): desc += f" | {td['muc_dich_su_dung']}"
+            lines.append(desc)
+
+    return "\n".join(lines)
+
+
+@register_command(
+    "sohieu",
+    "Tra cứu GCN theo số hiệu (vd. /sohieu CH00123)",
+    handler="direct",
+    args_schema={"so_hieu_gcn": "str — số hiệu GCN"},
+)
+async def _cmd_sohieu(args: str) -> str:
+    so_hieu = args.strip()
+    if not so_hieu:
+        return "Cú pháp: `/sohieu <so_hieu_gcn>`"
+
+    from harness.persistence.lis_db import run_query
+    from harness.persistence.lis_queries import GET_GCN_BY_SO_HIEU
+
+    try:
+        rows = await run_query(GET_GCN_BY_SO_HIEU, (so_hieu,), row_cap=50)
+    except Exception as exc:
+        return f"❌ Lỗi DB: `{type(exc).__name__}: {exc}`"
+    if not rows:
+        return f"❌ Không tìm thấy GCN với số hiệu `{so_hieu}`."
+    return _format_gcn_rows(rows)
+
+
+@register_command(
+    "giayto",
+    "Tra cứu GCN theo số giấy tờ chủ sở hữu (CMND/CCCD/MST...)",
+    handler="direct",
+    args_schema={"so_giay_to": "str — số CMND/CCCD/hộ chiếu/MST"},
+)
+async def _cmd_giayto(args: str) -> str:
+    so_gt = args.strip()
+    if not so_gt:
+        return "Cú pháp: `/giayto <so_giay_to>`"
+
+    from harness.persistence.lis_db import run_query
+    from harness.persistence.lis_queries import GET_GCN_BY_GIAY_TO_DINH_DANH
+
+    try:
+        rows = await run_query(GET_GCN_BY_GIAY_TO_DINH_DANH, (so_gt,), row_cap=50)
+    except Exception as exc:
+        return f"❌ Lỗi DB: `{type(exc).__name__}: {exc}`"
+    if not rows:
+        return f"❌ Không tìm thấy GCN nào với số giấy tờ `{so_gt}`."
+    return _format_giay_to_rows(rows)

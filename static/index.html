@@ -636,6 +636,12 @@ function onEvent(type, raw) {
       </div>`;
     S.intrTid = tid;
     msgs.appendChild(n);
+  } else if (type === 'session_cleared') {
+    // Backend deleted current session — wipe message view + refresh session list.
+    setTimeout(() => {
+      document.getElementById('messages').innerHTML = '';
+      loadSessions();
+    }, 400);
   } else if (type === 'done') {
     const n = document.createElement('div');
     n.className = 'done-pill'; n.textContent = '✓ Done';

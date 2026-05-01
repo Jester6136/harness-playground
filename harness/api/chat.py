@@ -12,7 +12,7 @@ from sse_starlette.sse import EventSourceResponse
 from harness.api.deps import get_user
 from harness.api.streaming import event_stream
 from harness.extensions.commands import dispatch, parse_command
-from harness.persistence.checkpoints import thread_id
+from harness.persistence.checkpoints import delete_session, thread_id
 
 router = APIRouter()
 
@@ -42,7 +42,12 @@ async def chat_stream(
         handler_type, result = await dispatch(cmd, args)
 
         async def generate_cmd():
-            if handler_type == "direct":
+            if handler_type == "clear":
+                delete_session(user, body.session_id)
+                yield {"event": "message", "data": json.dumps({"type": "ai", "content": result})}
+                yield {"event": "session_cleared", "data": json.dumps({"session_id": body.session_id})}
+                yield {"event": "done", "data": "{}"}
+            elif handler_type == "direct":
                 yield {"event": "message", "data": json.dumps({"type": "ai", "content": result})}
                 yield {"event": "done", "data": "{}"}
             else:

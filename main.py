@@ -171,6 +171,10 @@ def main() -> None:
     if parsed:
         cmd, cmd_args = parsed
         handler_type, result = run_async(dispatch(cmd, cmd_args))
+        if handler_type == "clear":
+            delete_session(args.user, args.session)
+            print(f"  [assistant] {result}")
+            return
         if handler_type == "direct":
             print(f"  [assistant] {result}")
             return
