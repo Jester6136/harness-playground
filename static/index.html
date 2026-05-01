@@ -18,6 +18,7 @@
 body { font-family: var(--font); background: var(--bg); color: var(--text);
        height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
+/* ─── Header ─────────────────────────────────────────────────────── */
 .header { display: flex; align-items: center; gap: 12px; padding: 0 16px;
           height: 52px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .header-title { font-size: 15px; font-weight: 700; }
@@ -29,8 +30,10 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 .health-dot.ok { background: var(--success); }
 .health-dot.err { background: var(--error); }
 
+/* ─── Layout ─────────────────────────────────────────────────────── */
 .main { display: flex; flex: 1; overflow: hidden; }
 
+/* ─── Sidebar ────────────────────────────────────────────────────── */
 .sidebar { width: 260px; background: var(--bg2); border-right: 1px solid var(--border);
            display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
 .sb-section { padding: 10px 12px; border-bottom: 1px solid var(--border); }
@@ -63,6 +66,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 .cmd-ref { font-size: 12px; color: var(--muted); line-height: 1.7; }
 .cmd-ref span { font-family: var(--mono); color: var(--primary); }
 
+/* ─── Content ────────────────────────────────────────────────────── */
 .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .tabs { display: flex; background: var(--bg2); border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .tab { padding: 10px 18px; font-size: 13px; cursor: pointer; color: var(--muted);
@@ -71,11 +75,13 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
 .sess-label { display: flex; align-items: center; padding: 0 14px; font-size: 11px; color: var(--muted); margin-left: auto; }
 
+/* ─── Chat panel ─────────────────────────────────────────────────── */
 .chat-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .messages > * { flex-shrink: 0; }
 @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
 
+/* bubbles */
 .msg { max-width: 82%; animation: fadeIn .2s ease; }
 .msg-user { align-self: flex-end; }
 .msg-ai   { align-self: flex-start; }
@@ -85,6 +91,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 .msg-user .bubble { background: var(--primary); color: #fff; border-radius: 12px 12px 4px 12px; }
 .msg-ai  .bubble  { background: var(--bg2); border: 1px solid var(--border); border-radius: 4px 12px 12px 12px; }
 
+/* tool blocks — native <details> toggle, compact when empty */
 .tool-block { background: var(--bg2); border: 1px solid var(--purple);
               border-radius: var(--r); max-width: 88%; align-self: flex-start;
               animation: fadeIn .2s ease; overflow: hidden; }
@@ -117,6 +124,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
                 margin: 0 10px 10px; max-height: 420px;
                 overflow: auto; white-space: pre-wrap; word-break: break-all; }
 
+/* interrupt */
 .intr-block { background: var(--bg2); border: 2px solid var(--warn); border-radius: var(--r);
               padding: 14px 16px; width: 95%; align-self: center; animation: fadeIn .2s ease; }
 .intr-title { font-size: 13px; font-weight: 700; color: var(--warn); margin-bottom: 8px; }
@@ -125,6 +133,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
                white-space: pre-wrap; word-break: break-all; max-height: 120px; overflow: auto; }
 .intr-actions { display: flex; gap: 8px; }
 
+/* done / error */
 .done-pill { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 5px;
              padding: 4px 12px; background: var(--bg2); border-radius: 20px;
              border: 1px solid var(--border); align-self: center; }
@@ -132,6 +141,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
              border-radius: var(--r); padding: 9px 13px; font-size: 13px; color: var(--error);
              animation: fadeIn .2s ease; }
 
+/* typing */
 .typing { display: flex; gap: 4px; align-self: flex-start; padding: 11px 15px;
           background: var(--bg2); border: 1px solid var(--border);
           border-radius: 4px 12px 12px 12px; animation: fadeIn .2s ease; }
@@ -139,6 +149,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 .dot:nth-child(2) { animation-delay: .2s; } .dot:nth-child(3) { animation-delay: .4s; }
 @keyframes bounce { 0%,80%,100% { transform:translateY(0); opacity:.5; } 40% { transform:translateY(-6px); opacity:1; } }
 
+/* input area */
 .input-area { padding: 10px 14px; background: var(--bg2); border-top: 1px solid var(--border); position: relative; }
 .autocomplete { position: absolute; bottom: 100%; left: 14px; right: 14px; background: var(--bg3);
                 border: 1px solid var(--border); border-radius: var(--r); display: none; z-index: 10;
@@ -157,6 +168,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 .send-btn { height: 44px; width: 44px; padding: 0; display: flex; align-items: center;
             justify-content: center; font-size: 17px; flex-shrink: 0; }
 
+/* ─── Pipeline panel ─────────────────────────────────────────────── */
 .pipe-panel { flex: 1; overflow-y: auto; padding: 18px; display: none; flex-direction: column; gap: 14px; }
 .pipe-panel.show { display: flex; }
 .pipe-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; }
@@ -172,6 +184,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
                word-break: break-all; max-height: 380px; overflow: auto; display: none; }
 .pipe-result.show { display: block; }
 
+/* ─── Markdown ───────────────────────────────────────────────────── */
 .md p { margin-bottom: .4em; } .md p:last-child { margin-bottom: 0; }
 .md code { background: var(--bg3); padding: 2px 5px; border-radius: 4px; font-family: var(--mono); font-size: .88em; }
 .md pre, .md pre.hljs { background: var(--bg); border: 1px solid var(--border); border-radius: 5px;
@@ -189,9 +202,11 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 .md hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
 .md a { color: var(--primary); text-decoration: none; } .md a:hover { text-decoration: underline; }
 
+/* ─── Streaming cursor ───────────────────────────────────────────── */
 @keyframes cursor-blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
 .stream-cursor-el { display:inline; animation:cursor-blink .8s step-end infinite; color:var(--muted); font-size:.9em; margin-left:1px; }
 
+/* ─── File attachment ────────────────────────────────────────────── */
 .attach-btn { height:44px; width:36px; padding:0; display:flex; align-items:center; justify-content:center;
               font-size:16px; background:transparent; border:1px solid var(--border); color:var(--muted);
               flex-shrink:0; border-radius:var(--r); cursor:pointer; transition:background .15s; }
@@ -204,6 +219,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 .attach-remove { background:none; border:none; color:var(--muted); cursor:pointer; font-size:12px; padding:0 2px; }
 .attach-remove:hover { color:var(--error); }
 
+/* ─── Scrollbar ──────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
@@ -212,6 +228,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 </head>
 <body>
 
+<!-- Header -->
 <div class="header">
   <div>
     <div class="header-title">🤖 Harness Playground</div>
@@ -224,8 +241,12 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
   </div>
 </div>
 
+<!-- Main -->
 <div class="main">
+
+  <!-- Sidebar -->
   <div class="sidebar">
+    <!-- Settings -->
     <div class="sb-section">
       <div class="sb-label">Settings</div>
       <div style="margin-bottom:7px;">
@@ -239,6 +260,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
       </div>
     </div>
 
+    <!-- Sessions -->
     <div class="sb-section">
       <div class="sb-label">Sessions</div>
       <div class="row" style="margin-bottom:0;">
@@ -250,19 +272,23 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
       <div style="text-align:center;color:var(--muted);font-size:12px;padding:14px;">Apply settings to load</div>
     </div>
 
+    <!-- Commands reference -->
     <div class="sb-section" style="border-top:1px solid var(--border);border-bottom:none;flex-shrink:0;">
       <div class="sb-label">Slash Commands</div>
       <div class="cmd-ref" id="cmdRef"><div style="color:var(--muted);">Loading…</div></div>
     </div>
   </div>
 
+  <!-- Content -->
   <div class="content">
+    <!-- Tabs -->
     <div class="tabs">
       <div class="tab active" id="tabChat" onclick="switchTab('chat')">💬 Chat</div>
       <div class="tab" id="tabPipe" onclick="switchTab('pipe')">⚡ Pipelines</div>
       <div class="sess-label" id="sessLabel">—</div>
     </div>
 
+    <!-- Chat panel -->
     <div class="chat-panel" id="chatPanel">
       <div class="messages" id="messages">
         <div style="text-align:center;color:var(--muted);font-size:13px;padding:40px 20px;">
@@ -287,6 +313,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
       </div>
     </div>
 
+    <!-- Pipeline panel -->
     <div class="pipe-panel" id="pipePanel">
       <div style="color:var(--muted);text-align:center;padding:40px;">Loading pipelines…</div>
     </div>
@@ -296,7 +323,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/markdown-it@14/dist/markdown-it.min.js"></script>
 <script>
-// ─── State ────────────────────────────────────────────────────────────────────
+// ─── State ───────────────────────────────────────────────────────────────────
 const S = {
   base: '',
   user: 'alice',
@@ -307,16 +334,14 @@ const S = {
   streaming: false,
   intrTid: null,
   acIdx: -1,
-  streamBubble: null,   // DOM node of the live streaming AI bubble
-  streamContent: '',    // accumulated raw text while streaming
-  attachedFile: null,
+  streamBubble: null,   // current streaming AI message element
+  streamContent: '',    // raw accumulated text being streamed
+  attachedFile: null,   // {path, name} or null
 };
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  S.base = (window.location.origin === 'null' || window.location.origin === '')
-    ? 'http://localhost:8000'
-    : window.location.origin;
+  S.base = window.location.origin === 'null' ? 'http://localhost:8000' : window.location.origin;
   document.getElementById('apiBase').value = S.base;
   document.getElementById('userId').value = S.user;
   applySettings();
@@ -441,6 +466,9 @@ function addHistoryMsg(type, content, name) {
   }
 }
 
+// Tool call/result renderer. `kind` is 'call' or 'result'. `body` is the
+// pre-formatted string to show inside the toggle (args JSON or raw output).
+// When body is empty/`{}`, render a compact non-toggleable pill.
 function makeToolBlock(kind, toolName, body) {
   const n = document.createElement('div');
   n.className = 'tool-block' + (kind === 'result' ? ' result-block' : '');
@@ -479,6 +507,7 @@ async function sendMessage() {
   if (S.streaming) return;
   hideAC();
 
+  // Build display text and API payload separately
   let displayMsg = msg;
   let apiMsg = msg;
   if (S.attachedFile) {
@@ -491,11 +520,6 @@ async function sendMessage() {
   inp.value = ''; inp.style.height = 'auto';
   showTyping();
   setDisabled(true);
-
-  // Reset stream state before each new request
-  S.streamBubble = null;
-  S.streamContent = '';
-
   try {
     const resp = await fetch(`${S.base}/chat/stream`, {
       method: 'POST',
@@ -506,14 +530,8 @@ async function sendMessage() {
     await readSSE(resp, onEvent);
   } catch(e) {
     removeTyping();
-    finalizeStream(); // always finalize on error too
     appendErr('Stream error: ' + e.message);
-  } finally {
-    // Ensure stream is finalized and typing removed no matter what
-    finalizeStream();
-    removeTyping();
-    setDisabled(false);
-  }
+  } finally { setDisabled(false); }
 }
 
 async function readSSE(resp, handler) {
@@ -522,6 +540,7 @@ async function readSSE(resp, handler) {
   let buf = '';
 
   function parseChunks(text) {
+    // Handle both \r\n\r\n (sse_starlette default) and \n\n
     const parts = text.split(/\r?\n\r?\n/);
     const remainder = parts.pop() ?? '';
     for (const chunk of parts) {
@@ -542,44 +561,27 @@ async function readSSE(resp, handler) {
     buf += dec.decode(value, { stream: true });
     buf = parseChunks(buf);
   }
+  // flush any remaining complete events
   if (buf.trim()) parseChunks(buf + '\r\n\r\n');
 }
 
-// FIX: finalizeStream now safely clears the cursor and only acts if there's an open bubble.
-// It is idempotent — calling it multiple times is safe.
 function finalizeStream() {
   if (!S.streamBubble) return;
   const el = S.streamBubble.querySelector('.bubble');
-  if (el) {
-    // Remove cursor and render final markdown
-    el.innerHTML = md(S.streamContent);
-  }
+  if (el) el.innerHTML = md(S.streamContent);
   S.streamBubble = null;
   S.streamContent = '';
 }
 
-// FIX: Completely rewritten onEvent.
-// Key changes:
-//   1. 'token' events: remove typing, accumulate text, show in bubble with cursor — never re-show typing
-//   2. Non-token events: finalize any open stream bubble FIRST, then handle the event
-//   3. Typing is only re-shown for intermediate non-terminal events when there is NO open stream bubble
-//      (i.e., between tool calls, before the next token burst begins)
-//   4. Terminal events (done/error/interrupt/session_cleared) never re-show typing
 function onEvent(type, raw) {
   const msgs = document.getElementById('messages');
   const payload = tryJSON(raw);
 
-  const TERMINAL = ['done', 'error', 'interrupt', 'session_cleared'];
-
-  // ── Token streaming ──────────────────────────────────────────────────────
+  // Token streaming — accumulate into live bubble without removing typing indicator yet
   if (type === 'token') {
-    const content = payload?.content ?? (typeof payload === 'string' ? payload : '');
+    const content = payload?.content || '';
     if (!content) return;
-
-    // As soon as tokens arrive, remove typing indicator
     removeTyping();
-
-    // Create the stream bubble if this is the first token of a new response
     if (!S.streamBubble) {
       const n = document.createElement('div');
       n.className = 'msg msg-ai';
@@ -588,32 +590,26 @@ function onEvent(type, raw) {
       S.streamBubble = n;
       S.streamContent = '';
     }
-
     S.streamContent += content;
     const streamEl = S.streamBubble.querySelector('.bubble');
-    // Render current markdown + blinking cursor
     streamEl.innerHTML = md(S.streamContent) + '<span class="stream-cursor-el">▋</span>';
     scrollBot();
-    return; // do NOT fall through to typing logic for token events
+    return;
   }
 
-  // ── All other events: finalize any open stream bubble first ─────────────
-  finalizeStream();
   removeTyping();
+  finalizeStream(); // close any open streaming bubble before rendering other events
 
-  // ── Handle specific event types ──────────────────────────────────────────
   if (type === 'tool_call') {
     if (!payload) return;
     const args = payload.args && Object.keys(payload.args).length
       ? JSON.stringify(payload.args, null, 2) : '';
     msgs.appendChild(makeToolBlock('call', payload.tool, args));
-
   } else if (type === 'tool_result') {
     if (!payload) return;
     msgs.appendChild(makeToolBlock('result', payload.tool, payload.content || ''));
-
   } else if (type === 'message') {
-    // Legacy fallback for backends that emit full message objects
+    // Legacy fallback — emitted by old backend or slash-command direct handler
     if (!payload) return;
     if (payload.type === 'ai' && payload.content?.trim()) {
       const n = document.createElement('div');
@@ -626,7 +622,6 @@ function onEvent(type, raw) {
         ? JSON.stringify(tc.args, null, 2) : '';
       msgs.appendChild(makeToolBlock('call', tc.tool, args));
     }
-
   } else if (type === 'interrupt') {
     const detail = payload ?? { raw };
     const tid = `${S.user}:${S.session}`;
@@ -641,27 +636,19 @@ function onEvent(type, raw) {
       </div>`;
     S.intrTid = tid;
     msgs.appendChild(n);
-
   } else if (type === 'session_cleared') {
-    // Wipe message view and refresh sessions immediately (no setTimeout)
-    document.getElementById('messages').innerHTML = '';
-    loadSessions();
-
+    // Backend deleted current session — wipe message view + refresh session list.
+    setTimeout(() => {
+      document.getElementById('messages').innerHTML = '';
+      loadSessions();
+    }, 400);
   } else if (type === 'done') {
     const n = document.createElement('div');
     n.className = 'done-pill'; n.textContent = '✓ Done';
     msgs.appendChild(n);
-
   } else if (type === 'error') {
     appendErr('Error: ' + (payload?.message || raw));
   }
-
-  // Re-show typing for intermediate events only (agent still running, no open stream bubble)
-  // Never re-show typing for terminal events.
-  if (!TERMINAL.includes(type)) {
-    showTyping();
-  }
-
   scrollBot();
 }
 
@@ -672,10 +659,6 @@ async function doResume(decision) {
   block.querySelectorAll('button').forEach(b => b.disabled = true);
   showTyping();
   setDisabled(true);
-
-  S.streamBubble = null;
-  S.streamContent = '';
-
   try {
     const resp = await fetch(`${S.base}/threads/${enc(S.intrTid)}/runs/resume`, {
       method: 'POST',
@@ -687,13 +670,8 @@ async function doResume(decision) {
     await readSSE(resp, onEvent);
   } catch(e) {
     removeTyping();
-    finalizeStream();
     appendErr('Resume error: ' + e.message);
-  } finally {
-    finalizeStream();
-    removeTyping();
-    setDisabled(false);
-  }
+  } finally { setDisabled(false); }
 }
 
 // ─── Commands ─────────────────────────────────────────────────────────────────
@@ -867,16 +845,13 @@ function appendErr(msg) {
 function setDisabled(v) {
   S.streaming = v;
   document.getElementById('sendBtn').disabled = v;
-  const inp = document.getElementById('chatInput');
-  inp.disabled = v;
+  document.getElementById('chatInput').disabled = v;
   document.getElementById('sendBtn').textContent = v ? '⏳' : '➤';
-  if (!v) inp.focus();
 }
 function scrollBot() {
   const el = document.getElementById('messages');
   el.scrollTop = el.scrollHeight;
 }
-
 const _md = (typeof markdownit !== 'undefined') ? markdownit({
   html: false, linkify: true, typographer: true,
   highlight(str, lang) {
