@@ -31,8 +31,14 @@ def setup_logging() -> None:
     handlers: list[logging.Handler] = [logging.StreamHandler()]
 
     log_path = Path(LOG_FILE)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    handlers.append(logging.FileHandler(log_path))
+    file_handler_error: str | None = None
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        handlers.append(logging.FileHandler(log_path))
+    except (PermissionError, OSError) as exc:
+        # Bind-mounted log dir often ends up root-owned in containers; don't
+        # crash the app — stdout logging still works and is captured by Docker.
+        file_handler_error = f"{type(exc).__name__}: {exc}"
 
     try:
         from pythonjsonlogger import jsonlogger
@@ -53,6 +59,12 @@ def setup_logging() -> None:
     logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO), handlers=handlers)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
+
+    if file_handler_error is not None:
+        logging.getLogger(__name__).warning(
+            "file_log_disabled",
+            extra={"path": str(log_path), "error": file_handler_error},
+        )
 
 
 def log_tool_call(fn: Callable) -> Callable:
