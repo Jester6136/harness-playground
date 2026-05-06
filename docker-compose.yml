@@ -14,7 +14,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U harness"]
+      test: [ "CMD-SHELL", "pg_isready -U harness" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,15 +24,12 @@ services:
     build: .
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8004:8000"
     env_file:
       - .env
     environment:
       USE_POSTGRES: "true"
       POSTGRES_DSN: postgresql://harness:harness@postgres:5432/harness
-      VLLM_BASE_URL: ${VLLM_BASE_URL:-http://192.168.120.11:2900/v1}
-      VLLM_MODEL_NAME: ${VLLM_MODEL_NAME:-cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit}
-      VLLM_API_KEY: ${VLLM_API_KEY:-EMPTY}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
     volumes:
@@ -42,12 +39,11 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\"" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 20s
-
   # ── agent-chat-ui (optional demo UI — comment out for prod) ───────────────
   # agent-chat-ui:
   #   image: langchain/agent-chat-ui:latest

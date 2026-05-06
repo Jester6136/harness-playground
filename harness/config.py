@@ -10,6 +10,7 @@ exposed below are kept as backward-compat aliases so existing imports
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -73,6 +74,8 @@ VLLM_MODEL_NAME = settings.vllm_model_name
 VLLM_API_KEY = settings.vllm_api_key
 TEMPERATURE = settings.temperature
 POSTGRES_DSN = settings.postgres_dsn
+
+os.environ["OPENAI_API_KEY"] = settings.vllm_api_key
 
 # Skills directory — each SKILL.md (or top-level .md) becomes a deepagents
 # subagent at startup.
