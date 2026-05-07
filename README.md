@@ -298,7 +298,9 @@ To enable real filesystem access for the host server, set:
 ALLOW_FILESYSTEM=true
 ```
 
-When enabled, `make_agent()` passes `permissions=FilesystemPermission` to deepagents. The harness does not add prompt-level instructions for these tools — deepagents' built-in tool schemas describe them and its permission middleware enforces approval semantics.
+When enabled, `make_agent()` swaps the default `StateBackend` (in-memory) for `FilesystemBackend(virtual_mode=False)` and grants matching `FilesystemPermission` rules. Both pieces are required: the backend tells the fs tools where to read/write, and the permissions list gates access. The harness does not add prompt-level instructions for these tools — deepagents' built-in tool schemas describe them and its permission middleware enforces approval semantics.
+
+For a sandboxed setup, use `virtual_mode=True` with a `root_dir` (blocks `..` and `~`), or compose deny rules in the permissions list — see [`harness/agent.py`](harness/agent.py) and [deepagents backends docs](https://docs.langchain.com/oss/python/deepagents/backends).
 
 **Security:** this gives the LLM real read/write on the host. Only enable inside a sandbox (container, restricted user, chrooted volume mount). Do not enable on a shared multi-tenant server.
 

@@ -9,7 +9,7 @@ from typing import List
 
 
 class OrientationDetector:
-    def __init__(self, model_path = "src/extentions/rotate_images/models/mobilenet/model.onnx"):
+    def __init__(self, model_path = "src/extentions/multimodal/models/model.onnx"):
         self.model_path = model_path
         self.input_shape = (512, 512)
         self.mean = np.array((0.694, 0.695, 0.693), dtype=np.float32)

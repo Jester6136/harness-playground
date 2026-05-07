@@ -7,6 +7,7 @@ deepagents' built-in fs tools real access via FilesystemPermission. Domain
 capabilities live in custom tools and skills.
 """
 from deepagents import create_deep_agent, FilesystemPermission
+from deepagents.backends import FilesystemBackend
 from deepagents.middleware.subagents import GENERAL_PURPOSE_SUBAGENT
 
 from harness.config import get_instructions, settings
@@ -68,13 +69,23 @@ def make_agent(checkpointer=None, store=None, enable_thinking: bool | None = Non
     subagents = skills + [_GP_SUBAGENT_OVERRIDE]
     skill_tools = [t for s in skills for t in s.get("tools", [])]
 
-    # When ALLOW_FILESYSTEM=true, grant deepagents' built-in filesystem tools
-    # access to the real host filesystem. Otherwise they remain stubbed and the
-    # system prompt warns the model not to call them. SECURITY: only enable in
-    # sandboxed deployments (containerized, restricted user).
+    # When ALLOW_FILESYSTEM=true, swap in deepagents' real-host backend AND
+    # grant matching permissions. Two pieces are required: the backend tells
+    # the fs tools where to read/write (default StateBackend = in-memory state,
+    # which is why `ls("/")` returns []), and the permissions list gates
+    # access. SECURITY: virtual_mode=False allows any host path — only enable
+    # in sandboxed deployments (container, restricted user). For narrower
+    # scopes, set virtual_mode=True with a root_dir, or use deny rules.
     kwargs: dict = {}
     if settings.allow_filesystem:
-        kwargs["permissions"] = FilesystemPermission
+        kwargs["backend"] = FilesystemBackend(virtual_mode=False)
+        kwargs["permissions"] = [
+            FilesystemPermission(
+                operations=["read", "write"],
+                paths=["/**"],
+                mode="allow",
+            ),
+        ]
 
     return create_deep_agent(
         tools=ALL_TOOLS,
