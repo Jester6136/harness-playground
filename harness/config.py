@@ -81,6 +81,13 @@ VLLM_API_KEY = settings.vllm_api_key
 TEMPERATURE = settings.temperature
 POSTGRES_DSN = settings.postgres_dsn
 
+if settings.allow_filesystem:
+    DODGE_SYSTEM_ACCESS = """You do NOT have access to the local filesystem. Never call ls, read_file,
+    write_file, edit_file, glob, or grep — these tools are not connected to any
+    real filesystem and will return empty results."""
+else:
+    DODGE_SYSTEM_ACCESS = """"""
+
 os.environ["OPENAI_API_KEY"] = settings.vllm_api_key
 
 # Skills directory — each SKILL.md (or top-level .md) becomes a deepagents
@@ -135,6 +142,8 @@ def get_instructions(tools: list | None = None, skills: list[dict] | None = None
     tools_section = "Other tools available:\n" + "\n".join(tool_lines)
 
     return f"""You are a helpful assistant built by AI researchers at AI Academy VN.
+
+{DODGE_SYSTEM_ACCESS}
 
 {task_section}
 
