@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import io
+import json
 import logging
 import os
 from dotenv import load_dotenv
@@ -21,10 +22,10 @@ from src.extentions.multimodal.make import pdf_to_corrected_images
 VLLM_BASE_URL = os.getenv("VLLM_BASE_URL", "http://192.168.120.12:2900/v1")
 VLLM_MODEL_NAME = os.getenv("VLLM_MODEL_NAME", "cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit")
 VLLM_API_KEY = os.getenv("VLLM_API_KEY", "EMPTY")
+ENABLE_THINKING = os.getenv("ENABLE_THINKING", "true").strip().lower() == "true"
 
 
-
-async def process_pdf(pdf_bytesio: io.BytesIO) -> list[dict]:
+async def process_pdf(pdf_bytesio: io.BytesIO, gcn_id: str = None) -> list[dict]:
     loop = asyncio.get_running_loop()
     images = await loop.run_in_executor(None, pdf_to_corrected_images, pdf_bytesio)
 
@@ -41,10 +42,17 @@ async def process_pdf(pdf_bytesio: io.BytesIO) -> list[dict]:
         model=f"openai/{VLLM_MODEL_NAME}",
         api_base=VLLM_BASE_URL,
         api_key=VLLM_API_KEY,
-        # extra_body={
-        #         "chat_template_kwargs": {"enable_thinking": True},
-        #         "skip_special_tokens": False
-        #     },
+        **(
+            {
+                "extra_body": {
+                    "chat_template_kwargs": {"enable_thinking": True},
+                    "skip_special_tokens": False,
+                }
+            }
+            if ENABLE_THINKING else {}
+        ),
+        temperature=1,
+        top_p=0.9,
         response_format={"type": "json_object"},
         messages=[
             {
@@ -63,14 +71,35 @@ async def process_pdf(pdf_bytesio: io.BytesIO) -> list[dict]:
 
     return response.choices[0].message.content
 
+import asyncio
+import io
 
-async def main():
-    file_path = "/home/vpdk02/nlp/bags/extract_gcn/tests/output/0_DE 513009-GCN.pdf"
+
+async def process_pdf(file_path: str):
     with open(file_path, "rb") as f:
         pdf_bytesio = io.BytesIO(f.read())
 
-    text = await ocr_pdf(pdf_bytesio)
-    print(text)
+    result = await process_pdf(pdf_bytesio)
+
+    print(f"\n{'=' * 30}")
+    print(file_path)
+    print(result)
+
+    return result
+
+
+async def main():
+    file_paths = [
+        "/home/vpdk02/nlp/bags/extract_gcn/tests/output/0_10363-GCN-BO 175400.pdf",
+        "/home/vpdk02/nlp/bags/extract_gcn/tests/output/0_10363-GCN-BO 175403.pdf",
+        "/home/vpdk02/nlp/bags/extract_gcn/tests/output/0_BO 175399-GCN.pdf"
+    ]
+
+    results = await asyncio.gather(
+        *(process_pdf(path) for path in file_paths)
+    )
+
+    return results
 
 
 if __name__ == "__main__":

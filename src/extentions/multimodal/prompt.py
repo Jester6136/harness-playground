@@ -1,6 +1,11 @@
-system_prompt = """Extract information from this Vietnamese image documents into a strict JSON format.
+system_prompt = """Extract the information from these Vietnamese images of multiple Certificate of Land Use Rights and format it into a strict JSON structure.
 
 IMPORTANT:
+- MUST HAVE Số phát hành Một trong 3 dạng:
+    1. ^\d{10,15}$
+    2. ^[A-Z]{1,2}\s?\d+$
+    3. Tiền tố "SO" + dạng 2 → bỏ "SỐ"
+- May have multiple Certificate of Land Use Rights with different information as Số phát hành. (chú ý) Và Giấy loại cũ sẽ có biến động và đưa ra loại các giấy mới khác đồng thời kiểu số phát hành cũng có thể khác.
 - Return JSON ONLY. No explanation, no markdown.
 - Output MUST match the structure EXACTLY.
 - Do NOT add any extra fields.
@@ -11,7 +16,7 @@ IMPORTANT:
 
 Hướng dẫn chi tiết cho các trường quan trọng cần trích xuất:
 Giấy chứng nhận:
-  - 'Số phát hành': Kiểu dữ liệu-str. Là chuỗi kí tự ngay sau tiêu ngữ hoặc cơ quan tổ chức và địa chỉ (khoảng 15 số). Hoặc loại 2 là gồm 2 chữ cái in hoa theo sau là 6 chữ số. Hoặc là SỐ nối liền với số phát hành (ví dụ: SỐCM 812388 thì số phát hành là CM 812388).
+  - 'Số phát hành': str. 
   - 'Số vào sổ': Kiểu dữ liệu - str. 
   - 'Ngày cấp': Điền vào định dạng dd/mm/yyyy, mô tả vị trí xuất hiện: trước đó là tên 1 tỉnh (ví dụ: Hưng Yên, Hải Phòng,...) và ngay sau là tên 1 cơ quan tổ chức.
 Chủ sử dụng:
@@ -36,17 +41,6 @@ Chủ sử dụng:
   - 'Thời hạn sử dụng': 
   - 'Ngày hết hạn sử dụng': Nếu có ngày hết hạn thì điền vào định dạng dd/mm/yyyy, không thì để trống.
   - 'Nguồn gốc chi tiết': Nguồn gốc sử dụng đất.
-Thông tin nhà ở (tài sản gắn liền với đất):
-  - Loại tài sản gắn liền với đất: Là loại tài sản gắn liền với đất, gồm: Nhà ở riêng lẻ, Căn hộ chung cư,...
-  - Khu nhà chung cư, nhà hỗn hợp: Là tên khu nhà chung cư, hỗn hợp.
-  - Địa chỉ: Là địa chỉ của nhà ở.
-  - Nhà chung cư: Là tên nhà chung cư.
-  - Số căn hộ: Là số căn hộ chung cư.
-  - Diện tích xây dựng: Kiểu dữ liệu - float, Là diện tích xây dựng của tài sản.
-  - Diện tích sàn: Kiểu dữ liệu - float, Là diện tích sàn của tài sản.
-  - Hình thức sở hữu: Là hình thức sở hữu của chủ sở hữu đối với tài sản gắn liền với đất. 
-  - Thời hạn sở hữu: Là thời gian sở hữu của chủ sở hữu đối với tài sản. 
-  - Cấp hạng: Là cấp hạng của tài sản gắn liền với đất. 
 
 Normalize output:
 - Remove units (m²), keep float numbers
@@ -54,13 +48,13 @@ Normalize output:
 
 Return EXACTLY this JSON structure:
 
-{
-  "Đăng ký": {
+["Đăng ký":{
+   {
     "Giấy chứng nhận": {
-      "Số phát hành giấy chứng nhận": "",
+      "Số phát hành": "",
       "Mã vạch": "",
       "Số vào sổ": "",
-      "Ngày cấp GCN": ""
+      "Ngày cấp": ""
     },
     "Chủ sử dụng": [
       {
@@ -116,6 +110,32 @@ Return EXACTLY this JSON structure:
       }
     ]
   }
-}"""
+}]
 
-pdf_detect_prompt = """Extract information from this Vietnamese image documents into a strict JSON format."""
+====
+Examples output for Số phát hành giấy chứng nhận:
+- SOAP 395032 -> AP 395032
+- HO 239821
+- UO 019482
+- 0101020003
+- 010103034900103
+- CU 921382
+- AA 00809601
+- O 294182
+- A 021832
+- .. ......
+
+Examples output for Số vào sổ giấy chứng nhận:
+- CH00115
+- 00631
+- 00631
+- 00046
+- 00116/QSDĐ/U.H. -> 00116
+- .....
+
+Chú ý các biến động.
+"""
+
+pdf_detect_prompt = """Extract information from this Vietnamese image of Certificate of Land Use Rights into a strict JSON format. Maybe have thửa đất tại xã Ứng Hòa, Hà Tây - (Hà Nội mới).
+Có thể bao gồm các ảnh gây nhiễu như ảnh chụp cùng giấy tờ khác, ảnh chụp nhiều giấy chứng nhận cùng lúc, ảnh chụp có góc nghiêng, ảnh chụp bị mờ,... Hãy cố gắng trích xuất thông tin chính xác nhất có thể từ những ảnh này.
+Chú ý suy nghĩ kỹ Số phát hành nhé!"""
