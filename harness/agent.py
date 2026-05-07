@@ -1,23 +1,38 @@
 """Builds the deep agent — wires LLM + tools + skill-based subagents.
 
 deepagents is used as orchestration layer: agent loop, skill routing (task),
-HITL (interrupt_on=), and checkpointing. The agent runs with StateBackend —
-no local filesystem access. Domain capabilities live in custom tools and skills.
+HITL (interrupt_on=), and checkpointing. By default the agent runs with
+StateBackend (no host filesystem access); set ALLOW_FILESYSTEM=true to grant
+deepagents' built-in fs tools real access via FilesystemPermission. Domain
+capabilities live in custom tools and skills.
 """
-from deepagents import create_deep_agent
+from deepagents import create_deep_agent, FilesystemPermission
 from deepagents.middleware.subagents import GENERAL_PURPOSE_SUBAGENT
 
-from harness.config import get_instructions
+from harness.config import get_instructions, settings
 from harness.extensions.skills import load_skills
 from harness.llm import make_llm
 from harness.tools import ALL_TOOLS
 
-# Tools that pause for human approval before executing.
-HITL_TOOLS = {
-    "execute": True,
-    "write_file": True,
-    "edit_file": True,
-}
+# HITL gating for deepagents' built-in tools (we don't own these objects, so
+# we can't tag them via metadata — list them by name here). Filesystem tools
+# are gated by deepagents itself via `permissions=FilesystemPermission`.
+_BUILTIN_HITL = {"execute"}
+
+
+def _collect_hitl(*tool_lists) -> dict[str, bool]:
+    """Build the deepagents `interrupt_on` dict.
+
+    Picks up every tool whose `metadata={"hitl": True}` was set on the @tool
+    decorator, plus the deepagents built-ins in `_BUILTIN_HITL`. To mark a
+    custom tool as HITL, decorate it with `@tool(..., metadata={"hitl": True})`.
+    """
+    hitl = {name: True for name in _BUILTIN_HITL}
+    for tools in tool_lists:
+        for t in tools:
+            if (getattr(t, "metadata", None) or {}).get("hitl"):
+                hitl[t.name] = True
+    return hitl
 
 # deepagents auto-injects a "general-purpose" subagent with an aggressive
 # default description ("use it for all tasks"). We override it with a
@@ -51,14 +66,25 @@ def make_agent(checkpointer=None, store=None, enable_thinking: bool | None = Non
     # _GP_SUBAGENT_OVERRIDE must come last so its name matches the auto-inject
     # guard and suppresses deepagents' default GP description.
     subagents = skills + [_GP_SUBAGENT_OVERRIDE]
+    skill_tools = [t for s in skills for t in s.get("tools", [])]
+
+    # When ALLOW_FILESYSTEM=true, grant deepagents' built-in filesystem tools
+    # access to the real host filesystem. Otherwise they remain stubbed and the
+    # system prompt warns the model not to call them. SECURITY: only enable in
+    # sandboxed deployments (containerized, restricted user).
+    kwargs: dict = {}
+    if settings.allow_filesystem:
+        kwargs["permissions"] = FilesystemPermission
+
     return create_deep_agent(
         tools=ALL_TOOLS,
-        system_prompt=get_instructions(skills),
+        system_prompt=get_instructions(ALL_TOOLS, skills),
         model=make_llm(enable_thinking=enable_thinking),
         subagents=subagents,
-        interrupt_on=HITL_TOOLS,
+        interrupt_on=_collect_hitl(ALL_TOOLS, skill_tools),
         checkpointer=checkpointer,
         store=store,
+        **kwargs,
     )
 
 

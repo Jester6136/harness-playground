@@ -149,7 +149,7 @@ Single-page HTML served from `static/index.html` — no build step needed.
 
 ## Tools
 
-The agent uses **deepagents' StateBackend** (no filesystem access). Filesystem tools built into deepagents (`ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`) are explicitly disabled in the system prompt — they would return empty results and are not relevant to this harness' use cases.
+The agent uses **deepagents' StateBackend** by default (no filesystem access). Set `ALLOW_FILESYSTEM=true` to grant deepagents' built-in fs tools real host access via `FilesystemPermission` — see [Filesystem access](#filesystem-access).
 
 **Active deepagents built-ins:**
 
@@ -169,7 +169,7 @@ The agent uses **deepagents' StateBackend** (no filesystem access). Filesystem t
 
 ### Adding a main-agent tool
 
-Add a `@tool`-decorated function to an appropriate module under `harness/tools/`, then register it in `harness/tools/__init__.py` → `ALL_TOOLS`. Finally, add its name and description to the "Tools available to you" list in `harness/config.py` → `get_instructions()` so the model knows to use it.
+Add a `@tool`-decorated function under `harness/tools/`, then register it in `harness/tools/__init__.py` → `ALL_TOOLS`. The system prompt's tool listing is generated from `ALL_TOOLS` at agent build time — **no prompt edit required**.
 
 ```python
 # harness/tools/my_domain.py
@@ -181,8 +181,23 @@ def query_postgres(sql: str) -> str:
     ...
 
 # harness/tools/__init__.py  →  add query_postgres to ALL_TOOLS
-# harness/config.py get_instructions()  →  add to tool list in prompt
 ```
+
+The first line of the docstring becomes the prompt summary; the model sees the full docstring in the tool schema. To override the summary explicitly, attach a hint:
+
+```python
+@tool(metadata={"prompt_hint": "use for SQL on the app DB; read-only"})
+def query_postgres(sql: str) -> str: ...
+```
+
+To require human approval before the tool runs, mark it as HITL:
+
+```python
+@tool(metadata={"hitl": True})
+def drop_table(name: str) -> str: ...
+```
+
+The agent collects HITL flags from tool metadata at build time, plus deepagents' built-in `execute` listed in `_BUILTIN_HITL` in `harness/agent.py`.
 
 ## Skills (sub-agents)
 
@@ -214,7 +229,7 @@ When the user asks about data in the database.
 
 **Notes:**
 - The `description` field is what the main agent reads to decide when to delegate — write it as a clear one-liner.
-- Skills automatically inherit the "no filesystem" restriction via a base prompt prepended by the loader.
+- Skills automatically inherit the "no filesystem" restriction via a base prompt prepended by the loader. The restriction is lifted globally when the deployment sets `ALLOW_FILESYSTEM=true` (see [Filesystem access](#filesystem-access)).
 - Skill-specific tools go in `helpers.py`; tools shared across skills go in `harness/tools/ALL_TOOLS`.
 - Skills receive `ALL_TOOLS` (global custom tools) plus their own `helpers.py` tools.
 
@@ -269,9 +284,23 @@ Add commands in `harness/extensions/commands.py` via `@register_command`.
 
 ## HITL (Human-in-the-loop)
 
-`execute` (and `write_file`, `edit_file` if used) are listed in `HITL_TOOLS` in `harness/agent.py`, wired via deepagents' native `interrupt_on=` mechanism. The stream emits an `interrupt` SSE event; the frontend renders an Approve / Deny dialog. On user action, POST to `/threads/{user}:{session}/runs/resume` with `{"resume": "approve" | "deny"}`.
+deepagents' `execute` tool is listed in `_BUILTIN_HITL` in `harness/agent.py`. Custom tools opt in via `metadata={"hitl": True}` on the `@tool` decorator — `_collect_hitl()` merges both sources at build time and feeds them to deepagents' `interrupt_on=`. The stream emits an `interrupt` SSE event; the frontend renders an Approve / Deny dialog. On user action, POST to `/threads/{user}:{session}/runs/resume` with `{"resume": "approve" | "deny"}`.
 
 See [`docs/API.md`](docs/API.md) for the full HITL protocol.
+
+## Filesystem access
+
+By default the agent runs **without** filesystem access — deepagents' built-in fs tools are gated by its own permissions system.
+
+To enable real filesystem access for the host server, set:
+
+```
+ALLOW_FILESYSTEM=true
+```
+
+When enabled, `make_agent()` passes `permissions=FilesystemPermission` to deepagents. The harness does not add prompt-level instructions for these tools — deepagents' built-in tool schemas describe them and its permission middleware enforces approval semantics.
+
+**Security:** this gives the LLM real read/write on the host. Only enable inside a sandbox (container, restricted user, chrooted volume mount). Do not enable on a shared multi-tenant server.
 
 ## Reasoning / thinking
 

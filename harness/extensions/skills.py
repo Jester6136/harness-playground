@@ -76,21 +76,11 @@ def _import_helpers(skill_dir: Path) -> list[Any]:
 # Public API
 # ---------------------------------------------------------------------------
 
-# Prepended to every skill's system prompt so individual SKILL.md files don't
-# need to repeat infrastructure constraints.
-_SKILL_BASE_PROMPT = """\
-You do NOT have access to the local filesystem. Never call ls, read_file,
-write_file, edit_file, glob, or grep — these tools return empty results.
-Use only the tools explicitly listed for this skill.
-
-"""
-
-
 def _make_subagent_spec(name: str, description: str, body: str, extra_tools: list[Any]) -> dict:
     return {
         "name": name,
         "description": description,
-        "system_prompt": _SKILL_BASE_PROMPT + body.strip(),
+        "system_prompt": body.strip(),
         "tools": ALL_TOOLS + extra_tools,
     }
 

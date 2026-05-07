@@ -64,6 +64,12 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_file: str = "logs/harness.json"
 
+    # Filesystem access for deepagents' built-in fs tools. DEFAULT FALSE —
+    # when true, the agent runs with `permissions=FilesystemPermission`.
+    # SECURITY: enabling this gives the LLM real access to the host filesystem.
+    # Combine with sandboxing (container, restricted user) for production use.
+    allow_filesystem: bool = False
+
 
 settings = Settings()
 
@@ -82,11 +88,27 @@ os.environ["OPENAI_API_KEY"] = settings.vllm_api_key
 SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
 
 
-def get_instructions(skills: list[dict] | None = None) -> str:
+def _summarize_tool(t) -> str:
+    """One-line summary for the prompt's tool listing.
+
+    Prefers `metadata['prompt_hint']` if the tool author set one (lets them
+    override the docstring without rewriting it). Otherwise uses the first
+    non-empty line of the tool description.
+    """
+    hint = (getattr(t, "metadata", None) or {}).get("prompt_hint")
+    if hint:
+        return hint.strip()
+    desc = (getattr(t, "description", "") or "").strip()
+    return desc.split("\n", 1)[0].strip() if desc else ""
+
+
+def get_instructions(tools: list | None = None, skills: list[dict] | None = None) -> str:
     """Build the system prompt.
 
-    Pass the loaded skill specs so the prompt lists exactly which sub-agents
-    exist and when to use them. When no skills are loaded, `task` is disabled.
+    The tool listing is generated from the actual tool objects so adding/renaming
+    a tool only requires registering it in `ALL_TOOLS` — no prompt edit needed.
+    Skills are listed by name+description so the model knows when to delegate
+    via `task`. With no skills loaded, `task` is disabled in the prompt.
     """
     if skills:
         skill_lines = "\n".join(
@@ -103,28 +125,23 @@ def get_instructions(skills: list[dict] | None = None) -> str:
             "Answer directly."
         )
 
-    return f"""You are a helpful assistant built by AI researchers at AI Academy VN.
+    tool_lines = [
+        "  - write_todos: break down multi-step work into tracked tasks",
+        "  - execute: run a shell command (requires human approval)",
+    ]
+    for t in tools or []:
+        summary = _summarize_tool(t)
+        tool_lines.append(f"  - {t.name}: {summary}" if summary else f"  - {t.name}")
+    tools_section = "Other tools available:\n" + "\n".join(tool_lines)
 
-You do NOT have access to the local filesystem. Never call ls, read_file,
-write_file, edit_file, glob, or grep — these tools are not connected to any
-real filesystem and will return empty results.
+    return f"""You are a helpful assistant built by AI researchers at AI Academy VN.
 
 {task_section}
 
-Other tools available:
-  - write_todos          — break down multi-step work into tracked tasks
-  - execute              — run a shell command (requires human approval)
-  - analyze_image        — describe an image or PDF via the vision model
-  - search_internal_docs — search the internal knowledge base (DataLens). Use
-                           when the user asks about internal policies,
-                           processes, documents, or anything that would live
-                           in company docs. Returns ranked passages with
-                           presigned_url. ALWAYS cite each fact with a
-                           Markdown link of the form
-                           `[document_name (tr. X-Y)](presigned_url#page=X)`
-                           inline, right after the sentence it supports.
-                           If presigned_url is null, fall back to plain
-                           `(document_name, tr. X-Y)`.
-  - remember_about_user / recall_user_context — persist and retrieve per-user facts
+{tools_section}
+
+For tools whose summary is brief, consult the full tool schema (description,
+arguments) before calling — that is the authoritative source for usage rules,
+output format, and citation conventions.
 
 Answer simple questions directly without calling any tools. Be concise."""

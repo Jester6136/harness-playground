@@ -1,7 +1,6 @@
 """Custom tools that complement the deepagents built-ins.
 
-deepagents already provides: write_todos, ls, read_file, write_file,
-edit_file, glob, grep, execute, task. We only add tools it doesn't have:
+We only add tools deepagents doesn't already provide:
 
   - analyze_image        (vision model handoff for images / PDFs)
   - search_internal_docs (DataLens ReAct retriever over internal KB)
