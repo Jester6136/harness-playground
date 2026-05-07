@@ -3,3 +3,4 @@ langchain-openai
 langgraph-checkpoint-sqlite
 langgraph-cli[inmem]
 psycopg[binary]
+pydantic-settings-2.14.0

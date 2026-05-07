@@ -56,7 +56,7 @@ class Settings(BaseSettings):
 
     # DataLens internal-docs retriever — used by tools/search_docs.
     # POST {datalens_url}/retrieve/react/ with {query, chatbot_code, ...}.
-    datalens_url: str = "http://192.168.120.12:37001"
+    datalens_url: str = "http://118.70.52.237:37001"
     datalens_chatbot_code: str = "bags_code"
     datalens_timeout: float = 60.0
 
