@@ -1,10 +1,10 @@
-system_prompt = """Extract the information from these Vietnamese images of multiple Certificate of Land Use Rights and format it into a strict JSON structure.
+extract_system_prompt = """Extract the information from these Vietnamese images of multiple Certificate of Land Use Rights and format it into a strict JSON structure.
 
 IMPORTANT:
 - MUST HAVE Số phát hành Một trong 3 dạng:
-    1. ^\d{10,15}$
-    2. ^[A-Z]{1,2}\s?\d+$
-    3. Tiền tố "SO" + dạng 2 → bỏ "SỐ"
+    1. ^\\d{10,15}$
+    2. ^[A-Z]{1,2}\\s?\\d+$
+    3. Tiền tố "SO" + dạng 2 → bỏ "SO"
 - May have multiple Certificate of Land Use Rights with different information as Số phát hành. (chú ý) Và Giấy loại cũ sẽ có biến động và đưa ra loại các giấy mới khác đồng thời kiểu số phát hành cũng có thể khác.
 - Return JSON ONLY. No explanation, no markdown.
 - Output MUST match the structure EXACTLY.
@@ -18,7 +18,7 @@ Hướng dẫn chi tiết cho các trường quan trọng cần trích xuất:
 Giấy chứng nhận:
   - 'Số phát hành': str. 
   - 'Số vào sổ': Kiểu dữ liệu - str. 
-  - 'Ngày cấp': Điền vào định dạng dd/mm/yyyy, mô tả vị trí xuất hiện: trước đó là tên 1 tỉnh (ví dụ: Hưng Yên, Hải Phòng,...) và ngay sau là tên 1 cơ quan tổ chức.
+  - 'Ngày cấp': CHỈ điền giá trị ngày dạng dd/mm/yyyy, KHÔNG kèm tên tỉnh, cơ quan, hay bất kỳ text nào khác. Vị trí nhận biết: trước đó là tên 1 tỉnh (ví dụ: Hưng Yên, Hải Phòng,...) và ngay sau là tên 1 cơ quan tổ chức — nhưng output CHỈ giữ phần ngày tháng.
 Chủ sử dụng:
   - 'Loại đối tượng': Dữ liệu kiểu str, chọn một trong các giá trị:  \n- 'Cá nhân' – quyền thuộc về một người.  \n- 'Vợ chồng' – văn bản đề cập ông và vợ (bà).  \n- 'Hộ gia đình' – nhiều người đứng tên.  \n- 'Đồng sử dụng' – văn bản có cụm 'Đồng sử dụng'.  \n- 'Cộng đồng dân cư' – đối tượng là cộng đồng cụ thể.  \n- 'Tổ chức' – quyền thuộc về tổ chức, cơ quan.
   - 'Tên chủ': Tên người, là chủ sở hữu đất và các tài sản gắn liền với đất.
@@ -48,8 +48,9 @@ Normalize output:
 
 Return EXACTLY this JSON structure:
 
-["Đăng ký":{
-   {
+{
+  "Đăng ký": [
+    {
     "Giấy chứng nhận": {
       "Số phát hành": "",
       "Mã vạch": "",
@@ -109,33 +110,34 @@ Return EXACTLY this JSON structure:
         "Nội dung biến động": ""
       }
     ]
-  }
-}]
+    }
+  ]
+}
 
 ====
 Examples output for Số phát hành giấy chứng nhận:
-- SOAP 395032 -> AP 395032
-- HO 239821
-- UO 019482
-- 0101020003
-- 010103034900103
-- CU 921382
-- AA 00809601
-- O 294182
-- A 021832
+- SOAP XXXXXX -> AP XXXXXX
+- H0 XXXXXX -> HO XXXXXX
+- U0 XXXXXX -> UO XXXXXX
+- XXXXXXXXXX
+- XXXXXXXXXXXXXXX
+- CU XXXXXX
+- AA XXXXXX
+- O XXXXXX
+- A XXXXXX
 - .. ......
 
 Examples output for Số vào sổ giấy chứng nhận:
-- CH00115
-- 00631
-- 00631
-- 00046
-- 00116/QSDĐ/U.H. -> 00116
+- CHXXXXX
+- XXXXX
+- XXXXX
+- XXXXX
+- XXXXX/QSDĐ/U.H. -> XXXXX
 - .....
 
 Chú ý các biến động.
 """
 
-pdf_detect_prompt = """Extract information from this Vietnamese image of Certificate of Land Use Rights into a strict JSON format. Maybe have thửa đất tại xã Ứng Hòa, Hà Tây - (Hà Nội mới).
-Có thể bao gồm các ảnh gây nhiễu như ảnh chụp cùng giấy tờ khác, ảnh chụp nhiều giấy chứng nhận cùng lúc, ảnh chụp có góc nghiêng, ảnh chụp bị mờ,... Hãy cố gắng trích xuất thông tin chính xác nhất có thể từ những ảnh này.
+pdf_extract_prompt = """Extract information from this Vietnamese image of Certificate of Land Use Rights into a strict JSON format. Maybe have thửa đất tại xã Ứng Hòa, Hà Tây - (Hà Nội mới).
 Chú ý suy nghĩ kỹ Số phát hành nhé!"""
+

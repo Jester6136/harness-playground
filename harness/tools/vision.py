@@ -48,16 +48,10 @@ def _file_to_image_blocks(path: str | Path) -> list[dict]:
     ]
 
 
-@tool(metadata={
-    "prompt_hint": (
-        "general image/PDF Q&A. Do NOT use for Vietnamese Giấy chứng nhận "
-        "(GCN / sổ đỏ / sổ hồng / Certificate of Land Use Rights) — those go "
-        "to `extract_gcn` for structured JSON extraction."
-    ),
-})
+@tool
 @log_tool_call
 def analyze_image(path: str, question: str = "Describe this image in detail.") -> str:
-    """General-purpose image / PDF question answering with the vision model.
+    """General-purpose image with the vision model.
 
     Use this for free-form questions about photos, scanned documents, charts,
     diagrams, etc. Supports JPEG, PNG, GIF, WebP, BMP and PDF (pages are
@@ -79,26 +73,12 @@ def analyze_image(path: str, question: str = "Describe this image in detail.") -
     return response.content
 
 
-@tool(metadata={
-    "prompt_hint": (
-        "ALWAYS use this (not analyze_image) when the file is a Vietnamese "
-        "Giấy chứng nhận quyền sử dụng đất (GCN / sổ đỏ / sổ hồng / "
-        "Certificate of Land Use Rights). Returns canonical JSON."
-    ),
-})
+@tool
 @log_tool_call
 def extract_gcn(path: str) -> str:
-    """Trích xuất Giấy chứng nhận quyền sử dụng đất (GCN) thành JSON có cấu trúc.
+    """Trích xuất PDF Giấy chứng nhận quyền sử dụng đất (GCN, sổ đỏ, sổ hồng) sang JSON.
 
-    BẮT BUỘC dùng tool này (không phải `analyze_image`) khi file là Giấy chứng
-    nhận quyền sử dụng đất / sổ đỏ / sổ hồng / Certificate of Land Use Rights
-    của Việt Nam — bất kể user hỏi "tóm tắt", "đọc", "phân tích", hay "trích
-    xuất". Tool tự lo định dạng đầu ra.
-
-    Trả về chuỗi JSON theo schema chuẩn dưới gốc `Đăng ký` (Giấy chứng nhận /
-    Chủ sử dụng / Thửa đất / Thông tin nhà ở / Biến động). Trường thiếu được
-    điền `""` (string) hoặc `[]` (array); không bịa, không tóm tắt, không
-    bỏ field — downstream parser cần đầy đủ.
+    Đưa về cấu trúc json, không rút gọn các chi tiết.
     """
     blocks = _file_to_image_blocks(path)
     if not blocks:
