@@ -36,6 +36,11 @@ dependencies = [
     "pdf2image",
     "pillow",
 
+    # Channel adapters (channels/telegram, channels/discord) — kept here even
+    # though the bots run as separate processes, so a single `pip install -e .`
+    # bootstraps everything for dev.
+    "python-telegram-bot>=22.6,<23",
+
     # Eval / configs
     "pyyaml",
     "pydantic",

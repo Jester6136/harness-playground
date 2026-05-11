@@ -12,6 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY harness/ harness/
 COPY skills/ skills/
 COPY static/ static/
+COPY channels/ channels/
 COPY main.py ./
 
 

@@ -44,6 +44,21 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
+  # ── Telegram bot (channel adapter — Milestone 1) ─────────────────────────
+  # Reuses the same image as harness-api but runs a different entrypoint.
+  # Comment out (or omit TELEGRAM_BOT_TOKEN) to skip the Telegram channel.
+  telegram-bot:
+    build: .
+    restart: unless-stopped
+    command: ["python", "-m", "channels.telegram.bot"]
+    env_file:
+      - .env
+    environment:
+      AGENT_API_URL: http://harness-api:8000
+    depends_on:
+      harness-api:
+        condition: service_healthy
+
   # ── agent-chat-ui (optional demo UI — comment out for prod) ───────────────
   # agent-chat-ui:
   #   image: langchain/agent-chat-ui:latest
