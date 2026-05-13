@@ -25,6 +25,7 @@ from telegram.ext import ContextTypes
 
 from channels._common.sse_client import stream_sse
 from channels._common.thread_map import map_telegram
+from channels._common.upload_client import upload_bytes
 from channels.telegram.hitl import (
     REGISTRY,
     PendingApproval,
@@ -85,6 +86,68 @@ async def on_slash_forward(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> N
     """
     # `on_message` already handles arbitrary text; reuse it.
     await on_message(update, _ctx)
+
+
+async def on_media(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Photo / document → upload to /upload → embed path in chat message.
+
+    Telegram delivers an album as N separate updates; for M4 we treat each as
+    its own conversation turn. Add media-group debouncing later if needed.
+    """
+    msg = update.effective_message
+    chat = update.effective_chat
+    user = update.effective_user
+    if not (msg and chat and user):
+        return
+
+    file_obj, filename = _pick_telegram_file(msg)
+    if file_obj is None:
+        await msg.reply_text("⚠️ Loại media này chưa hỗ trợ.")
+        return
+
+    agent_user, session_id = map_telegram(chat.id, user.id)
+    await chat.send_action(ChatAction.UPLOAD_DOCUMENT)
+
+    # Telegram → bytes.
+    try:
+        tg_file = await file_obj.get_file()
+        data = bytes(await tg_file.download_as_bytearray())
+    except Exception as exc:
+        log.exception("download from Telegram failed")
+        await msg.reply_text(f"⚠️ Không tải được file từ Telegram: {exc}")
+        return
+
+    # Bytes → harness /upload → absolute path on the API host.
+    api_headers = {settings.agent_api_user_header: agent_user}
+    try:
+        path = await upload_bytes(
+            api_url=settings.agent_api_url,
+            data=data,
+            filename=filename,
+            headers=api_headers,
+        )
+    except Exception as exc:
+        log.exception("upload to agent failed")
+        await msg.reply_text(f"⚠️ Lỗi upload lên agent: {exc}")
+        return
+
+    # Embed the path the same way the web UI does — but neutral on tool choice,
+    # so the model picks `extract_gcn` vs `analyze_image` based on the file.
+    caption = (msg.caption or "").strip()
+    if not caption:
+        caption = "Hãy xử lý file đính kèm (extract_gcn nếu là GCN, otherwise analyze_image)."
+    body_msg = f"[Attached file at: {path}]\n\n{caption}"
+
+    # Same SSE consume path as text messages.
+    streamer = TelegramStreamer(chat)
+    url = f"{settings.agent_api_url.rstrip('/')}/chat/stream"
+    body = {"session_id": session_id, "message": body_msg}
+    await _consume_into_streamer(
+        chat=chat,
+        thread_id=_thread_id(agent_user, session_id),
+        streamer=streamer,
+        sse=stream_sse(url, json=body, headers=api_headers),
+    )
 
 
 async def on_callback_query(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -209,6 +272,22 @@ def _thread_id(user: str, session: str) -> str:
     """Mirror harness.persistence.checkpoints.thread_id without importing it
     (channels/ stays decoupled from harness/)."""
     return f"{user}:{session}"
+
+
+def _pick_telegram_file(msg):
+    """Return `(File, filename)` for a photo or document message, else `(None, None)`.
+
+    Photos: take the largest `PhotoSize` (Telegram pre-renders multiple sizes).
+    Documents: keep the original filename when present so the harness can pick
+    the right tool by extension (`.pdf` → extract_gcn / analyze_image PDF path).
+    """
+    if msg.photo:
+        ph = msg.photo[-1]
+        return ph, f"{ph.file_unique_id}.jpg"
+    if msg.document:
+        d = msg.document
+        return d, d.file_name or f"{d.file_unique_id}.bin"
+    return None, None
 
 
 def _fmt_tool_call(payload: dict) -> str:

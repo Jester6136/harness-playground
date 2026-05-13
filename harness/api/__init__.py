@@ -30,6 +30,7 @@ from harness.api.pipelines import register_pipeline_routes, router as pipelines_
 from harness.api.threads import router as threads_router
 from harness.logging_config import setup_logging
 from harness.persistence.checkpoints import make_async_checkpointer
+from harness.persistence.mongo import close_mongo
 from harness.persistence.store import close_store, get_store
 
 setup_logging()
@@ -47,6 +48,7 @@ async def lifespan(app: FastAPI):
     logger.info("Agent ready")
     yield
     await close_store()
+    await close_mongo()
     logger.info("Shutting down")
 
 

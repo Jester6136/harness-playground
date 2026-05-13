@@ -21,6 +21,7 @@ dependencies = [
     "langgraph-checkpoint-postgres",
     "psycopg[binary]",
     "psycopg-pool",
+    "motor",  # async MongoDB driver for harness.persistence.mongo / tools.gcn_db
 
     # Dev server (langgraph dev)
     "langgraph-cli[inmem]",

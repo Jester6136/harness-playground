@@ -60,6 +60,11 @@ class Settings(BaseSettings):
     datalens_chatbot_code: str = "bags_code"
     datalens_timeout: float = 60.0
 
+    # MongoDB — used by harness.tools.gcn_db (GCN CRUD + full-text search).
+    # Connection is lazy; only initialised when a GCN tool is first invoked.
+    mongo_uri: str = "mongodb://localhost:27017"
+    mongo_db_name: str = "harness"
+
     # Logging
     log_level: str = "INFO"
     log_file: str = "logs/harness.json"

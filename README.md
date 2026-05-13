@@ -199,6 +199,28 @@ def drop_table(name: str) -> str: ...
 
 The agent collects HITL flags from tool metadata at build time, plus deepagents' built-in `execute` listed in `_BUILTIN_HITL` in `harness/agent.py`.
 
+### GCN database (MongoDB)
+
+`harness/tools/gcn_db.py` ships 5 tools backed by MongoDB for storing the output of `extract_gcn`:
+
+| Tool | HITL | Purpose |
+|---|---|---|
+| `save_gcn(gcn_json)` | ✅ | Upsert a GCN keyed by `Số phát hành giấy chứng nhận` |
+| `update_gcn(so_hieu, updates_json)` | ✅ | `$set` specific fields via dotted-key dict |
+| `delete_gcn(so_hieu)` | ✅ | Remove by số hiệu |
+| `find_gcn(so_hieu)` | — | Exact lookup by số hiệu |
+| `search_gcn(query, limit)` | — | Full-text search across owner name, address, GCN number |
+
+`MongoStore` ([harness/persistence/mongo.py](harness/persistence/mongo.py)) is the reusable wrapper — use it to back other collections (just instantiate with a different `collection` name). Connection is lazy and closed via the FastAPI lifespan; the text index is created idempotently on first use.
+
+Configure with `MONGO_URI` and `MONGO_DB_NAME` in `.env` (defaults to `mongodb://localhost:27017` / `harness`). docker-compose spins up a `mongo:7` service on port 27017.
+
+**Demo flow showcasing HITL + multi-tool agent:**
+1. User sends a GCN PDF over Telegram → agent calls `extract_gcn` → JSON.
+2. Agent calls `save_gcn(json)` → bot shows `[✅ Approve] [❌ Deny]` keyboard.
+3. Approve → record stored. Later: "Tìm GCN số CH00123" → `find_gcn` → result.
+4. "Xoá GCN CH00123" → `delete_gcn` → another HITL prompt → confirm → deleted.
+
 ## Skills (sub-agents)
 
 Drop a folder under `skills/` and restart — the skill is picked up automatically. No changes needed to the main system prompt or any loader code.

@@ -19,6 +19,21 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── MongoDB ────────────────────────────────────────────────────────────────
+  # Used by harness.tools.gcn_db (GCN CRUD + full-text search).
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: [ "CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ── harness API ────────────────────────────────────────────────────────────
   harness-api:
     build: .
@@ -30,6 +45,8 @@ services:
     environment:
       USE_POSTGRES: "true"
       POSTGRES_DSN: postgresql://harness:harness@postgres:5432/harness
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB_NAME: ${MONGO_DB_NAME:-harness}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
     volumes:
@@ -37,6 +54,8 @@ services:
       - ./uploads:/app/uploads
     depends_on:
       postgres:
+        condition: service_healthy
+      mongo:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\"" ]
@@ -71,3 +90,4 @@ services:
 
 volumes:
   postgres_data:
+  mongo_data:

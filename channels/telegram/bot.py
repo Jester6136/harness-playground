@@ -26,6 +26,7 @@ from telegram.ext import (
 
 from channels.telegram.handlers import (
     on_callback_query,
+    on_media,
     on_message,
     on_slash_forward,
     on_start,
@@ -51,6 +52,8 @@ def main() -> None:
     # Forward any other `/something …` to the agent (harness has its own
     # slash-command parser, see harness/extensions/commands.py).
     app.add_handler(MessageHandler(filters.COMMAND, on_slash_forward))
+    # Photo / document → /upload → embed path → /chat/stream (M4).
+    app.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, on_media))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))
 
     log.info("Telegram bot starting (long-poll). Agent API → %s", settings.agent_api_url)
