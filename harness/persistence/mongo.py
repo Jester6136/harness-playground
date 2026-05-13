@@ -1,12 +1,17 @@
-"""Reusable async MongoDB collection wrapper (Motor).
+"""Reusable sync MongoDB collection wrapper (pymongo).
 
-One `MongoStore` instance corresponds to one (db, collection) pair. Multiple
-stores in the same process share a single `AsyncIOMotorClient` — Motor pools
-sockets internally, so this is cheap.
+We use sync pymongo (not Motor) because every caller is a sync `@tool`
+function bridged into FastAPI's event loop via `run_async`. Motor's
+`AsyncIOMotorClient` binds to the loop where it's first used, and
+`run_async` spawns a fresh ThreadPoolExecutor + `asyncio.run` per call —
+that creates a *new* loop each time, which makes the cached Motor client
+blow up with "Event loop is closed". Sync pymongo sidesteps the issue:
+its connection pool is thread-safe, calls are quick, and blocking inside
+the worker thread (not the main asyncio loop) is fine.
 
-Caller picks the collection name; this class only knows about the standard
-CRUD + text-search operations the harness tools need. Connection is lazy and
-closed by `close_mongo()` (call from app shutdown).
+One `MongoStore` instance corresponds to one (db, collection) pair.
+Multiple stores in the same process share a single `MongoClient` — pymongo
+pools sockets internally.
 """
 from __future__ import annotations
 
@@ -14,16 +19,14 @@ import logging
 import re
 from typing import Any
 
-from motor.motor_asyncio import (
-    AsyncIOMotorClient,
-    AsyncIOMotorCollection,
-)
+from pymongo import MongoClient
+from pymongo.collection import Collection
 
 from harness.config import settings
 
 log = logging.getLogger(__name__)
 
-_client: AsyncIOMotorClient | None = None
+_client: MongoClient | None = None
 
 
 def _redact(uri: str) -> str:
@@ -31,11 +34,11 @@ def _redact(uri: str) -> str:
     return re.sub(r"://[^/@]*@", "://<redacted>@", uri)
 
 
-def _get_client() -> AsyncIOMotorClient:
-    """Lazy-init the shared Motor client. Safe to call from any coroutine."""
+def _get_client() -> MongoClient:
+    """Lazy-init the shared pymongo client."""
     global _client
     if _client is None:
-        _client = AsyncIOMotorClient(
+        _client = MongoClient(
             settings.mongo_uri,
             serverSelectionTimeoutMS=5000,
             uuidRepresentation="standard",
@@ -44,8 +47,8 @@ def _get_client() -> AsyncIOMotorClient:
     return _client
 
 
-async def close_mongo() -> None:
-    """Close the shared client. Idempotent."""
+def close_mongo() -> None:
+    """Close the shared client. Idempotent. Synchronous — call from shutdown."""
     global _client
     if _client is not None:
         _client.close()
@@ -61,54 +64,53 @@ def _stringify_id(doc: dict | None) -> dict | None:
 
 
 class MongoStore:
-    """Async CRUD + text-search wrapper around a single collection."""
+    """Sync CRUD + text-search wrapper around a single collection."""
 
     def __init__(self, db_name: str, collection: str) -> None:
         self._db_name = db_name
         self._collection_name = collection
 
     @property
-    def _coll(self) -> AsyncIOMotorCollection:
+    def _coll(self) -> Collection:
         return _get_client()[self._db_name][self._collection_name]
 
     # ── core CRUD ───────────────────────────────────────────────────────────
 
-    async def insert_one(self, doc: dict) -> str:
-        result = await self._coll.insert_one(doc)
+    def insert_one(self, doc: dict) -> str:
+        result = self._coll.insert_one(doc)
         return str(result.inserted_id)
 
-    async def upsert_one(self, key_filter: dict, doc: dict) -> dict[str, Any]:
+    def upsert_one(self, key_filter: dict, doc: dict) -> dict[str, Any]:
         """Match by `key_filter`, replace the matched doc with `doc` (or insert).
 
         Returns `{matched, modified, upserted_id}` so callers can tell whether
         this was a fresh insert or an overwrite.
         """
-        result = await self._coll.replace_one(key_filter, doc, upsert=True)
+        result = self._coll.replace_one(key_filter, doc, upsert=True)
         return {
             "matched": result.matched_count,
             "modified": result.modified_count,
             "upserted_id": str(result.upserted_id) if result.upserted_id else None,
         }
 
-    async def find_one(self, filter: dict) -> dict | None:
-        return _stringify_id(await self._coll.find_one(filter))
+    def find_one(self, filter: dict) -> dict | None:
+        return _stringify_id(self._coll.find_one(filter))
 
-    async def find_many(self, filter: dict, *, limit: int = 50) -> list[dict]:
-        cursor = self._coll.find(filter).limit(limit)
-        return [_stringify_id(d) async for d in cursor]
+    def find_many(self, filter: dict, *, limit: int = 50) -> list[dict]:
+        return [_stringify_id(d) for d in self._coll.find(filter).limit(limit)]
 
-    async def update_one(self, filter: dict, set_fields: dict) -> dict[str, Any]:
+    def update_one(self, filter: dict, set_fields: dict) -> dict[str, Any]:
         """Apply a `$set` update to one matched doc. Returns counts."""
-        result = await self._coll.update_one(filter, {"$set": set_fields})
+        result = self._coll.update_one(filter, {"$set": set_fields})
         return {"matched": result.matched_count, "modified": result.modified_count}
 
-    async def delete_one(self, filter: dict) -> int:
-        result = await self._coll.delete_one(filter)
+    def delete_one(self, filter: dict) -> int:
+        result = self._coll.delete_one(filter)
         return result.deleted_count
 
     # ── text search ─────────────────────────────────────────────────────────
 
-    async def text_search(self, query: str, *, limit: int = 20) -> list[dict]:
+    def text_search(self, query: str, *, limit: int = 20) -> list[dict]:
         """`$text` search, sorted by relevance. Requires a text index on the
         target fields — call `ensure_text_index(...)` once at startup."""
         cursor = (
@@ -119,9 +121,9 @@ class MongoStore:
             .sort([("score", {"$meta": "textScore"})])
             .limit(limit)
         )
-        return [_stringify_id(d) async for d in cursor]
+        return [_stringify_id(d) for d in cursor]
 
-    async def ensure_text_index(
+    def ensure_text_index(
         self,
         fields: list[str],
         *,
@@ -135,7 +137,7 @@ class MongoStore:
         """
         spec = [(f, "text") for f in fields]
         try:
-            await self._coll.create_index(spec, name=name, default_language=default_language)
+            self._coll.create_index(spec, name=name, default_language=default_language)
         except Exception as exc:
             # Common: index already exists with the same spec — driver raises
             # OperationFailure with codeName "IndexOptionsConflict" only when
@@ -144,5 +146,5 @@ class MongoStore:
 
     # ── housekeeping ────────────────────────────────────────────────────────
 
-    async def count(self, filter: dict | None = None) -> int:
-        return await self._coll.count_documents(filter or {})
+    def count(self, filter: dict | None = None) -> int:
+        return self._coll.count_documents(filter or {})

@@ -19,7 +19,6 @@ from langchain_core.tools import tool
 from harness.config import settings
 from harness.logging_config import log_tool_call
 from harness.persistence.mongo import MongoStore
-from harness.utils.async_utils import run_async
 
 log = logging.getLogger(__name__)
 
@@ -109,12 +108,9 @@ def save_gcn(gcn_json: str) -> str:
     # path. Idempotent — overwrites whatever was there before.
     gcn[_FLAT_KEY] = so_hieu
 
-    async def _do():
-        await _store.ensure_text_index(_INDEX_FIELDS, name="gcn_text_idx")
-        return await _store.upsert_one({_FLAT_KEY: so_hieu}, gcn)
-
     try:
-        result = run_async(_do())
+        _store.ensure_text_index(_INDEX_FIELDS, name="gcn_text_idx")
+        result = _store.upsert_one({_FLAT_KEY: so_hieu}, gcn)
         return json.dumps({"so_hieu_gcn": so_hieu, **result}, ensure_ascii=False)
     except Exception as exc:
         log.exception("save_gcn failed")
@@ -137,11 +133,8 @@ def update_gcn(so_hieu_gcn: str, updates_json: str) -> str:
     if not isinstance(updates, dict) or not updates:
         return json.dumps({"error": "empty_updates"}, ensure_ascii=False)
 
-    async def _do():
-        return await _store.update_one({_FLAT_KEY: so_hieu_gcn}, updates)
-
     try:
-        result = run_async(_do())
+        result = _store.update_one({_FLAT_KEY: so_hieu_gcn}, updates)
         return json.dumps({"so_hieu_gcn": so_hieu_gcn, **result}, ensure_ascii=False)
     except Exception as exc:
         log.exception("update_gcn failed")
@@ -155,11 +148,8 @@ def delete_gcn(so_hieu_gcn: str) -> str:
 
     Trả về `{"deleted": int}` — 0 nếu không tìm thấy.
     """
-    async def _do():
-        return await _store.delete_one({_FLAT_KEY: so_hieu_gcn})
-
     try:
-        deleted = run_async(_do())
+        deleted = _store.delete_one({_FLAT_KEY: so_hieu_gcn})
         return json.dumps({"so_hieu_gcn": so_hieu_gcn, "deleted": deleted}, ensure_ascii=False)
     except Exception as exc:
         log.exception("delete_gcn failed")
@@ -173,11 +163,8 @@ def delete_gcn(so_hieu_gcn: str) -> str:
 @log_tool_call
 def find_gcn(so_hieu_gcn: str) -> str:
     """Tra cứu GCN theo số hiệu. Trả về JSON đầy đủ hoặc `{}` nếu không thấy."""
-    async def _do():
-        return await _store.find_one({_FLAT_KEY: so_hieu_gcn})
-
     try:
-        doc = run_async(_do())
+        doc = _store.find_one({_FLAT_KEY: so_hieu_gcn})
         return json.dumps(doc or {}, ensure_ascii=False, default=str)
     except Exception as exc:
         log.exception("find_gcn failed")
@@ -192,12 +179,9 @@ def search_gcn(query: str, limit: int = 10) -> str:
     Tìm kiếm relevance-ranked qua text index của MongoDB (tự tạo nếu chưa có).
     Trả về `{"hits": [...], "count": N}` với mỗi hit là GCN đầy đủ.
     """
-    async def _do():
-        await _store.ensure_text_index(_INDEX_FIELDS, name="gcn_text_idx")
-        return await _store.text_search(query, limit=limit)
-
     try:
-        docs = run_async(_do())
+        _store.ensure_text_index(_INDEX_FIELDS, name="gcn_text_idx")
+        docs = _store.text_search(query, limit=limit)
         return json.dumps({"hits": docs, "count": len(docs)}, ensure_ascii=False, default=str)
     except Exception as exc:
         log.exception("search_gcn failed")

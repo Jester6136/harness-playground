@@ -21,7 +21,9 @@ dependencies = [
     "langgraph-checkpoint-postgres",
     "psycopg[binary]",
     "psycopg-pool",
-    "motor",  # async MongoDB driver for harness.persistence.mongo / tools.gcn_db
+    "pymongo",  # sync driver — harness.persistence.mongo / tools.gcn_db. We
+                # use sync (not motor) because @tool functions are sync and
+                # run_async()'s per-call event loop breaks Motor's cached client.
 
     # Dev server (langgraph dev)
     "langgraph-cli[inmem]",

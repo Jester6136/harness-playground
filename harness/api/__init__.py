@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI):
     logger.info("Agent ready")
     yield
     await close_store()
-    await close_mongo()
+    close_mongo()  # sync — pymongo client, not Motor
     logger.info("Shutting down")
 
 
