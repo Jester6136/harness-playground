@@ -9,8 +9,10 @@ We only add tools deepagents doesn't already provide:
   - search_internal_docs (DataLens ReAct retriever over internal KB)
 """
 from harness.tools.gcn_db import (
+    count_gcn,
     delete_gcn,
     find_gcn,
+    list_gcn,
     save_gcn,
     search_gcn,
     update_gcn,
@@ -24,6 +26,8 @@ ALL_TOOLS = [
     save_gcn,
     find_gcn,
     search_gcn,
+    count_gcn,
+    list_gcn,
     update_gcn,
     delete_gcn,
     search_internal_docs,
@@ -36,6 +40,8 @@ __all__ = [
     "save_gcn",
     "find_gcn",
     "search_gcn",
+    "count_gcn",
+    "list_gcn",
     "update_gcn",
     "delete_gcn",
     "search_internal_docs",

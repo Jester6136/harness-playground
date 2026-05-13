@@ -188,6 +188,51 @@ def search_gcn(query: str, limit: int = 10) -> str:
         return json.dumps({"error": "db_error", "message": str(exc)}, ensure_ascii=False)
 
 
+@tool
+@log_tool_call
+def count_gcn() -> str:
+    """Đếm tổng số GCN trong DB.
+
+    Dùng tool này khi user hỏi "có bao nhiêu GCN" / "đếm" / "tổng số" — KHÔNG
+    dùng `search_gcn` vì $text search cần query có từ ngữ thật, không match
+    được khi query rỗng hoặc wildcard. Trả về `{"count": N}`.
+    """
+    try:
+        n = _store.count({})
+        return json.dumps({"count": n}, ensure_ascii=False)
+    except Exception as exc:
+        log.exception("count_gcn failed")
+        return json.dumps({"error": "db_error", "message": str(exc)}, ensure_ascii=False)
+
+
+@tool
+@log_tool_call
+def list_gcn(limit: int = 20) -> str:
+    """Liệt kê GCN trong DB (không filter). Mặc định 20 doc đầu tiên.
+
+    Khác với `search_gcn` (cần query text), tool này trả về TẤT CẢ doc tóm
+    tắt — dùng khi user muốn xem nội dung DB chưa biết tìm cái gì cụ thể.
+    Mỗi item gồm số hiệu + tên chủ + địa chỉ — KHÔNG full doc (dùng
+    `find_gcn(so_hieu)` để xem chi tiết).
+    """
+    try:
+        docs = _store.find_many({}, limit=limit)
+        items = []
+        for d in docs:
+            so_hieu = d.get(_FLAT_KEY, "") or _find_first(d, _GCN_NUMBER_KEYS)
+            ten_chu = _find_first(d, {"Tên chủ"})
+            dia_chi = _find_first(d, {"Địa chỉ"})
+            items.append({
+                "so_hieu_gcn": so_hieu,
+                "ten_chu": ten_chu,
+                "dia_chi": dia_chi,
+            })
+        return json.dumps({"items": items, "count": len(items)}, ensure_ascii=False, default=str)
+    except Exception as exc:
+        log.exception("list_gcn failed")
+        return json.dumps({"error": "db_error", "message": str(exc)}, ensure_ascii=False)
+
+
 # ── tool metadata: HITL gating + prompt hints ──────────────────────────────
 
 
@@ -211,4 +256,16 @@ find_gcn.metadata = {
 }
 search_gcn.metadata = {
     "prompt_hint": "Full-text search GCN theo tên chủ / địa chỉ / số hiệu (read-only).",
+}
+count_gcn.metadata = {
+    "prompt_hint": (
+        "Đếm TỔNG SỐ GCN trong DB (read-only). Dùng cho câu hỏi "
+        "'có bao nhiêu' / 'đếm' / 'tổng số' — KHÔNG dùng search_gcn để đếm."
+    ),
+}
+list_gcn.metadata = {
+    "prompt_hint": (
+        "Liệt kê GCN trong DB (read-only, no filter). Dùng khi user muốn xem "
+        "DB có gì mà chưa có query cụ thể."
+    ),
 }
