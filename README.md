@@ -164,8 +164,6 @@ The agent uses **deepagents' StateBackend** by default (no filesystem access). S
 | Tool | Description |
 |---|---|
 | `analyze_image` | Describe an image or PDF using the vision model |
-| `remember_about_user` | Persist a key-value fact to long-term memory |
-| `recall_user_context` | Retrieve all remembered facts for the current user |
 
 ### Adding a main-agent tool
 
@@ -372,9 +370,4 @@ YAML format:
   input: "say hello"
   expected:
     contains: "hello"          # case-insensitive substring
-
-- name: uses_memory
-  input: "use the memory tool"
-  expected:
-    tool_called: remember_about_user   # assert a specific tool was called
 ```

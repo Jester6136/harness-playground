@@ -58,9 +58,6 @@ def make_agent(checkpointer=None, store=None, enable_thinking: bool | None = Non
     to persist conversation state per thread_id. Without one the agent is
     stateless across runs.
 
-    Pass a store (e.g. from harness.persistence.store.get_store()) to enable long-term
-    memory tools (remember_about_user, recall_user_context).
-
     `enable_thinking` controls model reasoning. None → use settings default.
     """
     skills = load_skills()
