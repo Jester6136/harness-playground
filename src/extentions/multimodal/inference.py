@@ -16,7 +16,7 @@ litellm_logger = logging.getLogger("LiteLLM")
 litellm_logger.setLevel(logging.CRITICAL)
 litellm_logger.propagate = False
 from litellm import acompletion
-from src.extentions.multimodal.prompt import pdf_detect_prompt,system_prompt
+from src.extentions.multimodal.prompt import pdf_extract_prompt,extract_system_prompt
 from src.extentions.multimodal.make import pdf_to_corrected_images
 
 VLLM_BASE_URL = os.getenv("VLLM_BASE_URL", "http://192.168.120.12:2900/v1")
@@ -57,12 +57,12 @@ async def process_pdf(pdf_bytesio: io.BytesIO, gcn_id: str = None) -> list[dict]
         messages=[
             {
                 "role": "system",
-                "content": system_prompt
+                "content": extract_system_prompt
             },
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": pdf_detect_prompt},
+                    {"type": "text", "text": pdf_extract_prompt},
                     *image_contents,
                 ],
             }

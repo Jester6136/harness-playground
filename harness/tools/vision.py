@@ -17,7 +17,7 @@ from PIL import Image
 from harness.llm import make_llm
 from harness.logging_config import log_tool_call
 from src.extentions.multimodal.make import pdf_to_corrected_images
-from src.extentions.multimodal.prompt import pdf_detect_prompt, system_prompt
+from src.extentions.multimodal.prompt import pdf_extract_prompt, extract_system_prompt
 
 
 _IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
@@ -86,8 +86,8 @@ def extract_gcn(path: str) -> str:
 
     vlm = make_llm(temperature=0.0).bind(response_format={"type": "json_object"})
     messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=[{"type": "text", "text": pdf_detect_prompt}] + blocks),
+        SystemMessage(content=extract_system_prompt),
+        HumanMessage(content=[{"type": "text", "text": pdf_extract_prompt}] + blocks),
     ]
     response = vlm.invoke(messages, config={"callbacks": []})
     return response.content
