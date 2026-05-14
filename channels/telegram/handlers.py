@@ -31,7 +31,8 @@ from channels.telegram.hitl import (
     PendingApproval,
     build_keyboard,
     parse_callback,
-    render_summary,
+    render_decision_prompt,
+    render_full_details,
 )
 from channels.telegram.settings import settings
 from channels.telegram.streamer import TelegramStreamer
@@ -232,9 +233,24 @@ async def _consume_into_streamer(
             elif event == "message":
                 await streamer.push_token(payload.get("content", ""))
             elif event == "tool_call":
-                await streamer.commit_then_send(_fmt_tool_call(payload))
+                if settings.verbose_tools:
+                    await streamer.commit_then_send(_fmt_tool_call(payload))
+                else:
+                    # Quiet mode — keep typing indicator alive so the chat
+                    # doesn't look frozen during long tool runs.
+                    await chat.send_action(ChatAction.TYPING)
             elif event == "tool_result":
-                await streamer.commit_then_send(_fmt_tool_result(payload))
+                if settings.verbose_tools:
+                    await streamer.commit_then_send(_fmt_tool_result(payload))
+                else:
+                    # Always surface tool failures — silent errors break trust.
+                    err = _tool_result_error(payload)
+                    if err:
+                        await streamer.commit_then_send(
+                            f"⚠️ {payload.get('tool', '?')}: {err}"
+                        )
+                    else:
+                        await chat.send_action(ChatAction.TYPING)
             elif event == "thinking":
                 log.debug("thinking: %s", str(payload.get("content", ""))[:200])
             elif event == "interrupt":
@@ -258,8 +274,17 @@ async def _consume_into_streamer(
 async def _register_and_render_approval(chat, thread_id: str, interrupts: list[dict]) -> None:
     pending = PendingApproval(chat_id=chat.id, thread_id=thread_id, interrupts=interrupts)
     approval_id = REGISTRY.add(pending)
+
+    # Send the full action detail(s) first — possibly across multiple messages
+    # when args are huge (e.g. save_gcn(gcn_json=<50KB>)). NO truncation: the
+    # user is making a decision and must see exactly what will run.
+    for chunk in render_full_details(interrupts):
+        await chat.send_message(chunk)
+
+    # Then a short message carrying the keyboard, so the buttons sit right
+    # under the last thing the user read.
     msg = await chat.send_message(
-        render_summary(interrupts),
+        render_decision_prompt(interrupts),
         reply_markup=build_keyboard(approval_id),
     )
     pending.keyboard_message_id = msg.message_id
@@ -304,3 +329,20 @@ def _fmt_tool_result(payload: dict) -> str:
     if len(content) > _TOOL_RESULT_PREVIEW:
         content = content[:_TOOL_RESULT_PREVIEW] + f"… ({len(content)} chars)"
     return f"📦 {tool} → {content}"
+
+
+def _tool_result_error(payload: dict) -> str | None:
+    """If a tool_result's content is an error-JSON, return the human message.
+
+    Tools in this harness use a `{"error": "...", "message": "..."}` shape
+    when something goes wrong (see harness/tools/*.py). Anything else is
+    treated as success and stays hidden in quiet mode.
+    """
+    content = payload.get("content", "") or ""
+    try:
+        d = json.loads(content)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if isinstance(d, dict) and "error" in d:
+        return str(d.get("message") or d.get("error") or "tool error")
+    return None

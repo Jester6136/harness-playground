@@ -7,13 +7,21 @@ int (not a UUID) to stay well under Telegram's 64-byte callback_data limit.
 
 State is lost on bot restart — MVP choice per the architecture review. Migrate
 to Redis or Postgres if you need pending approvals to survive deploys.
+
+HITL output is intentionally NOT truncated: the user is making a decision and
+must see the full action. Long args are split across multiple messages, then
+a short final message carries the keyboard.
 """
 from __future__ import annotations
 
 import itertools
+import json
 from dataclasses import dataclass, field
+from typing import Iterator
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+from channels.telegram.text_utils import truncate_utf16
 
 
 @dataclass
@@ -60,25 +68,60 @@ def build_keyboard(approval_id: int) -> InlineKeyboardMarkup:
     ]])
 
 
-def render_summary(interrupts: list[dict]) -> str:
-    """Human-readable summary of the actions awaiting approval."""
-    if len(interrupts) == 1:
-        i = interrupts[0]
-        import json
-        args = json.dumps(i.get("args", {}), ensure_ascii=False)
-        if len(args) > 240:
-            args = args[:240] + "…"
-        return f"⏸️ Cần approval:\n  {i.get('tool')}({args})"
+# Telegram hard cap is 4096 UTF-16 units; reserve headroom for continuation
+# markers and the chance the last char is a surrogate.
+_CHUNK_UNITS = 3900
 
-    import json
-    lines = ["⏸️ Cần approval:"]
-    for n, i in enumerate(interrupts, 1):
-        args = json.dumps(i.get("args", {}), ensure_ascii=False)
-        if len(args) > 160:
-            args = args[:160] + "…"
-        lines.append(f"  {n}. {i.get('tool')}({args})")
-    lines.append("\nApprove/Deny áp dụng cho TẤT CẢ actions trên.")
-    return "\n".join(lines)
+
+def _maybe_unfold(args: dict) -> dict:
+    """Parse string args that look like JSON and substitute the parsed tree.
+
+    Tools like `save_gcn(gcn_json: str)` receive a stringified JSON blob —
+    pretty-printing it as a string leaves the user staring at backslash-
+    escaped quotes. Unfolding gives a readable nested tree instead.
+    """
+    out: dict = {}
+    for k, v in args.items():
+        if isinstance(v, str) and len(v) > 80 and v.lstrip().startswith(("{", "[")):
+            try:
+                out[k] = json.loads(v)
+                continue
+            except (json.JSONDecodeError, ValueError):
+                pass
+        out[k] = v
+    return out
+
+
+def render_full_details(interrupts: list[dict]) -> Iterator[str]:
+    """Yield Telegram-safe chunks describing every pending action, IN FULL.
+
+    No truncation — args are JSON-pretty-printed and split into <=3900-UTF-16
+    chunks if needed. Caller sends each yielded string as a separate message
+    BEFORE the keyboard message, so the user sees the full action and decides
+    last.
+    """
+    multi = len(interrupts) > 1
+    for n, intr in enumerate(interrupts, 1):
+        tool = intr.get("tool", "?")
+        args = _maybe_unfold(intr.get("args", {}))
+        args_pretty = json.dumps(args, ensure_ascii=False, indent=2)
+        header = f"⏸️ Action {n}/{len(interrupts)} — {tool}" if multi else f"⏸️ Sắp chạy: {tool}"
+        body = f"{header}\n\n{args_pretty}"
+
+        remaining = body
+        first = True
+        while remaining:
+            head, tail = truncate_utf16(remaining, _CHUNK_UNITS)
+            yield head if first else f"…(tiếp)\n{head}"
+            remaining = tail
+            first = False
+
+
+def render_decision_prompt(interrupts: list[dict]) -> str:
+    """Short text for the keyboard message — sits below the detail messages."""
+    if len(interrupts) == 1:
+        return "Approve action trên?"
+    return f"Approve TẤT CẢ {len(interrupts)} actions trên?"
 
 
 def parse_callback(data: str) -> tuple[int, str] | None:

@@ -24,5 +24,11 @@ class TelegramSettings(BaseSettings):
     agent_api_url: str = "http://localhost:8000"
     agent_api_user_header: str = "X-User-Id"
 
+    # Show every tool_call / tool_result inline as a notice ("⚙️ tool(args)").
+    # Default OFF — chat-as-UI for end users should hide internals; the agent's
+    # final text answer is what they care about. Errors are surfaced regardless
+    # of this flag so silent tool failures are still visible.
+    verbose_tools: bool = False
+
 
 settings = TelegramSettings()
