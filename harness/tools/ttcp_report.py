@@ -335,8 +335,11 @@ def render_ttcp_report(so_van_ban: str) -> str:
     thức thanh tra, kiến nghị per-vi-phạm) schema chưa có sẽ để "—" /
     "Không nêu trong văn bản", KHÔNG bịa.
 
-    Trả về JSON `{path, số văn bản, số vi phạm}` — `path` là file HTML đã ghi
-    (mở bằng trình duyệt hoặc gửi cho user). Lỗi → `{error, message}`.
+    Trả về JSON `{report_id, url, số văn bản, số vi phạm}`:
+      - `url` là đường dẫn tương đối `/reports/<id>.html` do harness API serve
+        (KHÔNG phải path filesystem — đừng bịa path tuyệt đối).
+      - Web UI: link mở trực tiếp. Telegram: bot tự đính kèm file.
+    Lỗi → `{error, message}`.
     """
     try:
         doc = _store.find_one({"status": "done", _P_SO_VB: so_van_ban})
@@ -349,15 +352,16 @@ def render_ttcp_report(so_van_ban: str) -> str:
 
         html_text = _build_html(doc)
 
+        report_id = _safe_filename(so_van_ban)
         out_dir = Path(settings.ttcp_report_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
-        out_path = out_dir / f"{_safe_filename(so_van_ban)}.html"
-        out_path.write_text(html_text, encoding="utf-8")
+        (out_dir / f"{report_id}.html").write_text(html_text, encoding="utf-8")
 
         vi_pham = (doc.get("result", {}) or {}).get("vi phạm", []) or []
         return json.dumps(
             {
-                "path": str(out_path.resolve()),
+                "report_id": report_id,
+                "url": f"/reports/{report_id}.html",
                 "số văn bản": so_van_ban,
                 "số vi phạm": len(vi_pham),
             },

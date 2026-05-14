@@ -19,6 +19,7 @@ import json
 import logging
 from typing import AsyncIterator
 
+import httpx
 from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import ContextTypes
@@ -243,9 +244,12 @@ async def _consume_into_streamer(
                     # doesn't look frozen during long tool runs.
                     await chat.send_action(ChatAction.TYPING)
             elif event == "tool_result":
+                # Some tools produce a file (render_ttcp_report) — deliver it
+                # as a Telegram document instead of leaking a server path.
+                sent_file = await _maybe_send_tool_file(chat, payload)
                 if settings.verbose_tools:
                     await streamer.commit_then_send(_fmt_tool_result(payload))
-                else:
+                elif not sent_file:
                     # Always surface tool failures — silent errors break trust.
                     err = _tool_result_error(payload)
                     if err:
@@ -349,3 +353,51 @@ def _tool_result_error(payload: dict) -> str | None:
     if isinstance(d, dict) and "error" in d:
         return str(d.get("message") or d.get("error") or "tool error")
     return None
+
+
+# Tools whose JSON result carries `{report_id, url, ...}` — the file is fetched
+# from the harness API and delivered as a Telegram document. Add more file-
+# producing tools here as they appear.
+_FILE_TOOLS = {"render_ttcp_report"}
+
+
+async def _maybe_send_tool_file(chat, payload: dict) -> bool:
+    """If `payload` is a successful file-producing tool result, fetch the file
+    from the harness API and send it to the chat as a document.
+
+    Returns True if a document (or a stand-in error message) was sent, so the
+    caller can skip the quiet-mode typing/error fallback. Returns False for
+    non-file tools and for error results (let the normal error path show them).
+    """
+    if payload.get("tool") not in _FILE_TOOLS:
+        return False
+    try:
+        data = json.loads(payload.get("content", "") or "")
+    except (json.JSONDecodeError, TypeError):
+        return False
+    if not isinstance(data, dict) or "url" not in data:
+        return False  # error result → normal error path handles it
+
+    url = f"{settings.agent_api_url.rstrip('/')}{data['url']}"
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            r = await client.get(url)
+            r.raise_for_status()
+            file_bytes = r.content
+    except Exception as exc:
+        log.warning("could not fetch tool file %s: %s", url, exc)
+        await chat.send_message(f"⚠️ Tạo file xong nhưng không tải được: {exc}")
+        return True
+
+    report_id = data.get("report_id", "report")
+    so_vb = data.get("số văn bản", report_id)
+    n = data.get("số vi phạm")
+    caption = f"📄 Báo cáo tóm tắt — {so_vb}"
+    if n is not None:
+        caption += f" ({n} vi phạm)"
+    await chat.send_document(
+        document=file_bytes,
+        filename=f"{report_id}.html",
+        caption=caption,
+    )
+    return True
