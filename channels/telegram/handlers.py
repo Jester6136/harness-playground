@@ -133,23 +133,19 @@ async def on_media(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.reply_text(f"⚠️ Lỗi upload lên agent: {exc}")
         return
     path = upload["path"]
-    minio_key = upload.get("minio_key")
+    # The /upload endpoint already mirrored PDFs to MinIO; extract_ttcp will
+    # derive the MinIO key from the path and stamp it into the result JSON
+    # automatically, so we don't need to expose anything extra to the agent.
 
     # Embed the path the same way the web UI does — but neutral on tool choice,
     # so the model picks `extract_ttcp` vs `analyze_image` based on the file.
-    # When the file was mirrored to MinIO, expose the key so the agent can
-    # thread it into save_ttcp (→ stored in result._minio_key).
     caption = (msg.caption or "").strip()
     if not caption:
         caption = (
             "Hãy xử lý file đính kèm (extract_ttcp nếu là văn bản thanh tra, "
-            "otherwise analyze_image). Nếu lưu vào DB bằng save_ttcp, truyền "
-            "kèm MinIO key ở trên (nếu có)."
+            "otherwise analyze_image)."
         )
-    lines = [f"[Attached file at: {path}]"]
-    if minio_key:
-        lines.append(f"[MinIO key: {minio_key}]")
-    body_msg = "\n".join(lines) + f"\n\n{caption}"
+    body_msg = f"[Attached file at: {path}]\n\n{caption}"
 
     # Same SSE consume path as text messages.
     streamer = TelegramStreamer(chat)

@@ -470,6 +470,14 @@ async def main() -> None:
     log.info("run_loop done in %.1fs: %s", elapsed, res)
     log.info("final stats: %s", await asyncio.to_thread(stats))
 
+    # Trigger downstream sync ONCE if this run produced new docs — firing per
+    # mark_done would hammer the sync endpoint with hundreds of POSTs. block=True
+    # because the process is about to exit (a daemon thread would be killed
+    # before the request completes).
+    if res.get("done"):
+        from harness.persistence.sync_hook import notify_ttcp_sync
+        await asyncio.to_thread(notify_ttcp_sync, "batch", block=True)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

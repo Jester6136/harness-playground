@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import base64
 import io
+import json
 from pathlib import Path
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import tool
 from PIL import Image
 
+from harness.config import settings
 from harness.llm import make_llm
 from harness.logging_config import log_tool_call
 from src.extentions.multimodal.make import pdf_to_corrected_images
@@ -73,6 +75,26 @@ def analyze_image(path: str, question: str = "Describe this image in detail.") -
     return response.content
 
 
+def _derive_minio_key(path: str) -> str | None:
+    """Return the MinIO key for a file that came from the harness `/upload`
+    endpoint, or None.
+
+    Convention: `/upload` writes `<project>/uploads/{uuid}.pdf` AND pushes to
+    `s3://{ttcp_bucket}/{ttcp_prefix}{uuid}.pdf` — same basename, deterministic
+    mapping. So if `path` is a `.pdf` inside any directory called `uploads`,
+    its MinIO key is `{ttcp_prefix}{basename}`. Stamping this into the
+    extraction JSON means `save_ttcp` can pick it up automatically — no need
+    for the agent to thread a separate param.
+    """
+    p = Path(path)
+    if p.suffix.lower() != ".pdf":
+        return None
+    if p.parent.name != "uploads":
+        return None
+    prefix = settings.ttcp_prefix.rstrip("/") + "/"
+    return f"{prefix}{p.name}"
+
+
 @tool
 @log_tool_call
 def extract_ttcp(path: str) -> str:
@@ -82,6 +104,10 @@ def extract_ttcp(path: str) -> str:
     thanh tra, thông báo kết luận thanh tra, quyết định xử phạt. Đưa về cấu
     trúc JSON gồm 3 khối: `thông tin chung`, `vi phạm[]`, `kiến nghị xử lý`.
     Không rút gọn — giữ đầy đủ số liệu, mô tả, căn cứ pháp luật.
+
+    Nếu file đến từ `/upload` (đã được mirror lên MinIO), tool tự động đính
+    `_minio_key` vào JSON kết quả — `save_ttcp` đọc thẳng từ đó, agent không
+    cần truyền tham số nào thêm.
     """
     blocks = _file_to_image_blocks(path)
     if not blocks:
@@ -93,7 +119,21 @@ def extract_ttcp(path: str) -> str:
         HumanMessage(content=[{"type": "text", "text": ttcp_extract_prompt}] + blocks),
     ]
     response = vlm.invoke(messages, config={"callbacks": []})
-    return response.content
+    raw = response.content
+
+    # Auto-stamp MinIO key if this file was uploaded via /upload. Best-effort:
+    # if the VLM returned something that doesn't parse as a JSON object, hand
+    # back the raw string unchanged.
+    mk = _derive_minio_key(path)
+    if mk:
+        try:
+            parsed = json.loads(raw) if isinstance(raw, str) else None
+            if isinstance(parsed, dict):
+                parsed["_minio_key"] = mk
+                return json.dumps(parsed, ensure_ascii=False)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return raw
 
 
 # ── prompt hints ──────────────────────────────────────────────────────────

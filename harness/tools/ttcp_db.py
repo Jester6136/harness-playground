@@ -439,11 +439,14 @@ def save_ttcp(ttcp_json: str, minio_key: str = "") -> str:
     sau khi save, tất cả tool read khác (find/search/list/aggregate) dùng
     được ngay.
 
-    `minio_key` (optional): nếu file PDF đã được upload lên MinIO — xem dòng
-    `[MinIO key: ...]` trong tin nhắn đính kèm — truyền key đó vào đây. Khi
-    có key, doc sẽ dùng chính key làm `_id` (đúng cấu trúc như doc batch) +
-    có field `bucket`; key cũng được lưu vào `result._minio_key`. Không có
-    thì doc dùng `_id` tổng hợp `agent/<số văn bản>` và không có `bucket`.
+    Thường KHÔNG cần truyền `minio_key` — `extract_ttcp` đã tự stamp
+    `_minio_key` vào JSON khi file đến từ `/upload`, và tool này sẽ đọc
+    thẳng từ đó. Param `minio_key` chỉ là escape hatch nếu muốn override
+    thủ công.
+
+    Khi có MinIO key (auto hoặc truyền tay), doc sẽ dùng chính key làm `_id`
+    (đúng cấu trúc như doc batch) + có field `bucket`. Không có thì doc
+    dùng `_id` tổng hợp `agent/<số văn bản>` và không có `bucket`.
 
     Trả về `{số văn bản, matched, modified, upserted_id}`.
     """
@@ -462,8 +465,12 @@ def save_ttcp(ttcp_json: str, minio_key: str = "") -> str:
             ),
         }, ensure_ascii=False)
 
-    mk = minio_key.strip()
-    # Stamp the MinIO key into result too — keeps `result` self-contained.
+    # Prefer the explicit param if given; otherwise pick up the key
+    # `extract_ttcp` auto-stamped into the JSON.
+    auto = parsed.get("_minio_key") if isinstance(parsed.get("_minio_key"), str) else ""
+    mk = (minio_key.strip() or auto.strip())
+    # Keep the key stamped in result so it travels with the data (and so
+    # find/get_ttcp_file can derive it from result even without _id help).
     if mk:
         parsed["_minio_key"] = mk
 
@@ -643,7 +650,9 @@ save_ttcp.metadata = {
     "hitl": True,
     "prompt_hint": (
         "Lưu kết luận thanh tra đã extract vào DB (cần approval). Dùng SAU "
-        "extract_ttcp — truyền nguyên chuỗi JSON từ extract_ttcp vào, không reformat."
+        "extract_ttcp — truyền nguyên chuỗi JSON từ extract_ttcp vào, không "
+        "reformat. MinIO key (nếu có) đã được extract_ttcp tự đính sẵn vào "
+        "JSON — không cần làm gì thêm."
     ),
 }
 update_ttcp.metadata = {
