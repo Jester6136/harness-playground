@@ -39,6 +39,10 @@ dependencies = [
     "pdf2image",
     "pillow",
 
+    # Offline batch (extention_/ttcp_batch) — MinIO listing + download + progress bar.
+    "boto3",
+    "tqdm",
+
     # Channel adapters (channels/telegram, channels/discord) — kept here even
     # though the bots run as separate processes, so a single `pip install -e .`
     # bootstraps everything for dev.
@@ -65,7 +69,11 @@ dev = [
 harness = "main:main"
 
 [tool.setuptools.packages.find]
-include = ["harness*"]
+# Keep this list in sync with top-level packages — anything that needs to be
+# importable after `pip install -e .` must appear here (or match a glob).
+# `src*` covers src.extentions.multimodal (used by harness.tools.vision and
+# the offline ttcp_batch). `channels*` covers the Telegram/Discord adapters.
+include = ["harness*", "src*", "channels*"]
 exclude = ["tests*", "evals*", "skills*", "docs*"]
 
 [tool.ruff]

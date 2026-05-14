@@ -4,9 +4,11 @@ Một entrypoint duy nhất: liệt kê toàn bộ PDF dưới
 ``s3://${TTCP_BUCKET}/${TTCP_PREFIX}``, upsert thành rows ``pending`` trong
 ``${MONGO_DB_NAME}.${TTCP_COLLECTION}``, rồi extract song song và lưu kết quả.
 
-Run::
+Run (từ project root)::
 
-    python -m src.extentions.multimodal.ttcp_batch
+    python extention_/ttcp_batch.py
+    # hoặc tương đương:
+    python -m extention_.ttcp_batch
 
 Idempotent — chạy lại an toàn. Lệnh tự reap rows ``running`` đã stale, retry
 ``error`` cho tới ``TTCP_MAX_ATTEMPTS`` lần, và bump version khi
@@ -37,20 +39,31 @@ ENV
 """
 from __future__ import annotations
 
+import argparse
 import asyncio
 import io
 import json
 import logging
 import os
 import socket
+import sys
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Optional
+
+# Make ``python extention_/ttcp_batch.py`` work the same as ``python -m
+# extention_.ttcp_batch`` — direct-script execution doesn't put the project
+# root on sys.path, so the ``src.extentions.…`` import below would fail.
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 import boto3
 from botocore.config import Config
 from dotenv import load_dotenv
 from pymongo import ASCENDING, MongoClient, ReturnDocument
+from tqdm import tqdm
 
 load_dotenv()
 
@@ -274,6 +287,38 @@ def mark_error(key: str, err: str, attempts: int) -> None:
     )
 
 
+def reset_failed(include_dead: bool = True) -> int:
+    """Reset ``error`` (and optionally ``dead``) rows back to ``pending``.
+
+    Use this when MAX_ATTEMPTS got hit (e.g. all 1/1 timeouts) and rows are
+    stuck as ``dead`` so claim_one() ignores them. Clears ``attempts`` so
+    they get a full retry budget again. Triggered by ``--retry-failed``.
+    """
+    statuses = ["error"] + (["dead"] if include_dead else [])
+    res = coll().update_many(
+        {"status": {"$in": statuses}},
+        {"$set": {
+            "status": "pending",
+            "attempts": 0,
+            "worker_id": None,
+            "claimed_at": None,
+            "started_at": None,
+            "finished_at": None,
+            "last_error": None,
+            "updated_at": now(),
+        }},
+    )
+    return res.modified_count
+
+
+def count_workload() -> int:
+    """Rows that ``claim_one()`` will eventually pick up — used for tqdm total."""
+    return coll().count_documents({"$or": [
+        {"status": "pending"},
+        {"status": "error", "attempts": {"$lt": MAX_ATTEMPTS}},
+    ]})
+
+
 # ── async work loop ────────────────────────────────────────────────────────
 
 
@@ -325,32 +370,43 @@ async def _process_one(doc: dict) -> bool:
 
 async def run_loop() -> dict:
     """Top-up scheduler: keep ≤ CONCURRENCY tasks in flight until claim_one
-    returns None AND nothing is in flight."""
+    returns None AND nothing is in flight. tqdm tracks throughput; counters
+    in postfix show running done/error breakdown."""
     tasks: set[asyncio.Task] = set()
     counters = {"done": 0, "error": 0}
 
-    while True:
-        while len(tasks) < CONCURRENCY:
-            doc = await asyncio.to_thread(claim_one)
-            if doc is None:
-                break
-            t = asyncio.create_task(_process_one(doc))
-            tasks.add(t)
-            t.add_done_callback(tasks.discard)
+    initial = await asyncio.to_thread(count_workload)
+    pbar = tqdm(total=initial, desc="extract", unit="pdf", dynamic_ncols=True)
+    # Retries re-enter the workload after a fail, so the real total can grow
+    # beyond `initial`. We bump total whenever the pool is refilled.
+    try:
+        while True:
+            while len(tasks) < CONCURRENCY:
+                doc = await asyncio.to_thread(claim_one)
+                if doc is None:
+                    break
+                t = asyncio.create_task(_process_one(doc))
+                tasks.add(t)
+                t.add_done_callback(tasks.discard)
 
-        if not tasks:
-            break  # drained: nothing claimable, nothing in flight
+            if not tasks:
+                break  # drained: nothing claimable, nothing in flight
 
-        done, _pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-        for d in done:
-            try:
-                if d.result():
-                    counters["done"] += 1
-                else:
-                    counters["error"] += 1
-            except Exception:
-                # _process_one should never raise; defensive bucket.
-                counters["error"] += 1
+            done, _pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            for d in done:
+                try:
+                    ok = d.result()
+                except Exception:
+                    # _process_one should never raise; defensive bucket.
+                    ok = False
+                counters["done" if ok else "error"] += 1
+                pbar.update(1)
+            # Keep total honest if retries pushed us past initial estimate.
+            if pbar.n > pbar.total:
+                pbar.total = pbar.n + len(tasks)
+            pbar.set_postfix(counters, refresh=False)
+    finally:
+        pbar.close()
 
     return counters
 
@@ -363,7 +419,25 @@ def stats() -> dict:
 # ── entrypoint ─────────────────────────────────────────────────────────────
 
 
+def _parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="TTCP batch extractor (MinIO → vLLM → Mongo)")
+    p.add_argument(
+        "--retry-failed", action="store_true",
+        help="Reset error+dead rows to pending before processing (clears attempts).",
+    )
+    p.add_argument(
+        "--retry-errors-only", action="store_true",
+        help="Like --retry-failed but skip 'dead' rows (only retries 'error').",
+    )
+    p.add_argument(
+        "--stats-only", action="store_true",
+        help="Print status breakdown and exit. No MinIO listing, no extraction.",
+    )
+    return p.parse_args()
+
+
 async def main() -> None:
+    args = _parse_args()
     logging.basicConfig(
         level=os.getenv("LOG_LEVEL", "INFO"),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -374,6 +448,14 @@ async def main() -> None:
     )
 
     ensure_indexes()
+
+    if args.stats_only:
+        log.info("stats: %s", await asyncio.to_thread(stats))
+        return
+
+    if args.retry_failed or args.retry_errors_only:
+        n = await asyncio.to_thread(reset_failed, not args.retry_errors_only)
+        log.info("reset %d failed rows → pending", n)
 
     s = await asyncio.to_thread(sync_index)
     log.info("sync_index: %s", s)
