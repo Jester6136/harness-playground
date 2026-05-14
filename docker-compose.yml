@@ -21,18 +21,18 @@ services:
 
   # ── MongoDB ────────────────────────────────────────────────────────────────
   # Used by harness.tools.gcn_db (GCN CRUD + full-text search).
-  mongo:
-    image: mongo:7
-    restart: unless-stopped
-    volumes:
-      - mongo_data:/data/db
-    ports:
-      - "27017:27017"
-    healthcheck:
-      test: [ "CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # mongo:
+  #   image: mongo:7
+  #   restart: unless-stopped
+  #   volumes:
+  #     - mongo_data:/data/db
+  #   ports:
+  #     - "27017:27017"
+  #   healthcheck:
+  #     test: [ "CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')" ]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
   # ── harness API ────────────────────────────────────────────────────────────
   harness-api:
@@ -66,17 +66,17 @@ services:
   # ── Telegram bot (channel adapter — Milestone 1) ─────────────────────────
   # Reuses the same image as harness-api but runs a different entrypoint.
   # Comment out (or omit TELEGRAM_BOT_TOKEN) to skip the Telegram channel.
-  telegram-bot:
-    build: .
-    restart: unless-stopped
-    command: ["python", "-m", "channels.telegram.bot"]
-    env_file:
-      - .env
-    environment:
-      AGENT_API_URL: http://harness-api:8000
-    depends_on:
-      harness-api:
-        condition: service_healthy
+  # telegram-bot:
+  #   build: .
+  #   restart: unless-stopped
+  #   command: ["python", "-m", "channels.telegram.bot"]
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     AGENT_API_URL: http://harness-api:8000
+  #   depends_on:
+  #     harness-api:
+  #       condition: service_healthy
 
   # ── agent-chat-ui (optional demo UI — comment out for prod) ───────────────
   # agent-chat-ui:
