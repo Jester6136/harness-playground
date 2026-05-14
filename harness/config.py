@@ -60,10 +60,13 @@ class Settings(BaseSettings):
     datalens_chatbot_code: str = "bags_code"
     datalens_timeout: float = 60.0
 
-    # MongoDB — used by harness.tools.gcn_db (GCN CRUD + full-text search).
-    # Connection is lazy; only initialised when a GCN tool is first invoked.
+    # MongoDB — used by harness.tools.ttcp_db (TTCP CRUD + full-text + aggregate).
+    # Connection is lazy; only initialised when a TTCP tool is first invoked.
+    # ``ttcp_collection`` matches the offline batch (extention_/ttcp_batch) so
+    # the agent sees the same docs the extractor wrote.
     mongo_uri: str = "mongodb://localhost:27017"
-    mongo_db_name: str = "harness"
+    mongo_db_name: str = "datalens"
+    ttcp_collection: str = "ttcp-extracted"
 
     # Logging
     log_level: str = "INFO"

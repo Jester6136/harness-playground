@@ -116,7 +116,7 @@ async def dispatch(cmd: str, args: str) -> tuple[str, str]:
 
 @register_command("help", "List all available slash commands")
 def _cmd_help(args: str) -> str:
-    lines = ["**Available commands:**\n"]
+    lines = ["**Các commands:**\n"]
     for c in sorted(COMMANDS.values(), key=lambda x: x.name):
         lines.append(f"  `/{c.name}` — {c.description}")
     return "\n".join(lines)
@@ -131,8 +131,8 @@ def _cmd_clear(args: str) -> str:
 def _cmd_list_skills(args: str) -> str:
     skills = load_skills()
     if not skills:
-        return "No skills loaded."
-    lines = ["**Loaded skills:**\n"]
+        return "Hiện chưa phát triển"
+    lines = ["**Các skills:**\n"]
     for s in skills:
         lines.append(f"  `{s['name']}` — {s['description']}")
     return "\n".join(lines)
@@ -254,65 +254,65 @@ def _audit_gcn(g: dict) -> tuple[str, list[str]]:
     return g.get("soHieuGcn") or "?", issues
 
 
-@register_command(
-    "status",
-    "Sức khoẻ chi tiết của Đơn đăng ký theo id (4 nhóm + sub-fields)",
-    handler="direct",
-    args_schema={"id": "str — UUID đơn đăng ký"},
-)
-async def _cmd_status(args: str) -> str:
-    don_id = args.strip()
-    if not don_id:
-        return "Cú pháp: `/status <don_dang_ky_id>`"
+# @register_command(
+#     "status",
+#     "Sức khoẻ chi tiết của Đơn đăng ký theo id (4 nhóm + sub-fields)",
+#     handler="direct",
+#     args_schema={"id": "str — UUID đơn đăng ký"},
+# )
+# async def _cmd_status(args: str) -> str:
+#     don_id = args.strip()
+#     if not don_id:
+#         return "Cú pháp: `/status <don_dang_ky_id>`"
 
-    from harness.persistence.lis_db import run_query
-    from harness.persistence.lis_queries import CHECK_DON_DANG_KY
+#     from harness.persistence.lis_db import run_query
+#     from harness.persistence.lis_queries import CHECK_DON_DANG_KY
 
-    try:
-        rows = await run_query(CHECK_DON_DANG_KY, (don_id,), row_cap=1)
-    except Exception as exc:
-        return f"❌ Lỗi DB: `{type(exc).__name__}: {exc}`"
-    if not rows:
-        return f"❌ Không tìm thấy đơn đăng ký id `{don_id}`."
+#     try:
+#         rows = await run_query(CHECK_DON_DANG_KY, (don_id,), row_cap=1)
+#     except Exception as exc:
+#         return f"❌ Lỗi DB: `{type(exc).__name__}: {exc}`"
+#     if not rows:
+#         return f"❌ Không tìm thấy đơn đăng ký id `{don_id}`."
 
-    r = rows[0]
-    sections = (
-        ("Pháp nhân (chủ sở hữu)",     _maybe_json(r.get("phapNhanSdds")),    _audit_phap_nhan),
-        ("Thửa đất",                   _maybe_json(r.get("thuaDats")),         _audit_thua_dat),
-        ("Mục đích sử dụng đất",       _maybe_json(r.get("daMdsdds")),         _audit_mdsdd),
-        ("Giấy chứng nhận",            _maybe_json(r.get("giayChungNhans")),   _audit_gcn),
-    )
+#     r = rows[0]
+#     sections = (
+#         ("Pháp nhân (chủ sở hữu)",     _maybe_json(r.get("phapNhanSdds")),    _audit_phap_nhan),
+#         ("Thửa đất",                   _maybe_json(r.get("thuaDats")),         _audit_thua_dat),
+#         ("Mục đích sử dụng đất",       _maybe_json(r.get("daMdsdds")),         _audit_mdsdd),
+#         ("Giấy chứng nhận",            _maybe_json(r.get("giayChungNhans")),   _audit_gcn),
+#     )
 
-    lines = [f"**Sức khoẻ đơn đăng ký** `{don_id}`\n"]
-    overall_missing: list[str] = []
+#     lines = [f"**Sức khoẻ đơn đăng ký** `{don_id}`\n"]
+#     overall_missing: list[str] = []
 
-    for title, items, auditor in sections:
-        items = items or []
-        lines.append(f"### {title} ({len(items)})")
-        if not items:
-            lines.append("  ✗ **không có dữ liệu — cần bổ sung**")
-            overall_missing.append(f"{title} (rỗng)")
-            lines.append("")
-            continue
-        for i, item in enumerate(items, 1):
-            desc, issues = auditor(item)
-            if issues:
-                lines.append(f"  ✗ #{i} {desc}")
-                for iss in issues:
-                    lines.append(f"      • {iss}")
-                overall_missing.append(f"{title} #{i}")
-            else:
-                lines.append(f"  ✓ #{i} {desc}")
-        lines.append("")
+#     for title, items, auditor in sections:
+#         items = items or []
+#         lines.append(f"### {title} ({len(items)})")
+#         if not items:
+#             lines.append("  ✗ **không có dữ liệu — cần bổ sung**")
+#             overall_missing.append(f"{title} (rỗng)")
+#             lines.append("")
+#             continue
+#         for i, item in enumerate(items, 1):
+#             desc, issues = auditor(item)
+#             if issues:
+#                 lines.append(f"  ✗ #{i} {desc}")
+#                 for iss in issues:
+#                     lines.append(f"      • {iss}")
+#                 overall_missing.append(f"{title} #{i}")
+#             else:
+#                 lines.append(f"  ✓ #{i} {desc}")
+#         lines.append("")
 
-    if not overall_missing:
-        lines.append("→ **ĐẦY ĐỦ**. Cả 4 nhóm và các trường chính đều có dữ liệu.")
-    else:
-        lines.append(
-            f"→ **THIẾU CHI TIẾT** ({len(overall_missing)} item): "
-            + ", ".join(f"`{m}`" for m in overall_missing)
-        )
-    return "\n".join(lines)
+#     if not overall_missing:
+#         lines.append("→ **ĐẦY ĐỦ**. Cả 4 nhóm và các trường chính đều có dữ liệu.")
+#     else:
+#         lines.append(
+#             f"→ **THIẾU CHI TIẾT** ({len(overall_missing)} item): "
+#             + ", ".join(f"`{m}`" for m in overall_missing)
+#         )
+#     return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -467,47 +467,47 @@ def _format_giay_to_rows(rows: list[dict]) -> str:
     return "\n".join(lines)
 
 
-@register_command(
-    "sohieu",
-    "Tra cứu GCN theo số hiệu (vd. /sohieu CH 00123)",
-    handler="direct",
-    args_schema={"so_hieu_gcn": "str — số hiệu GCN"},
-)
-async def _cmd_sohieu(args: str) -> str:
-    so_hieu = args.strip()
-    if not so_hieu:
-        return "Cú pháp: `/sohieu <so_hieu_gcn>`"
+# @register_command(
+#     "sohieu",
+#     "Tra cứu GCN theo số hiệu (vd. /sohieu CH 00123)",
+#     handler="direct",
+#     args_schema={"so_hieu_gcn": "str — số hiệu GCN"},
+# )
+# async def _cmd_sohieu(args: str) -> str:
+#     so_hieu = args.strip()
+#     if not so_hieu:
+#         return "Cú pháp: `/sohieu <so_hieu_gcn>`"
 
-    from harness.persistence.lis_db import run_query
-    from harness.persistence.lis_queries import GET_GCN_BY_SO_HIEU
+#     from harness.persistence.lis_db import run_query
+#     from harness.persistence.lis_queries import GET_GCN_BY_SO_HIEU
 
-    try:
-        rows = await run_query(GET_GCN_BY_SO_HIEU, (so_hieu,), row_cap=50)
-    except Exception as exc:
-        return f"❌ Lỗi DB: `{type(exc).__name__}: {exc}`"
-    if not rows:
-        return f"❌ Không tìm thấy GCN với số hiệu `{so_hieu}`."
-    return _format_gcn_rows(rows)
+#     try:
+#         rows = await run_query(GET_GCN_BY_SO_HIEU, (so_hieu,), row_cap=50)
+#     except Exception as exc:
+#         return f"❌ Lỗi DB: `{type(exc).__name__}: {exc}`"
+#     if not rows:
+#         return f"❌ Không tìm thấy GCN với số hiệu `{so_hieu}`."
+#     return _format_gcn_rows(rows)
 
 
-@register_command(
-    "giayto",
-    "Tra cứu GCN theo số giấy tờ chủ sở hữu (CMND/CCCD)",
-    handler="direct",
-    args_schema={"so_giay_to": "str — số CMND/CCCD"},
-)
-async def _cmd_giayto(args: str) -> str:
-    so_gt = args.strip()
-    if not so_gt:
-        return "Cú pháp: `/giayto <so_giay_to>`"
+# @register_command(
+#     "giayto",
+#     "Tra cứu GCN theo số giấy tờ chủ sở hữu (CMND/CCCD)",
+#     handler="direct",
+#     args_schema={"so_giay_to": "str — số CMND/CCCD"},
+# )
+# async def _cmd_giayto(args: str) -> str:
+#     so_gt = args.strip()
+#     if not so_gt:
+#         return "Cú pháp: `/giayto <so_giay_to>`"
 
-    from harness.persistence.lis_db import run_query
-    from harness.persistence.lis_queries import GET_GCN_BY_GIAY_TO_DINH_DANH
+#     from harness.persistence.lis_db import run_query
+#     from harness.persistence.lis_queries import GET_GCN_BY_GIAY_TO_DINH_DANH
 
-    try:
-        rows = await run_query(GET_GCN_BY_GIAY_TO_DINH_DANH, (so_gt,), row_cap=50)
-    except Exception as exc:
-        return f"❌ Lỗi DB: `{type(exc).__name__}: {exc}`"
-    if not rows:
-        return f"❌ Không tìm thấy GCN nào với số giấy tờ `{so_gt}`."
-    return _format_giay_to_rows(rows)
+#     try:
+#         rows = await run_query(GET_GCN_BY_GIAY_TO_DINH_DANH, (so_gt,), row_cap=50)
+#     except Exception as exc:
+#         return f"❌ Lỗi DB: `{type(exc).__name__}: {exc}`"
+#     if not rows:
+#         return f"❌ Không tìm thấy GCN nào với số giấy tờ `{so_gt}`."
+#     return _format_giay_to_rows(rows)

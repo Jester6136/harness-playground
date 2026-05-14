@@ -133,10 +133,13 @@ async def on_media(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     # Embed the path the same way the web UI does — but neutral on tool choice,
-    # so the model picks `extract_gcn` vs `analyze_image` based on the file.
+    # so the model picks `extract_ttcp` vs `analyze_image` based on the file.
     caption = (msg.caption or "").strip()
     if not caption:
-        caption = "Hãy xử lý file đính kèm (extract_gcn nếu là GCN, otherwise analyze_image)."
+        caption = (
+            "Hãy xử lý file đính kèm (extract_ttcp nếu là văn bản thanh tra, "
+            "otherwise analyze_image)."
+        )
     body_msg = f"[Attached file at: {path}]\n\n{caption}"
 
     # Same SSE consume path as text messages.
@@ -276,7 +279,7 @@ async def _register_and_render_approval(chat, thread_id: str, interrupts: list[d
     approval_id = REGISTRY.add(pending)
 
     # Send the full action detail(s) first — possibly across multiple messages
-    # when args are huge (e.g. save_gcn(gcn_json=<50KB>)). NO truncation: the
+    # when args are huge (e.g. save_ttcp(ttcp_json=<50KB>)). NO truncation: the
     # user is making a decision and must see exactly what will run.
     for chunk in render_full_details(interrupts):
         await chat.send_message(chunk)
@@ -304,7 +307,7 @@ def _pick_telegram_file(msg):
 
     Photos: take the largest `PhotoSize` (Telegram pre-renders multiple sizes).
     Documents: keep the original filename when present so the harness can pick
-    the right tool by extension (`.pdf` → extract_gcn / analyze_image PDF path).
+    the right tool by extension (`.pdf` → extract_ttcp / analyze_image PDF path).
     """
     if msg.photo:
         ph = msg.photo[-1]

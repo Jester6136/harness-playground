@@ -20,7 +20,8 @@ services:
       retries: 5
 
   # ── MongoDB ────────────────────────────────────────────────────────────────
-  # Used by harness.tools.gcn_db (GCN CRUD + full-text search).
+  # Used by harness.tools.ttcp_db (CRUD + full-text + aggregate) and the
+  # offline batch (extention_/ttcp_batch).
   # mongo:
   #   image: mongo:7
   #   restart: unless-stopped

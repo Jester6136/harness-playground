@@ -144,6 +144,17 @@ class MongoStore:
             # spec differs. Log and continue.
             log.debug("ensure_text_index(%s): %s", name, exc)
 
+    # ── aggregation ─────────────────────────────────────────────────────────
+
+    def aggregate(self, pipeline: list[dict]) -> list[dict]:
+        """Run a Mongo aggregation pipeline; return all docs eagerly.
+
+        Caller owns the pipeline shape (``$match``/``$unwind``/``$group``/…).
+        Kept generic so a single tool (`aggregate_ttcp`) can serve many
+        group-by × metric combos without one method per shape.
+        """
+        return [_stringify_id(d) for d in self._coll.aggregate(pipeline)]
+
     # ── housekeeping ────────────────────────────────────────────────────────
 
     def count(self, filter: dict | None = None) -> int:

@@ -76,7 +76,7 @@ _CHUNK_UNITS = 3900
 def _maybe_unfold(args: dict) -> dict:
     """Parse string args that look like JSON and substitute the parsed tree.
 
-    Tools like `save_gcn(gcn_json: str)` receive a stringified JSON blob —
+    Tools like `save_ttcp(ttcp_json: str)` receive a stringified JSON blob —
     pretty-printing it as a string leaves the user staring at backslash-
     escaped quotes. Unfolding gives a readable nested tree instead.
     """

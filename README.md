@@ -197,27 +197,33 @@ def drop_table(name: str) -> str: ...
 
 The agent collects HITL flags from tool metadata at build time, plus deepagents' built-in `execute` listed in `_BUILTIN_HITL` in `harness/agent.py`.
 
-### GCN database (MongoDB)
+### TTCP database (MongoDB)
 
-`harness/tools/gcn_db.py` ships 5 tools backed by MongoDB for storing the output of `extract_gcn`:
+`harness/tools/ttcp_db.py` ships 8 tools backed by MongoDB for storing & querying the output of `extract_ttcp` (Vietnamese kết luận thanh tra):
 
 | Tool | HITL | Purpose |
 |---|---|---|
-| `save_gcn(gcn_json)` | ✅ | Upsert a GCN keyed by `Số phát hành giấy chứng nhận` |
-| `update_gcn(so_hieu, updates_json)` | ✅ | `$set` specific fields via dotted-key dict |
-| `delete_gcn(so_hieu)` | ✅ | Remove by số hiệu |
-| `find_gcn(so_hieu)` | — | Exact lookup by số hiệu |
-| `search_gcn(query, limit)` | — | Full-text search across owner name, address, GCN number |
+| `save_ttcp(ttcp_json)` | ✅ | Upsert a kết luận keyed by `thông tin chung.số văn bản` |
+| `update_ttcp(so_van_ban, updates_json)` | ✅ | `$set` specific fields via dotted-key dict |
+| `delete_ttcp(so_van_ban)` | ✅ | Remove by số văn bản |
+| `find_ttcp(so_van_ban)` | — | Exact lookup, returns full doc |
+| `search_ttcp(query, limit)` | — | Full-text search across vi phạm / kiến nghị / đối tượng |
+| `list_ttcp(linh_vuc=, co_quan=, year_from=, year_to=, has_criminal=)` | — | Structured filter |
+| `count_ttcp(...)` | — | Count with the same filters as `list_ttcp` |
+| `aggregate_ttcp(group_by, metric, ...)` | — | Group-by analytics: top lĩnh vực, sum giá trị by year, etc. |
 
-`MongoStore` ([harness/persistence/mongo.py](harness/persistence/mongo.py)) is the reusable wrapper — use it to back other collections (just instantiate with a different `collection` name). Connection is lazy and closed via the FastAPI lifespan; the text index is created idempotently on first use.
+`group_by` ∈ `{linh_vuc, co_quan, nguoi_ky, year, nhom_vi_pham, hanh_vi}` × `metric` ∈ `{count, sum_value, avg_value}` — one tool covers most "phân bố / top / tổng theo Y" questions.
 
-Configure with `MONGO_URI` and `MONGO_DB_NAME` in `.env` (defaults to `mongodb://localhost:27017` / `harness`). docker-compose spins up a `mongo:7` service on port 27017.
+`MongoStore` ([harness/persistence/mongo.py](harness/persistence/mongo.py)) is the reusable wrapper. Connection is lazy and closed via the FastAPI lifespan; the text index is created idempotently on first use.
+
+Configure with `MONGO_URI`, `MONGO_DB_NAME` (default `datalens`) and `TTCP_COLLECTION` (default `ttcp-extracted`) in `.env`. These defaults match the offline batch (`extention_/ttcp_batch`) so the agent reads the same docs the extractor writes.
 
 **Demo flow showcasing HITL + multi-tool agent:**
-1. User sends a GCN PDF over Telegram → agent calls `extract_gcn` → JSON.
-2. Agent calls `save_gcn(json)` → bot shows `[✅ Approve] [❌ Deny]` keyboard.
-3. Approve → record stored. Later: "Tìm GCN số CH00123" → `find_gcn` → result.
-4. "Xoá GCN CH00123" → `delete_gcn` → another HITL prompt → confirm → deleted.
+1. User sends a kết luận thanh tra PDF over Telegram → agent calls `extract_ttcp` → JSON.
+2. Agent calls `save_ttcp(json)` → bot shows `[✅ Approve] [❌ Deny]` keyboard.
+3. Approve → record stored. Later: "Tìm kết luận 2280/TB-TTCP" → `find_ttcp` → full doc.
+4. "Top 5 lĩnh vực có nhiều kết luận nhất" → `aggregate_ttcp("linh_vuc", "count")`.
+5. "Xoá 2280/TB-TTCP" → `delete_ttcp` → another HITL prompt → confirm → deleted.
 
 ## Skills (sub-agents)
 
