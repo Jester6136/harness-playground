@@ -1,16 +1,15 @@
 """Render a TTCP doc into the standard 'Bảng tóm tắt Kết luận thanh tra' HTML.
 
-Best-effort mapping from the CURRENT `extract_ttcp` schema. The report
-template (xem ``vi_du_mau_PhuTho``) cần vài field schema chưa có:
+Maps the `extract_ttcp` schema (v2 — kiến nghị gắn per-violation) onto the
+report template (xem ``vi_du_mau_PhuTho``):
 
-  - thông tin chung: ngày công bố, ngày kết thúc thanh tra, hình thức thanh tra
-  - vi phạm[]: hậu quả (riêng), nguyên nhân, kiến nghị per-violation 3 loại
+  - Bảng thông tin chung  ← result.thông tin chung.*
+  - I. Trích lược vi phạm ← result.vi phạm[] (dạng văn xuôi)
+  - II. Bảng chi tiết     ← result.vi phạm[] (3 cột kiến nghị: hình sự /
+                            hành chính / kinh tế lấy từ vi phạm[].kiến nghị)
 
-Những ô đó render thành "—" / "Không nêu trong văn bản" — KHÔNG bịa.
-
-`kiến nghị xử lý` cấp document (schema CÓ, nhưng không gắn được vào từng
-dòng Bảng II) được render thành Mục III riêng, nên không mất dữ liệu đã
-extract. Khi nào schema thêm kiến nghị per-violation thì Bảng II tự đầy.
+Field nào trống trong văn bản render thành "—" / "Không nêu trong văn bản"
+— KHÔNG bịa. Không còn Mục III: kiến nghị xử lý đã nằm trong từng vi phạm.
 """
 from __future__ import annotations
 
@@ -78,8 +77,7 @@ def _safe_filename(so_van_ban: str) -> str:
 
 
 def _info_table(tic: dict) -> str:
-    """Bảng thông tin chung. Rows mirror the report template; fields the
-    schema doesn't carry render as em-dash."""
+    """Bảng thông tin chung. Rows mirror the report template."""
     so_vb = tic.get("số văn bản", "")
     loai = tic.get("loại văn bản", "")
     qd_kl = f"{loai} {so_vb}".strip() if loai or so_vb else ""
@@ -95,10 +93,10 @@ def _info_table(tic: dict) -> str:
          "Đối tượng thanh tra", _esc(tic.get("đối tượng thanh tra")),
          "Thời kỳ thanh tra", _esc(tic.get("thời kỳ thanh tra"))),
         ("Người ký / Chức vụ", _esc_or(nguoi, _DASH),
-         "Ngày công bố KL", _DASH,
-         "Ngày kết thúc thanh tra", _DASH),
-        ("Đơn vị chủ trì", _esc(tic.get("cơ quan ban hành")),
-         "Hình thức thanh tra", _DASH,
+         "Ngày công bố KL", _esc(tic.get("ngày công bố")),
+         "Ngày kết thúc thanh tra", _esc(tic.get("ngày kết thúc thanh tra"))),
+        ("Đơn vị chủ trì", _esc(tic.get("đơn vị chủ trì") or tic.get("cơ quan ban hành")),
+         "Hình thức thanh tra", _esc(tic.get("hình thức thanh tra")),
          "Lĩnh vực", _join(tic.get("lĩnh vực"))),
     ]
     rows = "\n".join(
@@ -112,6 +110,20 @@ def _info_table(tic: dict) -> str:
     return f'  <table class="info-table">\n{rows}\n  </table>'
 
 
+def _kien_nghi_inline(kn: object) -> str:
+    """Join the per-violation `kiến nghị` object into one inline string,
+    showing only the non-empty của ba loại. Returns _NOT_STATED if all empty."""
+    if not isinstance(kn, dict):
+        return _NOT_STATED
+    parts = []
+    for key, label in (("hình sự", "Hình sự"), ("hành chính", "Hành chính"),
+                       ("kinh tế", "Kinh tế")):
+        val = (kn.get(key) or "").strip()
+        if val:
+            parts.append(f"{label}: {html.escape(val)}")
+    return "; ".join(parts) if parts else _NOT_STATED
+
+
 def _narrative(vi_pham: list) -> str:
     """Mục I — Trích lược vi phạm (dạng văn xuôi)."""
     if not vi_pham:
@@ -121,16 +133,18 @@ def _narrative(vi_pham: list) -> str:
     for i, v in enumerate(vi_pham, 1):
         if not isinstance(v, dict):
             continue
-        # hậu quả: schema không có field riêng → dùng "mô tả" (gần nhất).
-        hau_qua = v.get("mô tả") or ""
+        # "mô tả" là chi tiết sự việc — nối sau tên hành vi cho đầy đủ ngữ cảnh.
+        hanh_vi = v.get("hành vi vi phạm") or ""
+        mo_ta = v.get("mô tả") or ""
+        hv_full = f"{hanh_vi} — {mo_ta}".strip(" —") if mo_ta else hanh_vi
         items.append(f"""    <div class="narrative-item">
       <span class="num">{i}.</span>
-      <span class="lbl">Hành vi vi phạm:</span> {_esc(v.get("hành vi vi phạm"))} —
-      <span class="lbl">Điều khoản:</span> {_esc(v.get("căn cứ vi phạm"))} —
-      <span class="lbl">Hậu quả:</span> {_esc_or(hau_qua, _NOT_STATED)};
+      <span class="lbl">Hành vi vi phạm:</span> {_esc_or(hv_full, _NOT_STATED)} —
+      <span class="lbl">Điều khoản:</span> {_esc(v.get("điều khoản vi phạm"))} —
+      <span class="lbl">Hậu quả:</span> {_esc_or(v.get("hậu quả"), _NOT_STATED)};
       <span class="lbl">Trách nhiệm thuộc về:</span> {_esc(v.get("trách nhiệm"))};
-      <span class="lbl">Kiến nghị:</span> {_NOT_STATED};
-      <span class="lbl">Nguyên nhân:</span> {_NOT_STATED}.
+      <span class="lbl">Kiến nghị:</span> {_kien_nghi_inline(v.get("kiến nghị"))};
+      <span class="lbl">Nguyên nhân:</span> {_esc_or(v.get("nguyên nhân"), _NOT_STATED)}.
     </div>""")
     return '  <div class="narrative-wrap">\n' + "\n".join(items) + "\n  </div>"
 
@@ -138,32 +152,31 @@ def _narrative(vi_pham: list) -> str:
 def _detail_table(vi_pham: list) -> str:
     """Mục II — Bảng chi tiết vi phạm.
 
-    Cột 'Kiến nghị xử lý' (Hình sự / Hành chính / Kinh tế) là per-violation —
-    schema hiện chỉ có flag `dấu hiệu tội phạm`, nên cột Hình sự suy ra từ
-    flag đó; Hành chính / Kinh tế để em-dash (xem Mục III cho kiến nghị chung).
+    Cột 'Kiến nghị xử lý' (Hình sự / Hành chính / Kinh tế) lấy thẳng từ
+    object `kiến nghị` per-violation. Cột Hành vi gộp tên hành vi + mô tả.
     """
     body_rows = []
     for i, v in enumerate(vi_pham or [], 1):
         if not isinstance(v, dict):
             continue
-        hau_qua = v.get("mô tả") or ""
+        hanh_vi = v.get("hành vi vi phạm") or ""
+        mo_ta = v.get("mô tả") or ""
+        hv_full = f"{hanh_vi} — {mo_ta}".strip(" —") if mo_ta else hanh_vi
+        hau_qua = v.get("hậu quả") or ""
         gt = v.get("giá trị triệu đồng")
         if isinstance(gt, (int, float)):
             hau_qua = f"{hau_qua} (Giá trị: {_num(gt)} triệu đồng)".strip()
-        hinh_su = (
-            "Có dấu hiệu tội phạm — kiến nghị chuyển cơ quan điều tra"
-            if v.get("dấu hiệu tội phạm") is True else _DASH
-        )
+        kn = v.get("kiến nghị") if isinstance(v.get("kiến nghị"), dict) else {}
         body_rows.append(f"""        <tr>
           <td class="stt">{i}</td>
           <td><strong>{_esc(v.get("đối tượng vi phạm"))}</strong></td>
-          <td>{_esc(v.get("hành vi vi phạm"))}</td>
-          <td class="law">{_esc(v.get("căn cứ vi phạm"))}</td>
+          <td>{_esc_or(hv_full, _NOT_STATED)}</td>
+          <td class="law">{_esc(v.get("điều khoản vi phạm"))}</td>
           <td class="consequence">{_esc_or(hau_qua, _NOT_STATED)}</td>
           <td>{_esc(v.get("trách nhiệm"))}</td>
-          <td class="recommend">{hinh_su}</td>
-          <td class="recommend">{_DASH}</td>
-          <td class="recommend">{_DASH}</td>
+          <td class="recommend">{_esc(kn.get("hình sự"))}</td>
+          <td class="recommend">{_esc(kn.get("hành chính"))}</td>
+          <td class="recommend">{_esc(kn.get("kinh tế"))}</td>
         </tr>""")
     body = "\n".join(body_rows) or (
         '        <tr><td colspan="9" class="stt">' + _NOT_STATED + "</td></tr>"
@@ -191,59 +204,6 @@ def _detail_table(vi_pham: list) -> str:
       </tbody>
     </table>
   </div>"""
-
-
-def _recommendations(kien_nghi: dict) -> str:
-    """Mục III — Kiến nghị xử lý (chung, cấp document).
-
-    Đây là dữ liệu schema CÓ nhưng Bảng II không đặt được vào từng dòng.
-    Render thành danh sách để không mất thông tin.
-    """
-    if not isinstance(kien_nghi, dict):
-        return ""
-    blocks = []
-    labels = [
-        ("chính sách", "Về cơ chế, chính sách, pháp luật"),
-        ("kinh tế", "Về kinh tế (thu hồi, truy thu, hoàn trả)"),
-        ("trách nhiệm", "Về kiểm điểm, xử lý trách nhiệm"),
-    ]
-    for key, label in labels:
-        items = kien_nghi.get(key) or []
-        if not isinstance(items, list) or not items:
-            continue
-        lis = "\n".join(f"        <li>{_esc(x)}</li>" for x in items if str(x).strip())
-        if lis:
-            blocks.append(
-                f'    <div class="narrative-item">'
-                f'<span class="lbl">{label}:</span>\n      <ul>\n{lis}\n      </ul>\n    </div>'
-            )
-    # hình sự: list of objects
-    hinh_su = kien_nghi.get("hình sự") or []
-    if isinstance(hinh_su, list) and hinh_su:
-        lis = []
-        for h in hinh_su:
-            if not isinstance(h, dict):
-                continue
-            parts = [
-                _esc_or(h.get("nội dung"), ""),
-                f"(cơ quan nhận: {_esc(h.get('cơ quan nhận'))})" if h.get("cơ quan nhận") else "",
-                f"— tình trạng: {_esc(h.get('tình trạng'))}" if h.get("tình trạng") else "",
-            ]
-            line = " ".join(p for p in parts if p)
-            if line:
-                lis.append(f"        <li>{line}</li>")
-        if lis:
-            blocks.append(
-                '    <div class="narrative-item">'
-                '<span class="lbl">Về hình sự (chuyển cơ quan điều tra):</span>\n'
-                "      <ul>\n" + "\n".join(lis) + "\n      </ul>\n    </div>"
-            )
-    if not blocks:
-        return ""
-    return (
-        '  <div class="section-title">III. Kiến nghị xử lý (chung)</div>\n'
-        '  <div class="narrative-wrap">\n' + "\n".join(blocks) + "\n  </div>"
-    )
 
 
 # ── full-page assembly ─────────────────────────────────────────────────────
@@ -282,13 +242,9 @@ def _build_html(doc: dict) -> str:
     result = doc.get("result", {}) or {}
     tic = result.get("thông tin chung", {}) or {}
     vi_pham = result.get("vi phạm", []) or []
-    kien_nghi = result.get("kiến nghị xử lý", {}) or {}
 
     so_vb = tic.get("số văn bản", "") or "(không rõ số văn bản)"
     generated = datetime.now().strftime("%d/%m/%Y %H:%M")
-
-    section3 = _recommendations(kien_nghi)
-    section3_block = f"\n{section3}\n" if section3 else "\n"
 
     return f"""<!DOCTYPE html>
 <html lang="vi">
@@ -313,7 +269,8 @@ def _build_html(doc: dict) -> str:
 
   <div class="section-title">II. Bảng chi tiết vi phạm</div>
 {_detail_table(vi_pham)}
-{section3_block}</div>
+
+</div>
 </body>
 </html>
 """
@@ -328,12 +285,12 @@ def render_ttcp_report(so_van_ban: str) -> str:
     """Sinh báo cáo HTML 'Bảng tóm tắt Kết luận thanh tra' từ doc trong DB.
 
     Tra kết luận theo số văn bản (vd '636/TB-TTCP'), render ra file HTML
-    theo template chuẩn: bảng thông tin chung, Mục I (trích lược vi phạm),
-    Mục II (bảng chi tiết vi phạm), Mục III (kiến nghị xử lý chung).
+    theo template chuẩn: bảng thông tin chung, Mục I (trích lược vi phạm
+    dạng văn xuôi), Mục II (bảng chi tiết vi phạm — 3 cột kiến nghị hình
+    sự / hành chính / kinh tế).
 
-    Mapping best-effort từ schema hiện tại — một số ô (ngày công bố, hình
-    thức thanh tra, kiến nghị per-vi-phạm) schema chưa có sẽ để "—" /
-    "Không nêu trong văn bản", KHÔNG bịa.
+    Field nào văn bản gốc không nêu sẽ để "—" / "Không nêu trong văn bản",
+    KHÔNG bịa.
 
     Trả về JSON `{report_id, url, số văn bản, số vi phạm}`:
       - `url` là đường dẫn tương đối `/reports/<id>.html` do harness API serve

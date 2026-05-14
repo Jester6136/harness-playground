@@ -80,8 +80,9 @@ def extract_ttcp(path: str) -> str:
 
     Dùng tool này cho mọi loại văn bản của Thanh tra Chính phủ: kết luận
     thanh tra, thông báo kết luận thanh tra, quyết định xử phạt. Đưa về cấu
-    trúc JSON gồm 3 khối: `thông tin chung`, `vi phạm[]`, `kiến nghị xử lý`.
-    Không rút gọn — giữ đầy đủ số liệu, mô tả, căn cứ pháp luật.
+    trúc JSON gồm 2 khối: `thông tin chung` và `vi phạm[]` — mỗi vi phạm có
+    object `kiến nghị` (hình sự / hành chính / kinh tế) gắn riêng. Không rút
+    gọn — giữ đầy đủ số liệu, mô tả, căn cứ pháp luật.
     """
     blocks = _file_to_image_blocks(path)
     if not blocks:
@@ -108,6 +109,6 @@ extract_ttcp.metadata = {
     "prompt_hint": (
         "BẮT BUỘC dùng (không phải analyze_image) khi file là văn bản thanh tra "
         "(kết luận / thông báo / quyết định của Thanh tra Chính phủ). Trả về "
-        "JSON với 'thông tin chung', 'vi phạm', 'kiến nghị xử lý'."
+        "JSON với 'thông tin chung' và 'vi phạm[]' (kiến nghị gắn trong từng vi phạm)."
     ),
 }
