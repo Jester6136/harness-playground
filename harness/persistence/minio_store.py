@@ -44,7 +44,10 @@ def put_ttcp_object(
     (the /upload endpoint) treats the MinIO mirror as best-effort and must
     not let a failure here break the primary local-save path.
     """
-    key = f"{settings.ttcp_prefix}{key_suffix}"
+    # Normalise the prefix: exactly one trailing slash, so a misconfigured
+    # TTCP_PREFIX without "/" doesn't produce keys like "ttcp/ttcp-botX.pdf".
+    prefix = settings.ttcp_prefix.rstrip("/") + "/"
+    key = f"{prefix}{key_suffix}"
     _client().put_object(
         Bucket=settings.ttcp_bucket,
         Key=key,

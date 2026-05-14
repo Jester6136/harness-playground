@@ -440,9 +440,10 @@ def save_ttcp(ttcp_json: str, minio_key: str = "") -> str:
     được ngay.
 
     `minio_key` (optional): nếu file PDF đã được upload lên MinIO — xem dòng
-    `[MinIO key: ...]` trong tin nhắn đính kèm — truyền key đó vào đây. Nó sẽ
-    được lưu vào `result._minio_key` để sau lấy lại file gốc qua
-    `get_ttcp_file`. Không có thì để trống.
+    `[MinIO key: ...]` trong tin nhắn đính kèm — truyền key đó vào đây. Khi
+    có key, doc sẽ dùng chính key làm `_id` (đúng cấu trúc như doc batch) +
+    có field `bucket`; key cũng được lưu vào `result._minio_key`. Không có
+    thì doc dùng `_id` tổng hợp `agent/<số văn bản>` và không có `bucket`.
 
     Trả về `{số văn bản, matched, modified, upserted_id}`.
     """
@@ -461,17 +462,13 @@ def save_ttcp(ttcp_json: str, minio_key: str = "") -> str:
             ),
         }, ensure_ascii=False)
 
-    # Stamp the MinIO key INTO result so it travels with the extraction data
-    # (the outer doc is already identified by _id). get_ttcp_file reads it.
-    if minio_key.strip():
-        parsed["_minio_key"] = minio_key.strip()
+    mk = minio_key.strip()
+    # Stamp the MinIO key into result too — keeps `result` self-contained.
+    if mk:
+        parsed["_minio_key"] = mk
 
     now = _now()
-    doc = {
-        # Synthetic _id distinct from batch's MinIO-key _id, so an agent
-        # upload doesn't clobber the batch row if both happen to cover the
-        # same kết luận.
-        "_id": f"agent/{so_vb}",
+    base = {
         "source": "agent_upload",
         "status": "done",
         "version": 1,
@@ -480,11 +477,22 @@ def save_ttcp(ttcp_json: str, minio_key: str = "") -> str:
         "created_at": now,
         "updated_at": now,
     }
+    if mk:
+        # File IS in MinIO at this key → use the key as _id (same structure
+        # as a batch doc) + carry `bucket`. Bonus: a later `ttcp_batch sync`
+        # finds this _id already exists with status=done and skips re-
+        # extracting — no duplicate doc for the same file.
+        doc = {"_id": mk, "bucket": settings.ttcp_bucket, **base}
+    else:
+        # No MinIO key (e.g. a web upload that didn't thread it) — fall back
+        # to a synthetic id so the save still works; no bucket/file ref.
+        doc = {"_id": f"agent/{so_vb}", **base}
 
     try:
         _store.ensure_text_index(_INDEX_FIELDS, name=_INDEX_NAME)
-        # Upsert by the synthetic id — re-uploads of the same số văn bản
-        # overwrite the agent-side doc, batch rows untouched.
+        # Upsert by _id. With a MinIO-key _id, re-uploading the SAME file
+        # (same key) overwrites; a fresh upload of the same kết luận gets a
+        # new key → new doc (same behaviour as the batch keys by object key).
         result = _store.upsert_one({"_id": doc["_id"]}, doc)
         notify_ttcp_sync("save_ttcp")
         return json.dumps({"số văn bản": so_vb, **result}, ensure_ascii=False)
