@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bảng tóm tắt Kết luận thanh tra</title>
+    <!-- Tailwind CSS (Lưu ý: Nếu app gốc của bạn đã dùng Tailwind, bạn có thể xóa dòng script này đi để tránh trùng lặp) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* CSS Scoping: Giới hạn toàn bộ style trong class .tt-report-container để không ảnh hưởng app gốc */
+        .tt-report-container {
+            --tt-red: #a3171e;
+            --tt-red-dark: #8a1319;
+            --tt-gold: #d4af37;
+            --tt-text: #333333;
+            --tt-border: #e2e8f0;
+            
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: var(--tt-text);
+            line-height: 1.6;
+        }
+        
+        /* Cấu trúc Bảng Phần II */
+        .tt-report-container .table-container {
+            overflow-x: auto;
+            border-radius: 6px;
+            box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.08);
+            background: white;
+            border: 1px solid var(--tt-border);
+        }
+        .tt-report-container .v-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1250px; 
+        }
+        .tt-report-container .v-table th, 
+        .tt-report-container .v-table td {
+            border: 1px solid var(--tt-border); 
+        }
+        
+        /* Header bảng mang phong cách Thanh tra */
+        .tt-report-container .v-table thead {
+            border-top: 4px solid var(--tt-gold);
+        }
+        .tt-report-container .v-table thead th {
+            background-color: var(--tt-red-dark); 
+            color: #ffffff;
+            text-align: center;
+            vertical-align: middle;
+            padding: 0.875rem 0.5rem;
+            font-weight: 600;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        .tt-report-container .v-table thead th.sub-th {
+            background-color: #b72028;
+            font-weight: 500;
+            border-color: #9c151b;
+        }
+        .tt-report-container .v-table thead th.border-b-gold {
+            border-bottom: 1px solid #d66468;
+        }
+
+        /* Nội dung bảng */
+        .tt-report-container .v-table tbody td {
+            padding: 0.875rem 1rem;
+            vertical-align: top;
+            font-size: 0.875rem;
+            color: #1e293b;
+        }
+        .tt-report-container .v-table tbody tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+        .tt-report-container .v-table tbody tr:hover {
+            background-color: #fef2f2;
+        }
+
+        .tt-report-container .section-header {
+            border-bottom: 2px solid var(--tt-red);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            color: var(--tt-red);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+            display: flex;
+            align-items: center;
+        }
+        .tt-report-container .section-header::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 1.2rem;
+            background-color: var(--tt-gold);
+            margin-right: 10px;
+        }
+
+        .tt-report-container .empty-dash {
+            text-align: center;
+            color: #cbd5e1;
+            font-weight: bold;
+        }
+
+        /* Tối ưu khi in (In từ Iframe hoặc in trực tiếp) */
+        @media print {
+            .tt-report-container .no-print { display: none !important; }
+            .tt-report-container { padding: 0 !important; background: white !important; }
+            .tt-report-container .max-w-[1400px] { max-width: 100% !important; border: none !important; box-shadow: none !important; }
+            .tt-report-container .v-table thead th { background-color: var(--tt-red-dark) !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .tt-report-container .v-table thead th.sub-th { background-color: #b72028 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .tt-report-container .v-table tbody tr:nth-child(even) { background-color: #fafafa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .tt-report-container .section-header { color: var(--tt-red) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body class="bg-transparent m-0 p-0">
+
+    <!-- Wrapper cô lập toàn bộ CSS/Giao diện để dễ dàng Embed -->
+    <div class="tt-report-container antialiased w-full h-full p-2 md:p-6 bg-transparent">
+        <div class="max-w-[1400px] mx-auto bg-white shadow-lg border border-gray-200 rounded-lg overflow-hidden">
+            
+            <!-- Header: Nhận diện Thanh tra Chính phủ -->
+            <header class="bg-gradient-to-b from-[#a3171e] to-[#8a1319] text-white p-6 md:p-10 flex flex-col items-center text-center relative border-b-4 border-[#d4af37]">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/a/a3/Emblem_of_Vietnam.svg" alt="Quốc huy Việt Nam" class="w-20 md:w-24 mb-4 drop-shadow-lg">
+                <h1 class="text-xl md:text-2xl lg:text-3xl font-bold uppercase tracking-wide text-[#f8e5ad]">
+                    Bảng Tóm Tắt Nội Dung Dự Thảo Kết Luận Thanh Tra
+                </h1>
+                <p class="mt-3 text-white/90 text-sm md:text-base font-medium max-w-3xl">
+                    Chuyên đề: Quản lý thăm dò, khảo sát, quy hoạch, cấp phép, khai thác, vận chuyển đối với các mỏ vật liệu xây dựng tại tỉnh Phú Thọ
+                </p>
+            </header>
+
+            <main class="p-6 md:p-8">
+                
+                <!-- THÔNG TIN CHUNG -->
+                <section class="mb-12">
+                    <h2 class="section-header text-base">Thông tin chung về cuộc thanh tra</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-white border border-gray-200 rounded-md p-4 md:col-span-2 shadow-sm relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-[#a3171e]"></div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tên cuộc thanh tra</label>
+                            <p class="text-sm text-gray-900 font-bold leading-relaxed">Thanh tra chuyên đề về công tác quản lý thăm dò, khảo sát, quy hoạch, cấp phép, khai thác, vận chuyển đối với các mỏ vật liệu xây dựng tại tỉnh Phú Thọ</p>
+                        </div>
+
+                        <div class="bg-white border border-gray-200 rounded-md p-4 md:col-span-2 shadow-sm relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-gray-300"></div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nội dung thanh tra</label>
+                            <p class="text-sm text-gray-800 leading-relaxed">Công tác quản lý thăm dò, khảo sát, quy hoạch, cấp phép, khai thác, vận chuyển đối với các mỏ vật liệu xây dựng (đá vôi, đá bazan, cát kết, sét gạch ngói, cát, cuội sỏi…)</p>
+                        </div>
+
+                        <div class="bg-white border border-gray-200 rounded-md p-4 md:col-span-2 shadow-sm relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-gray-300"></div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Đối tượng, thời gian thanh tra</label>
+                            <p class="text-sm text-gray-800 leading-relaxed">UBND tỉnh Phú Thọ (trước khi sáp nhập với Hòa Bình và Vĩnh Phúc); các sở, ngành, huyện, thị, xã, phường liên quan; chủ đầu tư các dự án mỏ</p>
+                        </div>
+
+                        <div class="bg-white border border-gray-200 rounded-md p-4 md:col-span-2 shadow-sm relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-gray-300"></div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Thời kỳ thanh tra</label>
+                            <p class="text-sm text-gray-800 leading-relaxed">Theo kỳ thanh tra của Đoàn thanh tra (chi tiết tại KL 73/KL-TTCP)</p>
+                        </div>
+
+                        <!-- Lưới 2 cột -->
+                        <div class="bg-slate-50 border border-slate-200 rounded-md p-4 shadow-sm">
+                            <label class="block text-[11px] font-bold text-[#a3171e] uppercase mb-1">Quyết định / Kết luận</label>
+                            <p class="text-sm text-gray-900 font-semibold">KL số 73/KL-TTCP &bull; TB số 1067/TB-TTCP</p>
+                        </div>
+                        
+                        <div class="bg-slate-50 border border-slate-200 rounded-md p-4 shadow-sm">
+                            <label class="block text-[11px] font-bold text-[#a3171e] uppercase mb-1">Ngày ban hành</label>
+                            <p class="text-sm text-gray-900">26/02/2026 (KL) &bull; 16/4/2026 (TB)</p>
+                        </div>
+
+                        <div class="bg-slate-50 border border-slate-200 rounded-md p-4 shadow-sm">
+                            <label class="block text-[11px] font-bold text-[#a3171e] uppercase mb-1">Người ra QĐ / Đoàn thanh tra</label>
+                            <p class="text-sm text-gray-900">Tổng Thanh tra Chính phủ<br><span class="text-gray-600 text-xs">(Ký TB: Phó Tổng Thanh tra Lê Tiến Đạt)</span></p>
+                        </div>
+
+                        <div class="bg-slate-50 border border-slate-200 rounded-md p-4 shadow-sm">
+                            <label class="block text-[11px] font-bold text-[#a3171e] uppercase mb-1">Ngày công bố KL</label>
+                            <p class="text-sm text-gray-900">16/4/2026 <span class="text-gray-500 italic text-xs">(Thông báo Kết luận)</span></p>
+                        </div>
+
+                        <div class="bg-slate-50 border border-slate-200 rounded-md p-4 shadow-sm">
+                            <label class="block text-[11px] font-bold text-[#a3171e] uppercase mb-1">Đơn vị chủ trì</label>
+                            <p class="text-sm text-gray-900 font-semibold">Thanh tra Chính phủ (Cục I, Cục XIV)</p>
+                        </div>
+
+                        <div class="bg-slate-50 border border-slate-200 rounded-md p-4 shadow-sm">
+                            <label class="block text-[11px] font-bold text-[#a3171e] uppercase mb-1">Ngày kết thúc thanh tra</label>
+                            <p class="text-sm text-gray-900">Trước ngày ban hành KL 26/02/2026</p>
+                        </div>
+
+                        <div class="bg-slate-50 border border-slate-200 rounded-md p-4 shadow-sm">
+                            <label class="block text-[11px] font-bold text-[#a3171e] uppercase mb-1">Hình thức thanh tra</label>
+                            <p class="text-sm text-gray-900">Chuyên đề</p>
+                        </div>
+
+                        <div class="bg-slate-50 border border-slate-200 rounded-md p-4 shadow-sm">
+                            <label class="block text-[11px] font-bold text-[#a3171e] uppercase mb-1">Lĩnh vực</label>
+                            <p class="text-sm text-gray-900">Khoáng sản – Tài nguyên & Môi trường</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION I: TRÍCH LƯỢC VI PHẠM -->
+                <section class="mb-14">
+                    <h2 class="section-header text-base">I. Trích lược vi phạm</h2>
+                    <div class="grid grid-cols-1 gap-4">
+                        <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+                            <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">1</span>
+                            <div class="space-y-1">
+                                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> UBND tỉnh Phú Thọ ban hành QĐ 05/2019/QĐ-UBND điều chỉnh quy hoạch khoáng sản nhưng không trình HĐND tỉnh thông qua trước khi phê duyệt.</p>
+                                <p class="text-[13px] text-gray-500 italic">Điều khoản: Điểm b khoản 1, khoản 2 Điều 12 NĐ 158/2016/NĐ-CP | Hậu quả: Quy hoạch thiếu căn cứ pháp lý.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+                            <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">2</span>
+                            <div class="space-y-1">
+                                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Bổ sung 18 khu vực khoáng sản vào quy hoạch chưa đảm bảo căn cứ; một số mỏ chưa được cập nhật tại bản đồ phương án giai đoạn 2021-2030, tầm nhìn đến 2050.</p>
+                                <p class="text-[13px] text-gray-500 italic">Điều khoản: Khoản 1 Điều 14 Luật Khoáng sản 2010 | Hậu quả: Quy hoạch thiếu cơ sở khoa học - pháp lý.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+                            <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">3</span>
+                            <div class="space-y-1">
+                                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Chưa tổ chức công khai quy hoạch khoáng sản điều chỉnh, bổ sung; chưa thực hiện họp báo công khai khu vực cấm/tạm thời cấm hoạt động khoáng sản.</p>
+                                <p class="text-[13px] text-gray-500 italic">Hậu quả: Thiếu minh bạch trong công khai quy hoạch, ảnh hưởng quyền tiếp cận thông tin.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+                            <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">4</span>
+                            <div class="space-y-1">
+                                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Khoanh định khu vực không đấu giá căn cứ vào đề nghị DN, thiếu hồ sơ minh chứng; thực tế không đăng tải thông tin dù đã giao cơ quan chức năng.</p>
+                                <p class="text-[13px] text-gray-500 italic">Điều khoản: Điều 78 Luật Khoáng sản | Hậu quả: Khoanh định thiếu cơ sở, tiềm ẩn nguy cơ thất thoát.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+                            <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">5</span>
+                            <div class="space-y-1">
+                                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> UBND tỉnh chậm phê duyệt kế hoạch đấu giá quyền khai thác khoáng sản.</p>
+                                <p class="text-[13px] text-gray-500 italic">Điều khoản: NĐ 22/2012/NĐ-CP | Hậu quả: Chậm trễ đấu giá, ảnh hưởng tiến độ cấp phép và thu ngân sách.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-4 p-4 bg-red-50 border border-red-300 rounded-md shadow-sm">
+                            <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-red-600 text-white font-bold rounded-full text-sm shadow-md">6</span>
+                            <div class="space-y-1">
+                                <p class="text-sm text-gray-900"><span class="font-bold text-red-700">Hành vi nghiêm trọng:</span> Công ty CP Hàng không Nội Bài vi phạm thời hạn nộp tiền trúng đấu giá nhưng UBND tỉnh không xử lý, không hủy kết quả mà vẫn cấp phép khai thác mỏ cát.</p>
+                                <p class="text-[13px] text-red-600 font-medium">Hậu quả: Không thực thi đúng quyết định; doanh nghiệp chậm nộp tiền; nguy cơ thất thu ngân sách nhà nước.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-4 p-4 bg-red-50 border border-red-300 rounded-md shadow-sm">
+                            <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-red-600 text-white font-bold rounded-full text-sm shadow-md">12</span>
+                            <div class="space-y-1">
+                                <p class="text-sm text-gray-900"><span class="font-bold text-red-700">Hành vi nghiêm trọng:</span> Có 16 điểm mỏ chưa được giao/thuê đất đã thực hiện khai thác; Sở TN&MT bàn giao đất trên thực địa khi chưa có hợp đồng thuê đất.</p>
+                                <p class="text-[13px] text-red-600 font-medium">Hậu quả: Khai thác trên đất chưa giao hợp pháp; thất thu tiền thuê đất; vi phạm quy định quản lý đất đai.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-4 p-4 bg-amber-50 border border-amber-300 rounded-md shadow-sm">
+                            <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-amber-500 text-white font-bold rounded-full text-sm shadow-md">16</span>
+                            <div class="space-y-1">
+                                <p class="text-sm text-gray-900"><span class="font-bold text-amber-800">Hành vi:</span> Còn nợ đọng ngân sách nhà nước của 43 doanh nghiệp khai thác mỏ.</p>
+                                <p class="text-[14px] text-amber-700 font-bold">Hậu quả: Thất thu/nợ đọng ngân sách số tiền 45.444.393.043 đồng.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center py-2">
+                            <p class="text-sm text-gray-500 italic">... Xem chi tiết 17 nội dung vi phạm tại bảng tổng hợp dưới đây ...</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION II: BẢNG CHI TIẾT -->
+                <section>
+                    <h2 class="section-header text-base">II. Bảng chi tiết vi phạm</h2>
+                    <div class="table-container">
+                        <table class="v-table">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2" class="w-12 border-r border-[#9c151b]">STT</th>
+                                    <th rowspan="2" class="w-[12%] border-r border-[#9c151b]">Đối tượng vi phạm</th>
+                                    <th rowspan="2" class="w-[22%] border-r border-[#9c151b]">Hành vi vi phạm</th>
+                                    <th rowspan="2" class="w-[12%] border-r border-[#9c151b]">Điều khoản vi phạm</th>
+                                    <th rowspan="2" class="w-[15%] border-r border-[#9c151b]">Hậu quả định tính/định lượng</th>
+                                    <th rowspan="2" class="w-[12%] border-r border-[#9c151b]">Trách nhiệm</th>
+                                    <th colspan="3" class="border-b-gold uppercase tracking-wider text-[0.8rem]">Kiến nghị xử lý</th>
+                                </tr>
+                                <tr>
+                                    <th class="sub-th w-[8%] border-r border-[#c4252e]">Hình sự</th>
+                                    <th class="sub-th w-[10%] border-r border-[#c4252e]">Hành chính</th>
+                                    <th class="sub-th w-[9%]">Kinh tế</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Row 1 -->
+                                <tr>
+                                    <td class="text-center font-bold text-gray-500">1</td>
+                                    <td><strong>UBND tỉnh Phú Thọ</strong></td>
+                                    <td>Ban hành QĐ số 05/2019/QĐ-UBND (27/6/2019) về điều chỉnh, bổ sung quy hoạch khoáng sản nhưng không trình HĐND tỉnh thông qua trước khi phê duyệt.</td>
+                                    <td class="italic text-[13px] text-gray-600">Điểm b khoản 1, khoản 2 Điều 12 NĐ 158/2016/NĐ-CP</td>
+                                    <td>Quy hoạch thiếu căn cứ pháp lý; ảnh hưởng tính hợp pháp của việc điều chỉnh quy hoạch.</td>
+                                    <td>UBND tỉnh; Lãnh đạo UBND tỉnh phụ trách; các sở, ngành liên quan</td>
+                                    <td class="empty-dash">—</td>
+                                    <td>Kiểm điểm trách nhiệm, xử lý theo thẩm quyền</td>
+                                    <td class="empty-dash">—</td>
+                                </tr>
+                                <!-- Row 2 -->
+                                <tr>
+                                    <td class="text-center font-bold text-gray-500">2</td>
+                                    <td><strong>UBND tỉnh Phú Thọ</strong></td>
+                                    <td>Bổ sung 18 khu vực khoáng sản vào Quy hoạch thăm dò, khai thác chưa đảm bảo căn cứ; một số mỏ chưa được cập nhật tại bản đồ phương án giai đoạn 2021-2030.</td>
+                                    <td class="italic text-[13px] text-gray-600">Khoản 1 Điều 14 Luật Khoáng sản 2010</td>
+                                    <td>Quy hoạch thiếu cơ sở khoa học - pháp lý đầy đủ; gây khó khăn cho quản lý.</td>
+                                    <td>UBND tỉnh; lãnh đạo UBND tỉnh phụ trách</td>
+                                    <td class="empty-dash">—</td>
+                                    <td>Chấn chỉnh, rà soát, khắc phục</td>
+                                    <td class="empty-dash">—</td>
+                                </tr>
+                                <!-- Row 3 -->
+                                <tr>
+                                    <td class="text-center font-bold text-gray-500">3</td>
+                                    <td><strong>UBND tỉnh Phú Thọ</strong></td>
+                                    <td>Chưa công khai quy hoạch khoáng sản điều chỉnh; chưa họp báo công khai khu vực cấm/tạm thời cấm hoạt động khoáng sản.</td>
+                                    <td class="italic text-[13px] text-gray-600">Khoản 2 Điều 15 Luật Khoáng sản 2010</td>
+                                    <td>Thiếu minh bạch, ảnh hưởng quyền tiếp cận thông tin.</td>
+                                    <td>UBND tỉnh; Sở chủ trì lập quy hoạch</td>
+                                    <td class="empty-dash">—</td>
+                                    <td>Chấn chỉnh, công khai quy hoạch đúng quy định</td>
+                                    <td class="empty-dash">—</td>
+                                </tr>
+                                <!-- Row 4 -->
+                                <tr>
+                                    <td class="text-center font-bold text-gray-500">4</td>
+                                    <td><strong>UBND tỉnh Phú Thọ</strong></td>
+                                    <td>Khoanh định khu vực không đấu giá theo đề nghị chủ đầu tư, không hồ sơ minh chứng; giao đăng tải công khai nhưng thực tế không đăng tải.</td>
+                                    <td class="italic text-[13px] text-gray-600">Khoản 2 Điều 78 Luật Khoáng sản</td>
+                                    <td>Mất minh bạch; tiềm ẩn nguy cơ thất thoát nguồn lực Nhà nước.</td>
+                                    <td>UBND tỉnh; Sở TN&MT; Sở TT&TT</td>
+                                    <td class="empty-dash">—</td>
+                                    <td>Rà soát kỹ các mỏ, kiểm điểm trách nhiệm</td>
+                                    <td class="empty-dash">—</td>
+                                </tr>
+                                <!-- Row 5 -->
+                                <tr>
+                                    <td class="text-center font-bold text-gray-500">5</td>
+                                    <td><strong>UBND tỉnh Phú Thọ</strong></td>
+                                    <td>Chậm phê duyệt kế hoạch đấu giá quyền khai thác khoáng sản.</td>
+                                    <td class="italic text-[13px] text-gray-600">Nghị định số 22/2012/NĐ-CP</td>
+                                    <td>Chậm trễ tổ chức đấu giá; ảnh hưởng tiến độ cấp phép và nguồn thu.</td>
+                                    <td>UBND tỉnh; Sở TN&MT</td>
+                                    <td class="empty-dash">—</td>
+                                    <td>Chấn chỉnh, rút kinh nghiệm</td>
+                                    <td class="empty-dash">—</td>
+                                </tr>
+                                <!-- Row 6 -->
+                                <tr class="bg-red-50/40 hover:bg-red-100">
+                                    <td class="text-center font-bold text-[#a3171e]">6</td>
+                                    <td class="text-[#8a1319]"><strong>UBND tỉnh; CTCP HK Nội Bài</strong></td>
+                                    <td class="font-medium">UBND tỉnh công nhận kết quả trúng đấu giá mỏ cát Minh Nông, yêu cầu nộp ngay tiền, vi phạm thì hủy kết quả. Doanh nghiệp vi phạm nhưng tỉnh không xử lý, vẫn cấp phép khai thác.</td>
+                                    <td class="italic text-[13px] text-red-800">Quyết định của UBND tỉnh; NĐ 36/2020/NĐ-CP</td>
+                                    <td class="text-red-700 font-semibold">Doanh nghiệp chậm nộp tiền; nguy cơ thất thu ngân sách nhà nước.</td>
+                                    <td>UBND tỉnh; CTCP HK Nội Bài</td>
+                                    <td class="text-[#a3171e] font-bold text-[13px]">Nếu phát hiện dấu hiệu vi phạm hình sự thì chuyển cơ quan điều tra</td>
+                                    <td class="font-medium text-[13px]">Xử lý nghiêm việc chậm nộp tiền trúng đấu giá</td>
+                                    <td class="text-[#8a1319] font-bold text-[13px]">Truy thu tiền chậm nộp; xử lý vi phạm thuế</td>
+                                </tr>
+                                <!-- Row 7 -->
+                                <tr>
+                                    <td class="text-center font-bold text-gray-500">7</td>
+                                    <td><strong>UBND tỉnh Phú Thọ</strong></td>
+                                    <td>Quy định về số tiền, thời gian nộp trúng đấu giá (các lần tiếp theo) không phù hợp, gây khó khăn cho doanh nghiệp.</td>
+                                    <td class="italic text-[13px] text-gray-600">Điều 7 TTLT số 54/2014/TTLT-BTNMT-BTC</td>
+                                    <td>Phát sinh vướng mắc trong thực hiện nghĩa vụ tài chính.</td>
+                                    <td>UBND tỉnh; Sở TN&MT, Sở Tài chính</td>
+                                    <td class="empty-dash">—</td>
+                                    <td>Điều chỉnh quy định cho phù hợp</td>
+                                    <td class="empty-dash">—</td>
+                                </tr>
+                                <!-- Row 8 -->
+                                <tr>
+                                    <td class="text-center font-bold text-gray-500">8</td>
+                                    <td><strong>UBND tỉnh Phú Thọ</strong></td>
+                                    <td>Cấp 55 giấy phép thăm dò nhưng không thông báo công khai trên trang TTĐT cơ quan cấp phép, mạng đấu thầu quốc gia khi nhận hồ sơ.</td>
+                                    <td class="italic text-[13px] text-gray-600">Điều 58 Nghị định 158/2016/NĐ-CP</td>
+                                    <td>Thiếu minh bạch, hạn chế cạnh tranh.</td>
+                                    <td>UBND tỉnh; Sở TN&MT</td>
+                                    <td class="empty-dash">—</td>
+                                    <td>Chấn chỉnh; thực hiện đúng quy định công khai</td>
+                                    <td class="empty-dash">—</td>
+                                </tr>
+                                <!-- Row 9 -->
+                                <tr>
+                                    <td class="text-center font-bold text-gray-500">9</td>
+                                    <td><strong>UBND tỉnh; các DN thăm dò</strong></td>
+                                    <td>Lựa chọn đơn vị thăm dò theo đề nghị, không công khai. Các đơn vị không hợp tác khi trúng đấu giá hụt.</td>
+                                    <td class="italic text-[13px] text-gray-600">Nghị định số 158/2016/NĐ-CP</td>
+                                    <td>Chậm cấp phép khai thác; phát sinh tranh chấp hoàn trả kinh phí thăm dò.</td>
+                                    <td>UBND tỉnh; Sở TN&MT; các đơn vị thăm dò</td>
+                                    <td class="empty-dash">—</td>
+                                    <td>Chấn chỉnh quy trình lựa chọn</td>
+                                    <td class="empty-dash">—</td>
+                                </tr>
+                                <!-- Row 10 -->
+                                <tr>
+                                    <td class="text-center font-bold text-gray-500">10</td>
+                                    <td><strong>UBND tỉnh Phú Thọ</strong></td>
+                                    <td>Chia nhỏ 01 điểm mỏ cát (Minh Nông, Việt Trì) thành 03 điểm mỏ để cấp phép thăm dò, khai thác.</td>
+                                    <td class="italic text-[13px] text-gray-600">Điều 53 Luật Khoáng sản 2010</td>
+                                    <td>Vi phạm nguyên tắc khoanh định; tiềm ẩn trốn tránh quy định quy mô/thẩm quyền cấp phép.</td>
+                                    <td>UBND tỉnh; Sở TN&MT</td>
+                                    <td class="text-[#a3171e] font-bold text-[13px]">Nếu phát hiện dấu hiệu vi phạm hình sự thì chuyển cơ quan điều tra</td>
+                                    <td class="font-medium text-[13px]">Kiểm điểm trách nhiệm; xử lý theo thẩm quyền</td>
+                                    <td class="empty-dash">—</td>
+                                </tr>
+                                <!-- Row 11 -->
+                                <tr>
+                                    <td class="text-center font-bold text-gray-500">11</td>
+                                    <td><strong>UBND tỉnh Phú Thọ</strong></td>
+                                    <td>Giấy phép khai thác thiếu nội dung về thuế tài nguyên, phí BVMT, tiền thuê đất, nộp thiết kế mỏ, giám đốc điều hành...</td>
+                                    <td class="italic text-[13px] text-gray-600">Điều 54 Luật Khoáng sản; TT 45/2016</td>
+                                    <td>Khó khăn cho quản lý nghĩa vụ tài chính và giám sát.</td>
+                                    <td>UBND tỉnh; Sở TN&MT</td>
+                                    <td class="empty-dash">—</td>
+                                    <td>Chấn chỉnh; bổ sung nội dung giấy phép</td>
+                                    <td class="empty-dash">—</td>
+                                </tr>
+                                <!-- Row 12 -->
+                                <tr class="bg-red-50/40 hover:bg-red-100">
+                                    <td class="text-center font-bold text-[#a3171e]">12</td>
+                                    <td class="text-[#8a1319]"><strong>Sở TN&MT; Chủ đầu tư 16 dự án</strong></td>
+                                    <td class="font-medium">16 điểm mỏ chưa được giao/cho thuê đất đã khai thác; Sở TN&MT bàn giao đất thực địa khi chưa có hợp đồng thuê đất.</td>
+                                    <td class="italic text-[13px] text-red-800">Khoản 3 Điều 68 Nghị định 43/2014/NĐ-CP</td>
+                                    <td class="text-red-700 font-semibold">Khai thác trên đất chưa giao hợp pháp; thất thu tiền thuê đất; vi phạm quản lý đất đai.</td>
+                                    <td>Sở TN&MT; Chủ đầu tư 16 mỏ</td>
+                                    <td class="text-[#a3171e] font-bold text-[13px]">Nếu phát hiện dấu hiệu vi phạm hình sự thì chuyển cơ quan điều tra</td>
+                                    <td class="font-medium text-[13px]">Xử phạt vi phạm hành chính về đất đai</td>
+                                    <td class="text-[#8a1319] font-bold text-[13px]">Truy thu tiền thuê đất, sử dụng đất</td>
+                                </tr>
+                                <!-- Row 13 -->
+                                <tr>
+                                    <td class="text-center font-bold text-gray-500">13</td>
+                                    <td><strong>Chủ đầu tư các dự án mỏ</strong></td>
+                                    <td>Khai thác sai thiết kế (chiều cao, góc nghiêng); mất mốc khép góc; thiếu trạm cân; chưa phục hồi môi trường; thiếu hồ sơ.</td>
+                                    <td class="italic text-[13px] text-gray-600">Luật Khoáng sản, quy định thiết kế/môi trường</td>
+                                    <td>Vi phạm kỹ thuật khai thác; nguy cơ mất an toàn; thất thoát tài nguyên; tác động xấu môi trường.</td>
+                                    <td>Chủ đầu tư các mỏ; Sở TN&MT</td>
+                                    <td class="text-[#a3171e] font-bold text-[13px]">Nếu phát hiện dấu hiệu vi phạm hình sự thì chuyển cơ quan điều tra</td>
+                                    <td class="font-medium text-[13px]">Xử phạt; buộc khắc phục hậu quả</td>
+                                    <td class="text-[#8a1319] font-bold text-[13px]">Truy thu nghĩa vụ tài chính do khai thác vượt thiết kế</td>
+                                </tr>
+                                <!-- Row 14 -->
+                                <tr>
+                                    <td class="text-center font-bold text-gray-500">14</td>
+                                    <td><strong>Tổ chức/cá nhân vận chuyển</strong></td>
+                                    <td>Vi phạm vận chuyển khoáng sản tại khu vực kho hàng, bến bãi, điểm tập kết.</td>
+                                    <td class="italic text-[13px] text-gray-600">Quy định pháp luật về vận chuyển, kinh doanh</td>
+                                    <td>Vận chuyển trái phép; thất thu thuế, phí; ảnh hưởng an toàn giao thông và môi trường.</td>
+                                    <td>Tổ chức/cá nhân vận chuyển; cơ quan quản lý</td>
+                                    <td class="text-[#a3171e] font-bold text-[13px]">Trường hợp nghiêm trọng đã xử lý hình sự (trong kỳ thanh tra)</td>
+                                    <td class="font-medium text-[13px]">Xử phạt vi phạm hành chính</td>
+                                    <td class="text-[#8a1319] font-bold text-[13px]">Truy thu thuế, phí liên quan</td>
+                                </tr>
+                                <!-- Row 15 -->
+                                <tr>
+                                    <td class="text-center font-bold text-gray-500">15</td>
+                                    <td><strong>UBND tỉnh; Thuế; DN khai thác</strong></td>
+                                    <td>Kê khai thuế tài nguyên/phí BVMT gộp nhiều điểm mỏ trên 01 tờ khai, không tách riêng.</td>
+                                    <td class="italic text-[13px] text-gray-600">Quy định pháp luật kê khai thuế</td>
+                                    <td>Khó khăn tổng hợp sản lượng; tiềm ẩn rủi ro thất thu ngân sách.</td>
+                                    <td>UBND tỉnh; Cục Thuế; DN khai thác</td>
+                                    <td class="empty-dash">—</td>
+                                    <td>Chấn chỉnh việc kê khai thuế theo từng mỏ</td>
+                                    <td class="empty-dash">—</td>
+                                </tr>
+                                <!-- Row 16 -->
+                                <tr class="bg-amber-50/40">
+                                    <td class="text-center font-bold text-amber-600">16</td>
+                                    <td><strong>43 doanh nghiệp khai thác mỏ</strong></td>
+                                    <td>Còn số tiền chưa thu được của 43 doanh nghiệp khai thác mỏ (nợ đọng ngân sách nhà nước).</td>
+                                    <td class="italic text-[13px] text-amber-800">Luật Ngân sách Nhà nước, Luật Quản lý Thuế</td>
+                                    <td class="font-bold text-amber-700">Thất thu/nợ đọng ngân sách <br/> 45.444.393.043 đồng.</td>
+                                    <td>43 doanh nghiệp mỏ; UBND tỉnh; Cục Thuế</td>
+                                    <td class="empty-dash">—</td>
+                                    <td class="font-medium text-[13px]">Xử lý chậm nộp theo quy định</td>
+                                    <td class="font-bold text-amber-800 text-[13px]">Truy thu 45.444.393.043 đồng và tiền chậm nộp</td>
+                                </tr>
+                                <!-- Row 17 -->
+                                <tr>
+                                    <td class="text-center font-bold text-gray-500">17</td>
+                                    <td><strong>UBND tỉnh Phú Thọ</strong></td>
+                                    <td>Chậm ban hành tỷ lệ quy đổi khoáng sản; chậm phê duyệt đề án đóng cửa mỏ; xử lý vi phạm thanh tra chưa triệt để.</td>
+                                    <td class="italic text-[13px] text-gray-600">Luật Khoáng sản, quy định đóng cửa mỏ</td>
+                                    <td>Thiếu căn cứ tính phí BVMT; chậm khắc phục môi trường; tồn đọng vi phạm.</td>
+                                    <td>UBND tỉnh Phú Thọ; Sở TN&MT</td>
+                                    <td class="empty-dash">—</td>
+                                    <td>Khẩn trương ban hành văn bản, xử lý dứt điểm</td>
+                                    <td class="empty-dash">—</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Footer / Print -->
+            <footer class="bg-[#f8fafc] p-6 border-t border-gray-200 text-center no-print rounded-b-lg">
+                <div class="flex flex-col md:flex-row justify-center items-center gap-4">
+                    <button onclick="window.focus(); window.print();" class="bg-[#a3171e] hover:bg-[#8a1319] text-white font-bold py-2.5 px-8 rounded shadow transition-all flex items-center gap-2 border-b-4 border-[#7a1015] active:border-b-0 active:translate-y-1">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                        In / Xuất PDF báo cáo
+                    </button>
+                </div>
+                <p class="mt-4 text-[11px] text-gray-500 uppercase tracking-widest font-semibold">Tài liệu lưu hành nội bộ — Thanh tra Chính phủ</p>
+            </footer>
+
+        </div>
+    </div>
+
+</body>
+</html>

@@ -154,12 +154,11 @@ NGUYÊN TẮC BẮT BUỘC:
 1. CHỈ ghi những gì có trong văn bản. Không suy diễn, không bịa, không tự tính toán.
 2. Nếu một trường không tìm thấy trong văn bản, để giá trị là null (số) hoặc "" (chuỗi) hoặc [] (mảng). Không bỏ trường.
 3. Không tự cộng tổng. Nếu văn bản không nêu con số tổng thì để null.
-4. Số tiền: luôn lưu dạng số nguyên, đơn vị triệu đồng. Ví dụ "4.896 triệu đồng" → 4896; "45.444.393.043 đồng" → 45444. Không lưu dạng đồng. Nếu là USD thì ghi chú rõ trong trường "mô tả".
+4. Số tiền: luôn lưu dạng số nguyên, đơn vị triệu đồng. Ví dụ "4.896 triệu đồng" → 4896. Nếu là USD thì ghi chú rõ trong trường "mo ta".
 5. Ngày tháng: định dạng YYYY-MM-DD. Nếu chỉ có tháng/năm thì ghi YYYY-MM.
-6. "hành vi vi phạm": dùng đúng ngôn từ pháp lý trong văn bản, không paraphrase. Đây là TÊN NGẮN của hành vi. Chi tiết sự việc đưa vào "mô tả".
-7. "dấu hiệu tội phạm": chỉ ghi true nếu văn bản có từ "dấu hiệu tội phạm", "chuyển cơ quan điều tra", "khởi tố" hoặc tương đương. Mặc định false.
-8. Mỗi vi phạm là một object riêng trong mảng "vi phạm". Không gộp nhiều vi phạm vào một object.
-9. Kiến nghị xử lý GẮN VỚI TỪNG VI PHẠM. Đặt vào object "kiến nghị" của đúng vi phạm đó, phân thành 3 loại: hình sự / hành chính / kinh tế. Loại nào văn bản không nêu cho vi phạm đó thì để "".
+6. "hanh vi vi pham": dùng đúng ngôn từ pháp lý trong văn bản, không paraphrase.
+7. "dau hieu toi pham": chỉ ghi true nếu văn bản có từ "dấu hiệu tội phạm", "chuyển cơ quan điều tra", "khởi tố" hoặc tương đương. Mặc định false.
+8. Mỗi vi phạm là một object riêng trong mảng "vi pham". Không gộp nhiều vi phạm vào một object.
 
 ---
 
@@ -170,14 +169,10 @@ JSON SCHEMA CẦN ĐIỀN:
     "số văn bản": "",
     "loại văn bản": "",
     "ngày ban hành": "",
-    "ngày công bố": "",
-    "ngày kết thúc thanh tra": "",
     "cơ quan ban hành": "",
-    "đơn vị chủ trì": "",
     "người ký": "",
     "chức vụ người ký": "",
     "đối tượng thanh tra": "",
-    "hình thức thanh tra": "",
     "lĩnh vực": [],
     "thời kỳ thanh tra": "",
     "nội dung thanh tra": "",
@@ -191,19 +186,27 @@ JSON SCHEMA CẦN ĐIỀN:
       "đối tượng vi phạm": "",
       "hành vi vi phạm": "",
       "mô tả": "",
-      "điều khoản vi phạm": "",
-      "hậu quả": "",
-      "trách nhiệm": "",
-      "nguyên nhân": "",
-      "kiến nghị": {
-        "hình sự": "",
-        "hành chính": "",
-        "kinh tế": ""
-      },
+      "căn cứ vi phạm": "",
       "giá trị triệu đồng": null,
+      "trách nhiệm": "",
       "dấu hiệu tội phạm": false
     }
-  ]
+  ],
+
+  "kiến nghị xử lý": {
+    "chính sách": [],
+    "kinh tế": [],
+    "trách nhiệm": [],
+    "hình sự": [
+      {
+        "nội dung": "",
+        "cơ quan nhận": "",
+        "hành vi": "",
+        "giá trị triệu đồng": null,
+        "tình trạng": ""
+      }
+    ]
+  }
 }
 
 ---
@@ -213,33 +216,25 @@ HƯỚNG DẪN TỪNG TRƯỜNG:
 "thông tin chung"
 - "số văn bản": số hiệu văn bản, ví dụ "2280/TB-TTCP"
 - "loại văn bản": ví dụ "Kết luận thanh tra", "Thông báo kết luận thanh tra", "Quyết định xử phạt"
-- "ngày công bố": ngày công bố kết luận thanh tra (nếu văn bản nêu), khác với ngày ban hành
-- "ngày kết thúc thanh tra": ngày kết thúc cuộc thanh tra trên thực địa (nếu có nêu)
-- "cơ quan ban hành": cơ quan ký ban hành văn bản, ví dụ "Thanh tra Chính phủ"
-- "đơn vị chủ trì": đơn vị/đoàn thanh tra trực tiếp thực hiện, ví dụ "Thanh tra Chính phủ (Cục I, Cục XIV)"
 - "chức vụ người ký": chép nguyên văn, kể cả "KT. Tổng Thanh tra - Phó Tổng Thanh tra"
-- "đối tượng thanh tra": tổ chức/địa phương bị thanh tra
-- "hình thức thanh tra": ví dụ "Theo kế hoạch", "Đột xuất", "Chuyên đề"
 - "lĩnh vực": mảng, ví dụ ["đất đai", "xăng dầu", "đầu tư xây dựng"]
 - "thời kỳ thanh tra": ví dụ "2010-01 / 2013-06"
 - "văn bản liên quan": các quyết định thanh tra, kết luận gốc, văn bản chỉ đạo được nhắc đến
 
 "vi phạm"
 - "nhóm": nhóm vi phạm lớn mà văn bản phân chia, ví dụ "Quản lý vốn và cổ phần hoá", "Quản lý sử dụng đất"
-- "đối tượng vi phạm": tổ chức/cá nhân thực hiện hành vi vi phạm
-- "hành vi vi phạm": TÊN NGẮN của hành vi, đúng ngôn từ pháp lý, không paraphrase
+- "hành vi vi phạm": tên hành vi ngắn gọn, đúng ngôn từ pháp lý
 - "mô tả": chi tiết sự việc, số liệu cụ thể, tên tổ chức/cá nhân liên quan
-- "điều khoản vi phạm": điều, khoản, văn bản pháp luật bị vi phạm
-- "hậu quả": hậu quả định tính hoặc định lượng do hành vi gây ra (thất thoát, mất minh bạch, chậm tiến độ…)
-- "trách nhiệm": tên tổ chức, cá nhân, chức vụ bị xác định có trách nhiệm
-- "nguyên nhân": nguyên nhân của vi phạm — chỉ ghi nếu văn bản nêu, nếu không để ""
-- "kiến nghị": object 3 loại kiến nghị xử lý GẮN VỚI vi phạm này:
-    - "hình sự": kiến nghị chuyển cơ quan điều tra / khởi tố (nếu có)
-    - "hành chính": kiến nghị kiểm điểm, kỷ luật, chấn chỉnh, xử phạt vi phạm hành chính
-    - "kinh tế": kiến nghị thu hồi tiền, truy thu, hoàn trả ngân sách
-  Loại nào không có cho vi phạm này thì để "".
+- "căn cứ vi phạm": điều, khoản, văn bản pháp luật bị vi phạm
 - "giá trị triệu đồng": chỉ điền nếu văn bản nêu rõ giá trị bằng tiền, đơn vị triệu đồng
-- "dấu hiệu tội phạm": true nếu có dấu hiệu tội phạm / chuyển CQĐT / khởi tố, mặc định false
+- "trách nhiệm": tên tổ chức, cá nhân, chức vụ bị xác định có trách nhiệm
+
+"kiến nghị xử lý"
+- "chính sách": mảng chuỗi, mỗi phần tử là 1 kiến nghị về cơ chế/chính sách/pháp luật
+- "kinh tế": mảng chuỗi, mỗi phần tử là 1 kiến nghị thu hồi tiền, hoàn trả, truy thu
+- "trách nhiệm": mảng chuỗi, mỗi phần tử là 1 kiến nghị kiểm điểm/kỷ luật/xử lý hành chính
+- "hình sự": mảng object, chỉ điền nếu có kiến nghị chuyển CQĐT hoặc khởi tố
+- "tình trạng": "kiến nghị chuyển điều tra" / "đã chuyển" / "đã khởi tố"
 
 ---
 

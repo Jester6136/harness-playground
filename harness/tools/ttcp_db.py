@@ -4,22 +4,14 @@ Schema mongo (do offline batch ``extention_/ttcp_batch`` ghi):
 
     {
       "_id": "ttcp/ttcp-bot/<file>.pdf",   # MinIO object key
-      "status": "done", "version": 2, "thinking": false, "attempts": …,
+      "status": "done", "version": 1, "thinking": false, "attempts": …,
       "bucket": …, "etag": …, "size": …, "last_modified": …,
       "result": {                          # ← extract_ttcp's JSON sits HERE
-        "thông tin chung": { số văn bản, loại, ngày ban hành, hình thức,
-                             đơn vị chủ trì, … },
-        "vi phạm": [ {
-          stt, nhóm, đối tượng vi phạm, hành vi vi phạm, mô tả,
-          điều khoản vi phạm, hậu quả, trách nhiệm, nguyên nhân,
-          kiến nghị: { hình sự, hành chính, kinh tế },
-          giá trị triệu đồng, dấu hiệu tội phạm
-        } ]
+        "thông tin chung": { số văn bản, loại, ngày ban hành, … },
+        "vi phạm": [ { stt, nhóm, hành vi, giá trị triệu đồng, … } ],
+        "kiến nghị xử lý": { chính sách[], kinh tế[], trách nhiệm[], hình sự[] }
       }
     }
-
-Kiến nghị xử lý GẮN VỚI TỪNG VI PHẠM (object ``kiến nghị`` trong mỗi phần
-tử ``vi phạm``) — không còn khối ``kiến nghị xử lý`` cấp document.
 
 Đó là lý do mọi path query đều bắt đầu bằng ``result.…``. Reads luôn lọc
 ``status="done"`` để bỏ qua dòng pending / error / dead còn lại trong DB.
@@ -63,9 +55,9 @@ P_GIA_TRI = "result.vi phạm.giá trị triệu đồng"
 # stubs, not real content. Merged into every read filter.
 _DONE_FILTER = {"status": "done"}
 
-# Fields covered by the `$text` index. Name bumped to ``_v3`` because the
-# schema changed (kiến nghị moved into vi phạm); the smarter
-# `ensure_text_index` drops the stale v2 index automatically.
+# Fields covered by the `$text` index. New name (``_v2``) on purpose: an
+# earlier deploy may have created a stale text index targeting the wrong
+# (top-level) paths; the smarter `ensure_text_index` below will drop it.
 _INDEX_FIELDS = [
     P_SO_VB,
     P_DOI_TUONG,
@@ -73,16 +65,14 @@ _INDEX_FIELDS = [
     P_NGUOI_KY,
     "result.vi phạm.hành vi vi phạm",
     "result.vi phạm.mô tả",
-    "result.vi phạm.điều khoản vi phạm",
-    "result.vi phạm.hậu quả",
     "result.vi phạm.trách nhiệm",
-    "result.vi phạm.nguyên nhân",
     "result.vi phạm.đối tượng vi phạm",
-    "result.vi phạm.kiến nghị.hình sự",
-    "result.vi phạm.kiến nghị.hành chính",
-    "result.vi phạm.kiến nghị.kinh tế",
+    "result.kiến nghị xử lý.chính sách",
+    "result.kiến nghị xử lý.kinh tế",
+    "result.kiến nghị xử lý.trách nhiệm",
+    "result.kiến nghị xử lý.hình sự.nội dung",
 ]
-_INDEX_NAME = "ttcp_text_idx_v3"
+_INDEX_NAME = "ttcp_text_idx_v2"
 
 _store = MongoStore(
     db_name=settings.mongo_db_name,
