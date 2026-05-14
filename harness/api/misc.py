@@ -1,17 +1,20 @@
-"""Miscellaneous endpoints: /health, /commands, /upload, /ui."""
+"""Miscellaneous endpoints: /health, /commands, /upload, /reports, /ui."""
 from __future__ import annotations
 
+import logging
 import uuid
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
 
 from harness.api.deps import get_user
 from harness.config import settings
 from harness.extensions.commands import COMMANDS
 from harness.persistence.db import healthcheck
+
+log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -45,13 +48,56 @@ async def upload_file(
     file: UploadFile = File(...),
     _user: str = Depends(get_user),
 ):
-    """Accept a file upload, persist it under ./uploads/, return its path."""
+    """Accept a file upload, persist it under ./uploads/, return its path.
+
+    PDFs are ALSO mirrored to MinIO ``{ttcp_bucket}/{ttcp_prefix}`` so ad-hoc
+    uploads join the offline batch corpus. The MinIO mirror is best-effort —
+    a failure there must NOT break the primary (local) upload path, which is
+    what `extract_ttcp` reads from. The local filename and the MinIO key
+    share the same basename, so one is derivable from the other.
+    """
     _UPLOADS_DIR.mkdir(exist_ok=True)
+    raw = await file.read()
     ext = Path(file.filename or "upload").suffix or ".bin"
     fname = f"{uuid.uuid4().hex}{ext}"
     dest = _UPLOADS_DIR / fname
-    dest.write_bytes(await file.read())
-    return {"path": str(dest.resolve()), "name": file.filename}
+    dest.write_bytes(raw)
+
+    minio_key = None
+    if ext.lower() == ".pdf":
+        try:
+            from harness.persistence.minio_store import put_ttcp_object
+            minio_key = put_ttcp_object(fname, raw, content_type="application/pdf")
+        except Exception:
+            log.warning("MinIO mirror failed for %s — local copy still saved", fname,
+                        exc_info=True)
+
+    return {"path": str(dest.resolve()), "name": file.filename, "minio_key": minio_key}
+
+
+@router.get("/files/{key:path}")
+async def serve_ttcp_file(key: str):
+    """Stream an object from the TTCP MinIO bucket.
+
+    `key` is the full object key (e.g. ttcp/ttcp-bot/abc.pdf). MinIO isn't
+    publicly reachable, so this endpoint proxies it: the API server can reach
+    MinIO, clients reach the API. Guarded to the TTCP prefix so it can't be
+    used to read arbitrary bucket objects.
+    """
+    if ".." in key or not key.startswith(settings.ttcp_prefix):
+        raise HTTPException(status_code=400, detail="invalid key")
+    try:
+        from harness.persistence.minio_store import get_ttcp_object
+        data = get_ttcp_object(key)
+    except Exception:
+        log.warning("could not fetch MinIO object %s", key, exc_info=True)
+        raise HTTPException(status_code=404, detail="file not found")
+    filename = key.rsplit("/", 1)[-1] or "file.pdf"
+    return Response(
+        content=data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
 
 
 @router.get("/reports/{name}", response_class=FileResponse)

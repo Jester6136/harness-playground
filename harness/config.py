@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -70,6 +71,24 @@ class Settings(BaseSettings):
     # Where render_ttcp_report writes generated HTML reports (relative to CWD
     # unless absolute). Created on first use.
     ttcp_report_dir: str = "reports"
+
+    # MinIO / S3 — the /upload endpoint mirrors uploaded PDFs into the TTCP
+    # corpus bucket (datalens-data/ttcp/ttcp-bot/) so ad-hoc uploads join the
+    # offline batch corpus. validation_alias reuses the SAME env var names the
+    # batch (extention_/ttcp_batch) already reads — one set of MinIO config.
+    minio_endpoint: str = Field("http://192.168.120.12:9002", validation_alias="ENDPOINT_URL_MINIO")
+    minio_access_key: str = Field("", validation_alias="AWS_ACCESS_KEY_ID_MINIO")
+    minio_secret_key: str = Field("", validation_alias="AWS_SECRET_ACCESS_KEY_MINIO")
+    ttcp_bucket: str = Field("datalens-data", validation_alias="TTCP_BUCKET")
+    ttcp_prefix: str = Field("ttcp/ttcp-bot/", validation_alias="TTCP_PREFIX")
+
+    # Downstream sync webhook — after any write to the TTCP collection
+    # (save/update/delete tools, or a batch run that produced new docs) we
+    # POST here so the user's other apps re-sync their own DB. Best-effort:
+    # a failure is logged and swallowed, never blocks/breaks the write.
+    # Empty string disables the hook.
+    ttcp_sync_url: str = "http://192.168.120.11:8000/import/ttcp"
+    ttcp_sync_timeout: float = 10.0
 
     # Logging
     log_level: str = "INFO"

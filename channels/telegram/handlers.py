@@ -119,10 +119,10 @@ async def on_media(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.reply_text(f"⚠️ Không tải được file từ Telegram: {exc}")
         return
 
-    # Bytes → harness /upload → absolute path on the API host.
+    # Bytes → harness /upload → {path, name, minio_key} on the API host.
     api_headers = {settings.agent_api_user_header: agent_user}
     try:
-        path = await upload_bytes(
+        upload = await upload_bytes(
             api_url=settings.agent_api_url,
             data=data,
             filename=filename,
@@ -132,16 +132,24 @@ async def on_media(update: Update, _ctx: ContextTypes.DEFAULT_TYPE) -> None:
         log.exception("upload to agent failed")
         await msg.reply_text(f"⚠️ Lỗi upload lên agent: {exc}")
         return
+    path = upload["path"]
+    minio_key = upload.get("minio_key")
 
     # Embed the path the same way the web UI does — but neutral on tool choice,
     # so the model picks `extract_ttcp` vs `analyze_image` based on the file.
+    # When the file was mirrored to MinIO, expose the key so the agent can
+    # thread it into save_ttcp (→ stored in result._minio_key).
     caption = (msg.caption or "").strip()
     if not caption:
         caption = (
             "Hãy xử lý file đính kèm (extract_ttcp nếu là văn bản thanh tra, "
-            "otherwise analyze_image)."
+            "otherwise analyze_image). Nếu lưu vào DB bằng save_ttcp, truyền "
+            "kèm MinIO key ở trên (nếu có)."
         )
-    body_msg = f"[Attached file at: {path}]\n\n{caption}"
+    lines = [f"[Attached file at: {path}]"]
+    if minio_key:
+        lines.append(f"[MinIO key: {minio_key}]")
+    body_msg = "\n".join(lines) + f"\n\n{caption}"
 
     # Same SSE consume path as text messages.
     streamer = TelegramStreamer(chat)
@@ -355,15 +363,19 @@ def _tool_result_error(payload: dict) -> str | None:
     return None
 
 
-# Tools whose JSON result carries `{report_id, url, ...}` — the file is fetched
-# from the harness API and delivered as a Telegram document. Add more file-
-# producing tools here as they appear.
-_FILE_TOOLS = {"render_ttcp_report"}
+# Tools whose JSON result carries `{url, filename, caption, ...}` — the file is
+# fetched from the harness API and delivered as a Telegram document. Add more
+# file-producing tools here as they appear.
+_FILE_TOOLS = {"render_ttcp_report", "get_ttcp_file"}
 
 
 async def _maybe_send_tool_file(chat, payload: dict) -> bool:
     """If `payload` is a successful file-producing tool result, fetch the file
     from the harness API and send it to the chat as a document.
+
+    The tool result must carry `{url, filename}` (and optionally `caption`).
+    `url` is API-relative — the bot resolves it against `agent_api_url`, so
+    the user never needs to reach the API or MinIO directly.
 
     Returns True if a document (or a stand-in error message) was sent, so the
     caller can skip the quiet-mode typing/error fallback. Returns False for
@@ -389,15 +401,11 @@ async def _maybe_send_tool_file(chat, payload: dict) -> bool:
         await chat.send_message(f"⚠️ Tạo file xong nhưng không tải được: {exc}")
         return True
 
-    report_id = data.get("report_id", "report")
-    so_vb = data.get("số văn bản", report_id)
-    n = data.get("số vi phạm")
-    caption = f"📄 Báo cáo tóm tắt — {so_vb}"
-    if n is not None:
-        caption += f" ({n} vi phạm)"
+    filename = data.get("filename") or "file"
+    caption = data.get("caption") or "📎 File"
     await chat.send_document(
         document=file_bytes,
-        filename=f"{report_id}.html",
+        filename=filename,
         caption=caption,
     )
     return True

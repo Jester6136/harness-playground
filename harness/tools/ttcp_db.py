@@ -34,6 +34,7 @@ from langchain_core.tools import tool
 from harness.config import settings
 from harness.logging_config import log_tool_call
 from harness.persistence.mongo import MongoStore
+from harness.persistence.sync_hook import notify_ttcp_sync
 
 log = logging.getLogger(__name__)
 
@@ -429,14 +430,21 @@ def aggregate_ttcp(
 
 @tool
 @log_tool_call
-def save_ttcp(ttcp_json: str) -> str:
+def save_ttcp(ttcp_json: str, minio_key: str = "") -> str:
     """Lưu kết luận thanh tra đã extract vào DB (upsert theo số văn bản).
 
     `ttcp_json` là chuỗi JSON từ tool `extract_ttcp` — copy nguyên văn, không
     reformat. Tool sẽ tự bọc lại vào schema chuẩn của batch
     (``{result: parsed, status: "done", source: "agent_upload", …}``) nên
     sau khi save, tất cả tool read khác (find/search/list/aggregate) dùng
-    được ngay. Trả về `{số văn bản, matched, modified, upserted_id}`.
+    được ngay.
+
+    `minio_key` (optional): nếu file PDF đã được upload lên MinIO — xem dòng
+    `[MinIO key: ...]` trong tin nhắn đính kèm — truyền key đó vào đây. Nó sẽ
+    được lưu vào `result._minio_key` để sau lấy lại file gốc qua
+    `get_ttcp_file`. Không có thì để trống.
+
+    Trả về `{số văn bản, matched, modified, upserted_id}`.
     """
     try:
         parsed = json.loads(ttcp_json)
@@ -452,6 +460,11 @@ def save_ttcp(ttcp_json: str) -> str:
                 "ảnh/PDF rồi thử save_ttcp lần nữa."
             ),
         }, ensure_ascii=False)
+
+    # Stamp the MinIO key INTO result so it travels with the extraction data
+    # (the outer doc is already identified by _id). get_ttcp_file reads it.
+    if minio_key.strip():
+        parsed["_minio_key"] = minio_key.strip()
 
     now = _now()
     doc = {
@@ -473,6 +486,7 @@ def save_ttcp(ttcp_json: str) -> str:
         # Upsert by the synthetic id — re-uploads of the same số văn bản
         # overwrite the agent-side doc, batch rows untouched.
         result = _store.upsert_one({"_id": doc["_id"]}, doc)
+        notify_ttcp_sync("save_ttcp")
         return json.dumps({"số văn bản": so_vb, **result}, ensure_ascii=False)
     except Exception as exc:
         log.exception("save_ttcp failed")
@@ -521,6 +535,8 @@ def update_ttcp(so_van_ban: str, updates_json: str) -> str:
         prefixed = _prefix_result_keys(updates)
         prefixed["updated_at"] = _now()
         result = _store.update_one(_so_vb_filter(so_van_ban), prefixed)
+        if result.get("modified"):
+            notify_ttcp_sync("update_ttcp")
         return json.dumps({"số văn bản": so_van_ban, **result}, ensure_ascii=False)
     except Exception as exc:
         log.exception("update_ttcp failed")
@@ -539,11 +555,76 @@ def delete_ttcp(so_van_ban: str) -> str:
     """
     try:
         deleted = _store.delete_one(_so_vb_filter(so_van_ban))
+        if deleted:
+            notify_ttcp_sync("delete_ttcp")
         return json.dumps(
             {"số văn bản": so_van_ban, "deleted": deleted}, ensure_ascii=False,
         )
     except Exception as exc:
         log.exception("delete_ttcp failed")
+        return json.dumps({"error": "db_error", "message": str(exc)}, ensure_ascii=False)
+
+
+# ── source-file retrieval ──────────────────────────────────────────────────
+
+
+def _minio_key_of(doc: dict) -> str:
+    """Derive the MinIO object key for a doc, or "" if it has no source file.
+
+    - agent-uploaded docs (save_ttcp): ``result._minio_key`` — stamped from
+      the upload's `[MinIO key: ...]`.
+    - batch docs: the ``_id`` IS the object key (``ttcp/ttcp-bot/<file>.pdf``).
+    """
+    result = doc.get("result") or {}
+    k = result.get("_minio_key")
+    if isinstance(k, str) and k.strip():
+        return k.strip()
+    _id = doc.get("_id")
+    if isinstance(_id, str) and _id.startswith(settings.ttcp_prefix):
+        return _id
+    return ""
+
+
+@tool
+@log_tool_call
+def get_ttcp_file(so_van_ban: str) -> str:
+    """Lấy file PDF gốc của một kết luận thanh tra.
+
+    Tra doc theo số văn bản, xác định MinIO key (từ `result._minio_key` với
+    doc upload qua agent, hoặc từ `_id` với doc do batch tạo), trả về URL để
+    tải file gốc. MinIO không public — URL do harness API serve: web mở
+    trực tiếp, Telegram bot tự đính kèm file.
+
+    Trả về `{url, filename, số văn bản}` hoặc `{error, message}` nếu không
+    tìm thấy kết luận / kết luận không có file gốc.
+    """
+    try:
+        doc = _store.find_one({"status": "done", P_SO_VB: so_van_ban})
+        if not doc:
+            return json.dumps(
+                {"error": "not_found",
+                 "message": f"không tìm thấy kết luận số '{so_van_ban}'"},
+                ensure_ascii=False,
+            )
+        key = _minio_key_of(doc)
+        if not key:
+            return json.dumps(
+                {"error": "no_file",
+                 "message": f"kết luận '{so_van_ban}' không có file gốc trên MinIO"},
+                ensure_ascii=False,
+            )
+        filename = key.rsplit("/", 1)[-1] or "file.pdf"
+        return json.dumps(
+            {
+                "url": f"/files/{key}",
+                "filename": filename,
+                "caption": f"📎 File gốc — {so_van_ban}",
+                "số văn bản": so_van_ban,
+            },
+            ensure_ascii=False,
+        )
+    except Exception as exc:
+        log.exception("get_ttcp_file failed")
         return json.dumps({"error": "db_error", "message": str(exc)}, ensure_ascii=False)
 
 
@@ -588,6 +669,12 @@ count_ttcp.metadata = {
     "prompt_hint": (
         "Đếm số kết luận theo filter (read-only). Dùng cho 'có bao nhiêu' / "
         "'tổng số' — KHÔNG dùng search_ttcp để đếm."
+    ),
+}
+get_ttcp_file.metadata = {
+    "prompt_hint": (
+        "Lấy file PDF gốc của 1 kết luận theo số văn bản (read-only). Dùng "
+        "khi user muốn 'file gốc' / 'tải PDF' / 'link tài liệu'. Trả về URL."
     ),
 }
 aggregate_ttcp.metadata = {

@@ -5,9 +5,9 @@ We only add tools deepagents doesn't already provide:
   - analyze_image        (vision model handoff for images / PDFs)
   - extract_ttcp         (structured-JSON extraction for Vietnamese kết luận thanh tra)
   - save_ttcp / find_ttcp / search_ttcp / list_ttcp / count_ttcp /
-    aggregate_ttcp / update_ttcp / delete_ttcp
-                         (Mongo CRUD + full-text + group-by aggregation for TTCP;
-                          writes are HITL-gated)
+    aggregate_ttcp / update_ttcp / delete_ttcp / get_ttcp_file
+                         (Mongo CRUD + full-text + group-by aggregation for TTCP +
+                          source-file retrieval; writes are HITL-gated)
   - render_ttcp_report   (generate the standard HTML summary report for one kết luận)
   - search_internal_docs (DataLens ReAct retriever over internal KB)
 """
@@ -17,6 +17,7 @@ from harness.tools.ttcp_db import (
     count_ttcp,
     delete_ttcp,
     find_ttcp,
+    get_ttcp_file,
     list_ttcp,
     save_ttcp,
     search_ttcp,
@@ -36,6 +37,7 @@ ALL_TOOLS = [
     aggregate_ttcp,
     update_ttcp,
     delete_ttcp,
+    get_ttcp_file,
     render_ttcp_report,
     search_internal_docs,
 ]
@@ -52,6 +54,7 @@ __all__ = [
     "aggregate_ttcp",
     "update_ttcp",
     "delete_ttcp",
+    "get_ttcp_file",
     "render_ttcp_report",
     "search_internal_docs",
 ]
