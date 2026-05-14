@@ -67,6 +67,9 @@ class Settings(BaseSettings):
     mongo_uri: str = "mongodb://localhost:27017"
     mongo_db_name: str = "datalens"
     ttcp_collection: str = "ttcp-extracted"
+    # Where render_ttcp_report writes generated HTML reports (relative to CWD
+    # unless absolute). Created on first use.
+    ttcp_report_dir: str = "reports"
 
     # Logging
     log_level: str = "INFO"

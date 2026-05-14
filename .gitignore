@@ -31,6 +31,9 @@ logs/
 # Uploads (local fallback when MinIO not configured)
 uploads/
 
+# Generated TTCP HTML reports (render_ttcp_report)
+reports/
+
 # IDE
 .vscode/
 .idea/
