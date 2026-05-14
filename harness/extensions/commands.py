@@ -114,7 +114,7 @@ async def dispatch(cmd: str, args: str) -> tuple[str, str]:
 # Built-in commands
 # ---------------------------------------------------------------------------
 
-@register_command("help", "List all available slash commands")
+@register_command("help", "Các commands sẵn")
 def _cmd_help(args: str) -> str:
     lines = ["**Các commands:**\n"]
     for c in sorted(COMMANDS.values(), key=lambda x: x.name):

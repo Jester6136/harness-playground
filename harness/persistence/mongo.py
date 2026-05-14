@@ -130,19 +130,51 @@ class MongoStore:
         name: str = "text_idx",
         default_language: str = "none",
     ) -> None:
-        """Idempotent: create a text index over `fields` if not already present.
+        """Idempotent: create a text index over `fields`.
+
+        Mongo allows ONLY ONE text index per collection — if a different
+        text index already exists (e.g. from an earlier deploy targeting
+        different paths), drop it first. Likewise if `name` exists but with
+        a stale spec, drop and recreate.
 
         `default_language="none"` disables stemming — important for Vietnamese
         where Mongo's English stemmer would mangle accented words.
         """
         spec = [(f, "text") for f in fields]
+
+        # Pass 1: drop any OTHER existing text index so our create_index won't
+        # collide. If our own name already exists we still drop and recreate
+        # below if the spec changed; pymongo's create_index is idempotent
+        # when the spec matches.
+        try:
+            info = self._coll.index_information()
+        except Exception:
+            info = {}
+        for idx_name, meta in info.items():
+            keys = meta.get("key") or []
+            is_text = any(v == "text" for _, v in keys)
+            if is_text and idx_name != name:
+                try:
+                    self._coll.drop_index(idx_name)
+                    log.info("dropped stale text index %s", idx_name)
+                except Exception as exc:
+                    log.warning("could not drop text index %s: %s", idx_name, exc)
+
+        # Pass 2: create. If spec mismatches an existing index of `name`,
+        # Mongo raises OperationFailure (IndexOptionsConflict) — drop and retry.
         try:
             self._coll.create_index(spec, name=name, default_language=default_language)
         except Exception as exc:
-            # Common: index already exists with the same spec — driver raises
-            # OperationFailure with codeName "IndexOptionsConflict" only when
-            # spec differs. Log and continue.
-            log.debug("ensure_text_index(%s): %s", name, exc)
+            msg = str(exc).lower()
+            if "options conflict" in msg or "already exists" in msg:
+                try:
+                    self._coll.drop_index(name)
+                    self._coll.create_index(spec, name=name, default_language=default_language)
+                    log.info("recreated text index %s with new spec", name)
+                except Exception as exc2:
+                    log.warning("ensure_text_index(%s) recreate failed: %s", name, exc2)
+            else:
+                log.debug("ensure_text_index(%s): %s", name, exc)
 
     # ── aggregation ─────────────────────────────────────────────────────────
 

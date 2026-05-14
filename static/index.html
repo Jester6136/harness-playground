@@ -234,7 +234,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
       </div>
       <label class="form-label" style="margin-bottom:3px;">User ID</label>
       <div class="row">
-        <input class="input-sm" id="userId" value="alice" style="flex:1;">
+        <input class="input-sm" id="userId" value="ttcp" style="flex:1;">
         <button class="btn btn-sm" onclick="applySettings()">Apply</button>
       </div>
     </div>
@@ -299,7 +299,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 // ─── State ────────────────────────────────────────────────────────────────────
 const S = {
   base: '',
-  user: 'alice',
+  user: 'ttcp',
   session: 'main',
   sessions: [],
   commands: [],
@@ -326,7 +326,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 function applySettings() {
   S.base = (document.getElementById('apiBase').value || '').replace(/\/$/, '') || 'http://localhost:8000';
-  S.user = document.getElementById('userId').value.trim() || 'alice';
+  S.user = document.getElementById('userId').value.trim() || 'ttcp';
   loadSessions();
   loadCommands();
   loadPipelines();

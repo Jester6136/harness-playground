@@ -1,18 +1,24 @@
 """Tools cho kho kết luận thanh tra (TTCP) trong MongoDB.
 
-Schema do `extract_ttcp` sinh ra (xem ``src/extentions/multimodal/prompt.py``):
+Schema mongo (do offline batch ``extention_/ttcp_batch`` ghi):
 
-  - ``thông tin chung``: số văn bản, loại, ngày ban hành, cơ quan, người ký,
-    đối tượng, lĩnh vực[], thời kỳ, nội dung, văn bản liên quan[]
-  - ``vi phạm[]``: stt, nhóm, đối tượng vi phạm, hành vi vi phạm, mô tả,
-    căn cứ pháp luật, giá trị triệu đồng, trách nhiệm, dấu hiệu tội phạm
-  - ``kiến nghị xử lý``: chính sách[], kinh tế[], trách nhiệm[],
-    hình sự[{nội dung, cơ quan nhận, hành vi, giá trị, tình trạng}]
+    {
+      "_id": "ttcp/ttcp-bot/<file>.pdf",   # MinIO object key
+      "status": "done", "version": 1, "thinking": false, "attempts": …,
+      "bucket": …, "etag": …, "size": …, "last_modified": …,
+      "result": {                          # ← extract_ttcp's JSON sits HERE
+        "thông tin chung": { số văn bản, loại, ngày ban hành, … },
+        "vi phạm": [ { stt, nhóm, hành vi, giá trị triệu đồng, … } ],
+        "kiến nghị xử lý": { chính sách[], kinh tế[], trách nhiệm[], hình sự[] }
+      }
+    }
 
-Cùng collection với offline batch (``extention_/ttcp_batch``) — agent đọc
-nguyên kho mà batch đã extract. Một số doc do batch ghi sẽ KHÔNG có
-``_so_van_ban`` flat key (batch dùng object-key MinIO làm ``_id``), nên các
-tool ở đây fallback sang nested path ``thông tin chung.số văn bản``.
+Đó là lý do mọi path query đều bắt đầu bằng ``result.…``. Reads luôn lọc
+``status="done"`` để bỏ qua dòng pending / error / dead còn lại trong DB.
+
+Khi user upload PDF mới qua Telegram → ``extract_ttcp`` → ``save_ttcp``, ta
+bọc lại JSON vào cùng shape (``{result: parsed, status: "done", …}``) để
+một schema duy nhất, và mọi tool sau đều dùng được.
 
 Read tools open; save/update/delete HITL-gated qua ``metadata["hitl"]``.
 """
@@ -20,6 +26,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
 from langchain_core.tools import tool
@@ -30,39 +37,42 @@ from harness.persistence.mongo import MongoStore
 
 log = logging.getLogger(__name__)
 
-# Top-level flat key — saved by `save_ttcp`. Decoupled from the nested schema
-# so a prompt tweak that shifts where "số văn bản" lives doesn't break point
-# lookup. Batch-written rows won't have this field; we fall back to the
-# nested path in `find_ttcp` / `update_ttcp` / `delete_ttcp`.
-_FLAT_KEY = "_so_van_ban"
-
+# ── schema-aware constants ─────────────────────────────────────────────────
 # Field-path constants — one place to retarget if the extractor prompt moves
-# something. Mongo handles UTF-8 keys (spaces, dấu) just fine.
-P_SO_VB = "thông tin chung.số văn bản"
-P_NGAY = "thông tin chung.ngày ban hành"
-P_CO_QUAN = "thông tin chung.cơ quan ban hành"
-P_NGUOI_KY = "thông tin chung.người ký"
-P_DOI_TUONG = "thông tin chung.đối tượng thanh tra"
-P_LINH_VUC = "thông tin chung.lĩnh vực"
-P_DAU_HIEU = "vi phạm.dấu hiệu tội phạm"
+# something. All paths are nested under ``result`` (batch shape).
+P_RESULT = "result"
+P_SO_VB = "result.thông tin chung.số văn bản"
+P_NGAY = "result.thông tin chung.ngày ban hành"
+P_CO_QUAN = "result.thông tin chung.cơ quan ban hành"
+P_NGUOI_KY = "result.thông tin chung.người ký"
+P_DOI_TUONG = "result.thông tin chung.đối tượng thanh tra"
+P_LINH_VUC = "result.thông tin chung.lĩnh vực"
+P_VI_PHAM = "result.vi phạm"
+P_DAU_HIEU = "result.vi phạm.dấu hiệu tội phạm"
+P_GIA_TRI = "result.vi phạm.giá trị triệu đồng"
 
-# Fields included in the text index (`$text` search). Ordered by likely
-# relevance: số văn bản first → exact-id hits float to the top.
+# Drop rows the batch hasn't finished — pending/error/dead docs only have
+# stubs, not real content. Merged into every read filter.
+_DONE_FILTER = {"status": "done"}
+
+# Fields covered by the `$text` index. New name (``_v2``) on purpose: an
+# earlier deploy may have created a stale text index targeting the wrong
+# (top-level) paths; the smarter `ensure_text_index` below will drop it.
 _INDEX_FIELDS = [
-    _FLAT_KEY,
     P_SO_VB,
     P_DOI_TUONG,
     P_CO_QUAN,
     P_NGUOI_KY,
-    "vi phạm.hành vi vi phạm",
-    "vi phạm.mô tả",
-    "vi phạm.trách nhiệm",
-    "vi phạm.đối tượng vi phạm",
-    "kiến nghị xử lý.chính sách",
-    "kiến nghị xử lý.kinh tế",
-    "kiến nghị xử lý.trách nhiệm",
-    "kiến nghị xử lý.hình sự.nội dung",
+    "result.vi phạm.hành vi vi phạm",
+    "result.vi phạm.mô tả",
+    "result.vi phạm.trách nhiệm",
+    "result.vi phạm.đối tượng vi phạm",
+    "result.kiến nghị xử lý.chính sách",
+    "result.kiến nghị xử lý.kinh tế",
+    "result.kiến nghị xử lý.trách nhiệm",
+    "result.kiến nghị xử lý.hình sự.nội dung",
 ]
+_INDEX_NAME = "ttcp_text_idx_v2"
 
 _store = MongoStore(
     db_name=settings.mongo_db_name,
@@ -73,12 +83,15 @@ _store = MongoStore(
 # ── helpers ────────────────────────────────────────────────────────────────
 
 
-def _find_first_str(obj: Any, keys: set[str]) -> str:
-    """DFS for the first non-empty string value under any of `keys`.
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
 
-    Mirrors the helper that lived in the old gcn_db — used to be schema-
-    agnostic. Here we still need it because batch-written docs may not have
-    the flat ``_so_van_ban`` key.
+
+def _find_first_str(obj: Any, keys: set[str]) -> str:
+    """DFS for the first non-empty string under any of `keys`.
+
+    Used by ``save_ttcp`` to dig số văn bản out of arbitrary extracted JSON
+    (no fixed assumption about which branch the prompt put it under).
     """
     if isinstance(obj, dict):
         for k, v in obj.items():
@@ -96,9 +109,19 @@ def _find_first_str(obj: Any, keys: set[str]) -> str:
     return ""
 
 
-def _id_filter(so_van_ban: str) -> dict:
-    """Match either the flat key (agent-written) or nested path (batch-written)."""
-    return {"$or": [{_FLAT_KEY: so_van_ban}, {P_SO_VB: so_van_ban}]}
+def _so_vb_filter(so_van_ban: str) -> dict:
+    """Filter matching a single doc by số văn bản (works for both
+    batch-written and agent-saved docs, since both wrap content under
+    ``result``)."""
+    return {**_DONE_FILTER, P_SO_VB: so_van_ban}
+
+
+def _merge(*filters: dict) -> dict:
+    out: dict = {}
+    for f in filters:
+        if f:
+            out.update(f)
+    return out
 
 
 def _build_filter(
@@ -111,11 +134,10 @@ def _build_filter(
     year_to: int | None = None,
     has_criminal: bool | None = None,
 ) -> dict:
-    """Compose a Mongo filter from optional structured constraints."""
-    f: dict = {}
+    """Compose a Mongo filter (already including status=done)."""
+    f: dict = dict(_DONE_FILTER)
     if linh_vuc:
-        # Mongo array-contains: { field: value } matches if any element equals.
-        f[P_LINH_VUC] = linh_vuc
+        f[P_LINH_VUC] = linh_vuc  # array-contains
     if co_quan:
         f[P_CO_QUAN] = {"$regex": co_quan, "$options": "i"}
     if nguoi_ky:
@@ -123,8 +145,7 @@ def _build_filter(
     if doi_tuong:
         f[P_DOI_TUONG] = {"$regex": doi_tuong, "$options": "i"}
     if year_from or year_to:
-        # ngày ban hành is stored as ISO string ("YYYY-MM-DD") per the prompt,
-        # so lexical compare works for full-year ranges.
+        # ngày ban hành is YYYY-MM-DD string per the prompt → lex compare works.
         date_range: dict = {}
         if year_from:
             date_range["$gte"] = f"{year_from:04d}-01-01"
@@ -139,11 +160,7 @@ def _build_filter(
 
 
 def _parse_tri(s: str) -> bool | None:
-    """Parse a tri-state string flag ('true' / 'false' / '') → bool | None.
-
-    @tool prefers concrete defaults over Optional[bool]; a string with "" =
-    "not set" lets the model express three states without an extra arg.
-    """
+    """'true'/'false'/'' → bool|None — three-state flag without Optional[bool]."""
     s = (s or "").strip().lower()
     if s == "true":
         return True
@@ -159,16 +176,16 @@ def _summarize(doc: dict) -> dict:
     context fast. The summary preserves the keys a follow-up question can
     pivot on (`số văn bản` for find_ttcp, `lĩnh vực` for filter refinement).
     """
-    tic = doc.get("thông tin chung", {}) or {}
-    vi_pham = doc.get("vi phạm", []) or []
+    result = doc.get("result", {}) or {}
+    tic = result.get("thông tin chung", {}) or {}
+    vi_pham = result.get("vi phạm", []) or []
     total_value = 0
     for v in vi_pham:
         gt = v.get("giá trị triệu đồng") if isinstance(v, dict) else None
         if isinstance(gt, (int, float)):
             total_value += gt
-    so_vb = tic.get("số văn bản") or doc.get(_FLAT_KEY, "")
     return {
-        "số văn bản": so_vb,
+        "số văn bản": tic.get("số văn bản", ""),
         "loại văn bản": tic.get("loại văn bản", ""),
         "ngày ban hành": tic.get("ngày ban hành", ""),
         "cơ quan": tic.get("cơ quan ban hành", ""),
@@ -176,7 +193,7 @@ def _summarize(doc: dict) -> dict:
         "đối tượng": tic.get("đối tượng thanh tra", ""),
         "lĩnh vực": tic.get("lĩnh vực", []),
         "số vi phạm": len(vi_pham),
-        "tổng giá trị (triệu đồng)": total_value,
+        "tổng giá trị": total_value,
         "có dấu hiệu tội phạm": any(
             isinstance(v, dict) and v.get("dấu hiệu tội phạm") is True for v in vi_pham
         ),
@@ -189,14 +206,14 @@ def _summarize(doc: dict) -> dict:
 @tool
 @log_tool_call
 def find_ttcp(so_van_ban: str) -> str:
-    """Tra cứu kết luận thanh tra theo số văn bản (vd '2280/TB-TTCP').
+    """Tra cứu kết luận thanh tra theo số văn bản (vd '636/TB-TTCP', '2280/TB-TTCP').
 
     Trả về JSON đầy đủ của 1 kết luận hoặc `{}` nếu không thấy. Doc có thể
     lớn (50-200KB) — chỉ gọi khi user muốn xem chi tiết; với câu hỏi tổng
     quát, ưu tiên `search_ttcp` / `list_ttcp`.
     """
     try:
-        doc = _store.find_one(_id_filter(so_van_ban))
+        doc = _store.find_one(_so_vb_filter(so_van_ban))
         return json.dumps(doc or {}, ensure_ascii=False, default=str)
     except Exception as exc:
         log.exception("find_ttcp failed")
@@ -211,10 +228,16 @@ def search_ttcp(query: str, limit: int = 10) -> str:
     Tìm relevance-ranked qua `$text` index (tự tạo nếu chưa có). Trả về
     `{hits: [...tóm tắt...], count: N}` — KHÔNG full doc; dùng `find_ttcp`
     để xem chi tiết. Query phải có từ ngữ thật (không match khi rỗng).
+
+    LƯU Ý: text search dở khi query là 1 mã ngắn kiểu '636/TB-TTCP'. Cho
+    số văn bản chính xác, dùng `find_ttcp` thay vì search.
     """
     try:
-        _store.ensure_text_index(_INDEX_FIELDS, name="ttcp_text_idx")
-        docs = _store.text_search(query, limit=limit)
+        _store.ensure_text_index(_INDEX_FIELDS, name=_INDEX_NAME)
+        # Pre-filter status=done is tricky with text search ranking; we filter
+        # client-side because the result set is small (≤ limit).
+        docs = [d for d in _store.text_search(query, limit=limit * 2)
+                if d.get("status") == "done"][:limit]
         return json.dumps(
             {"hits": [_summarize(d) for d in docs], "count": len(docs)},
             ensure_ascii=False, default=str,
@@ -278,8 +301,8 @@ def count_ttcp(
 ) -> str:
     """Đếm số kết luận thanh tra theo filter (giống `list_ttcp`, không trả nội dung).
 
-    Dùng cho "có bao nhiêu…" / "tổng số…". Không filter → đếm toàn bộ DB.
-    KHÔNG dùng `search_ttcp` để đếm (text search cần từ ngữ thật).
+    Dùng cho "có bao nhiêu…" / "tổng số…". Không filter → đếm toàn bộ DB
+    (chỉ status=done). KHÔNG dùng `search_ttcp` để đếm.
     Trả về `{count: N, filters: {...}}`.
     """
     try:
@@ -301,21 +324,21 @@ def count_ttcp(
         return json.dumps({"error": "db_error", "message": str(exc)}, ensure_ascii=False)
 
 
-# Group-by dispatch table for aggregate_ttcp. Each entry knows whether the
-# pipeline needs an extra ``$unwind`` to make the group key scalar.
+# Group-by dispatch — each entry knows whether the pipeline needs extra
+# ``$unwind`` to make the group key scalar. All field paths prefixed `result.`.
 _AGG_GROUP_BY: dict[str, dict] = {
-    "linh_vuc":     {"unwind": "$thông tin chung.lĩnh vực", "field": "$thông tin chung.lĩnh vực"},
-    "co_quan":      {"field": "$thông tin chung.cơ quan ban hành"},
-    "nguoi_ky":     {"field": "$thông tin chung.người ký"},
-    "year":         {"field": {"$substr": ["$thông tin chung.ngày ban hành", 0, 4]}},
-    "nhom_vi_pham": {"unwind_vipham": True, "field": "$vi phạm.nhóm"},
-    "hanh_vi":      {"unwind_vipham": True, "field": "$vi phạm.hành vi vi phạm"},
+    "linh_vuc":     {"unwind": "$" + P_LINH_VUC,    "field": "$" + P_LINH_VUC},
+    "co_quan":      {"field": "$" + P_CO_QUAN},
+    "nguoi_ky":     {"field": "$" + P_NGUOI_KY},
+    "year":         {"field": {"$substr": ["$" + P_NGAY, 0, 4]}},
+    "nhom_vi_pham": {"unwind_vipham": True, "field": "$result.vi phạm.nhóm"},
+    "hanh_vi":      {"unwind_vipham": True, "field": "$result.vi phạm.hành vi vi phạm"},
 }
 
 _AGG_METRIC: dict[str, dict] = {
-    "count":     {"agg": {"$sum": 1},                                  "needs_vipham": False},
-    "sum_value": {"agg": {"$sum": "$vi phạm.giá trị triệu đồng"},      "needs_vipham": True},
-    "avg_value": {"agg": {"$avg": "$vi phạm.giá trị triệu đồng"},      "needs_vipham": True},
+    "count":     {"agg": {"$sum": 1},              "needs_vipham": False},
+    "sum_value": {"agg": {"$sum": "$" + P_GIA_TRI}, "needs_vipham": True},
+    "avg_value": {"agg": {"$avg": "$" + P_GIA_TRI}, "needs_vipham": True},
 }
 
 
@@ -370,19 +393,15 @@ def aggregate_ttcp(
         has_criminal=_parse_tri(has_criminal),
     )
 
-    pipeline: list[dict] = []
-    if f:
-        pipeline.append({"$match": f})
-    # Unwind vi phạm if metric (sum/avg of giá trị) OR group_by needs it.
+    pipeline: list[dict] = [{"$match": f}]
     if m["needs_vipham"] or g.get("unwind_vipham"):
-        pipeline.append({"$unwind": "$vi phạm"})
-    # Unwind a non-vi-phạm array group field (e.g. lĩnh vực).
+        pipeline.append({"$unwind": "$" + P_VI_PHAM})
     if "unwind" in g:
         pipeline.append({"$unwind": g["unwind"]})
 
     pipeline += [
         {"$group": {"_id": g["field"], "value": m["agg"]}},
-        # Drop empty buckets — extractor uses "" for missing string fields.
+        # Drop empty buckets (extractor uses "" / null for missing fields).
         {"$match": {"_id": {"$nin": [None, ""]}}},
         {"$sort": {"value": -1}},
         {"$limit": max(1, min(limit, 200))},
@@ -413,16 +432,18 @@ def aggregate_ttcp(
 def save_ttcp(ttcp_json: str) -> str:
     """Lưu kết luận thanh tra đã extract vào DB (upsert theo số văn bản).
 
-    `ttcp_json` là chuỗi JSON từ tool `extract_ttcp` — copy nguyên văn vào
-    đây, không reformat. Nếu số văn bản trùng → ghi đè (extract mới chính
-    xác hơn). Trả về `{số văn bản, matched, modified, upserted_id}`.
+    `ttcp_json` là chuỗi JSON từ tool `extract_ttcp` — copy nguyên văn, không
+    reformat. Tool sẽ tự bọc lại vào schema chuẩn của batch
+    (``{result: parsed, status: "done", source: "agent_upload", …}``) nên
+    sau khi save, tất cả tool read khác (find/search/list/aggregate) dùng
+    được ngay. Trả về `{số văn bản, matched, modified, upserted_id}`.
     """
     try:
-        doc = json.loads(ttcp_json)
+        parsed = json.loads(ttcp_json)
     except json.JSONDecodeError as exc:
         return json.dumps({"error": "invalid_json", "message": str(exc)}, ensure_ascii=False)
 
-    so_vb = _find_first_str(doc, {"số văn bản"})
+    so_vb = _find_first_str(parsed, {"số văn bản"})
     if not so_vb:
         return json.dumps({
             "error": "missing_key",
@@ -432,16 +453,50 @@ def save_ttcp(ttcp_json: str) -> str:
             ),
         }, ensure_ascii=False)
 
-    # Stamp flat key for cheap point-lookup. Idempotent.
-    doc[_FLAT_KEY] = so_vb
+    now = _now()
+    doc = {
+        # Synthetic _id distinct from batch's MinIO-key _id, so an agent
+        # upload doesn't clobber the batch row if both happen to cover the
+        # same kết luận.
+        "_id": f"agent/{so_vb}",
+        "source": "agent_upload",
+        "status": "done",
+        "version": 1,
+        "thinking": False,
+        "result": parsed,
+        "created_at": now,
+        "updated_at": now,
+    }
 
     try:
-        _store.ensure_text_index(_INDEX_FIELDS, name="ttcp_text_idx")
-        result = _store.upsert_one({_FLAT_KEY: so_vb}, doc)
+        _store.ensure_text_index(_INDEX_FIELDS, name=_INDEX_NAME)
+        # Upsert by the synthetic id — re-uploads of the same số văn bản
+        # overwrite the agent-side doc, batch rows untouched.
+        result = _store.upsert_one({"_id": doc["_id"]}, doc)
         return json.dumps({"số văn bản": so_vb, **result}, ensure_ascii=False)
     except Exception as exc:
         log.exception("save_ttcp failed")
         return json.dumps({"error": "db_error", "message": str(exc)}, ensure_ascii=False)
+
+
+def _prefix_result_keys(updates: dict) -> dict:
+    """Auto-prepend ``result.`` to user-supplied dotted keys.
+
+    The agent will pass keys like ``thông tin chung.người ký``. Real path
+    in the doc is ``result.thông tin chung.người ký`` — we add the prefix
+    unless the key already targets a top-level system field (``status``,
+    ``source``, ``version``, etc.) or already starts with ``result.``.
+    """
+    SYSTEM_FIELDS = {"status", "source", "version", "thinking", "updated_at",
+                     "last_error", "attempts"}
+    out: dict = {}
+    for k, v in updates.items():
+        top = k.split(".", 1)[0]
+        if k.startswith("result.") or top in SYSTEM_FIELDS:
+            out[k] = v
+        else:
+            out[f"result.{k}"] = v
+    return out
 
 
 @tool
@@ -449,10 +504,12 @@ def save_ttcp(ttcp_json: str) -> str:
 def update_ttcp(so_van_ban: str, updates_json: str) -> str:
     """Cập nhật field cụ thể của kết luận (theo số văn bản).
 
-    `updates_json` dùng dotted-key — vd:
-    `{"thông tin chung.người ký": "Nguyễn Văn A"}` hoặc
-    `{"vi phạm.0.giá trị triệu đồng": 1500}`.
-    Mỗi key apply qua `$set`. Trả về `{matched, modified}`.
+    `updates_json` dùng dotted-key dựa trên schema ``result.*``. Có thể bỏ
+    qua tiền tố `result.` — tool tự thêm. Ví dụ:
+        `{"thông tin chung.người ký": "Nguyễn Văn A"}`
+        `{"vi phạm.0.giá trị triệu đồng": 1500}`
+    Trả về `{matched, modified}`. Lưu ý: nếu cùng số văn bản tồn tại 2 doc
+    (batch + agent_upload), tool chỉ update doc đầu tiên match.
     """
     try:
         updates = json.loads(updates_json)
@@ -461,7 +518,9 @@ def update_ttcp(so_van_ban: str, updates_json: str) -> str:
     if not isinstance(updates, dict) or not updates:
         return json.dumps({"error": "empty_updates"}, ensure_ascii=False)
     try:
-        result = _store.update_one(_id_filter(so_van_ban), updates)
+        prefixed = _prefix_result_keys(updates)
+        prefixed["updated_at"] = _now()
+        result = _store.update_one(_so_vb_filter(so_van_ban), prefixed)
         return json.dumps({"số văn bản": so_van_ban, **result}, ensure_ascii=False)
     except Exception as exc:
         log.exception("update_ttcp failed")
@@ -473,12 +532,13 @@ def update_ttcp(so_van_ban: str, updates_json: str) -> str:
 def delete_ttcp(so_van_ban: str) -> str:
     """Xoá kết luận khỏi DB theo số văn bản. Không khôi phục được.
 
-    Lưu ý: batch sẽ KHÔNG tự tạo lại doc đã xoá (vì _id batch dùng là
-    object-key MinIO). Để re-extract, dùng `extention_/ttcp_batch
-    --retry-failed` hoặc reset doc trực tiếp trong mongo. Trả về `{deleted}`.
+    Lưu ý: nếu doc đến từ batch (``_id`` là object-key MinIO), lần
+    ``ttcp_batch sync`` tiếp theo sẽ tạo lại record ``pending`` cho file đó
+    (rồi extract lại). Để xoá vĩnh viễn, xoá cả file trên MinIO. Trả về
+    `{deleted}`.
     """
     try:
-        deleted = _store.delete_one(_id_filter(so_van_ban))
+        deleted = _store.delete_one(_so_vb_filter(so_van_ban))
         return json.dumps(
             {"số văn bản": so_van_ban, "deleted": deleted}, ensure_ascii=False,
         )
@@ -507,13 +567,15 @@ delete_ttcp.metadata = {
 }
 find_ttcp.metadata = {
     "prompt_hint": (
-        "Tra cứu 1 kết luận theo số văn bản (read-only, trả về full doc — có thể lớn)."
+        "Tra cứu 1 kết luận theo số văn bản (read-only, trả full doc — có thể lớn). "
+        "Dùng find_ttcp thay vì search_ttcp khi đã biết số văn bản chính xác."
     ),
 }
 search_ttcp.metadata = {
     "prompt_hint": (
         "Full-text search kết luận theo nội dung vi phạm / kiến nghị / đối tượng "
-        "(read-only). Trả tóm tắt, không full doc."
+        "(read-only). Trả tóm tắt, không full doc. KHÔNG dùng để tra số văn bản — "
+        "dùng find_ttcp."
     ),
 }
 list_ttcp.metadata = {
