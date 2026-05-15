@@ -114,6 +114,11 @@ def _info_section(tic: dict) -> str:
     else:
         nguoi = _DASH
 
+    # v2 schema introduces ngày công bố / ngày kết thúc / hình thức / đơn vị
+    # chủ trì. For v1 docs still in the DB during transition, these come back
+    # empty → _esc renders em-dash. "Đơn vị chủ trì" falls back to "cơ quan
+    # ban hành" so v1 docs aren't blank.
+    don_vi_chu_tri = tic.get("đơn vị chủ trì") or tic.get("cơ quan ban hành", "")
     cards = [
         _info_card("Tên cuộc thanh tra", _esc(tic.get("nội dung thanh tra")),
                    full=True, accent="red"),
@@ -124,10 +129,10 @@ def _info_section(tic: dict) -> str:
         _info_card("Quyết định / Kết luận", _esc_or(qd_kl, _DASH)),
         _info_card("Ngày ban hành", _esc(tic.get("ngày ban hành"))),
         _info_card("Người ra QĐ / Đoàn thanh tra", nguoi),
-        _info_card("Ngày công bố KL", _DASH),
-        _info_card("Đơn vị chủ trì", _esc(tic.get("cơ quan ban hành"))),
-        _info_card("Ngày kết thúc thanh tra", _DASH),
-        _info_card("Hình thức thanh tra", _DASH),
+        _info_card("Ngày công bố KL", _esc(tic.get("ngày công bố"))),
+        _info_card("Đơn vị chủ trì", _esc(don_vi_chu_tri)),
+        _info_card("Ngày kết thúc thanh tra", _esc(tic.get("ngày kết thúc thanh tra"))),
+        _info_card("Hình thức thanh tra", _esc(tic.get("hình thức thanh tra"))),
         _info_card("Lĩnh vực", _join(tic.get("lĩnh vực"))),
     ]
     return f"""        <section class="mb-12">
@@ -161,12 +166,16 @@ def _narrative_section(vi_pham: list) -> str:
         nghiem_trong = v.get("dấu hiệu tội phạm") is True
         hanh_vi = _esc(v.get("hành vi vi phạm"))
         dieu_khoan = (v.get("căn cứ vi phạm") or "").strip()
-        hau_qua = (v.get("mô tả") or "").strip()
+        # v2: dedicated "hậu quả" field; v1 fallback to "mô tả".
+        hau_qua = (v.get("hậu quả") or v.get("mô tả") or "").strip()
+        nguyen_nhan = (v.get("nguyên nhân") or "").strip()
         meta_parts = []
         if dieu_khoan:
             meta_parts.append(f"Điều khoản: {html.escape(dieu_khoan)}")
         if hau_qua:
             meta_parts.append(f"Hậu quả: {html.escape(hau_qua)}")
+        if nguyen_nhan:
+            meta_parts.append(f"Nguyên nhân: {html.escape(nguyen_nhan)}")
         meta = " | ".join(meta_parts) if meta_parts else f"Hậu quả: {_NOT_STATED}."
 
         if nghiem_trong:
@@ -194,28 +203,47 @@ def _narrative_section(vi_pham: list) -> str:
         </section>"""
 
 
+def _kn_cell(value: str, *, accent: str) -> str:
+    """One cell of the Kiến nghị column trio. `accent` ∈ {hinh_su, hanh_chinh,
+    kinh_te} styles the text to match the rest of the row when filled."""
+    v = (value or "").strip()
+    if not v:
+        return '<td class="empty-dash">—</td>'
+    cls = {
+        "hinh_su": "text-[#a3171e] font-bold text-[13px]",
+        "hanh_chinh": "font-medium text-[13px]",
+        "kinh_te": "text-[#8a1319] font-bold text-[13px]",
+    }[accent]
+    return f'<td class="{cls}">{html.escape(v)}</td>'
+
+
 def _detail_table(vi_pham: list) -> str:
     """Mục II — Bảng chi tiết vi phạm.
 
-    Cột 'Kiến nghị xử lý' (Hình sự / Hành chính / Kinh tế) là per-violation —
-    schema hiện chỉ có flag `dấu hiệu tội phạm`, nên cột Hình sự suy ra từ
-    flag đó; Hành chính / Kinh tế để em-dash (xem Mục III cho kiến nghị chung).
+    Cột 'Kiến nghị xử lý' (Hình sự / Hành chính / Kinh tế) đọc trực tiếp từ
+    `v["kiến nghị"]` của schema v2. Với doc v1 còn lại (chưa re-extract):
+    cột Hình sự fallback suy từ flag `dấu hiệu tội phạm`; Hành chính / Kinh
+    tế giữ em-dash (Mục III sẽ hiển thị kiến nghị chung).
     """
     rows = []
     for i, v in enumerate(vi_pham or [], 1):
         if not isinstance(v, dict):
             continue
         nghiem_trong = v.get("dấu hiệu tội phạm") is True
-        hau_qua = (v.get("mô tả") or "").strip()
+        # v2: dedicated "hậu quả"; v1 fallback to "mô tả".
+        hau_qua = (v.get("hậu quả") or v.get("mô tả") or "").strip()
         gt = v.get("giá trị triệu đồng")
         if isinstance(gt, (int, float)):
             hau_qua = f"{hau_qua} (Giá trị: {_num(gt)} triệu đồng)".strip()
-        hinh_su = (
-            '<td class="text-[#a3171e] font-bold text-[13px]">Có dấu hiệu tội phạm — '
-            "kiến nghị chuyển cơ quan điều tra</td>"
-            if nghiem_trong
-            else '<td class="empty-dash">—</td>'
-        )
+
+        # v2: per-violation kiến nghị; v1: derive Hình sự from flag, others "—".
+        kn = v.get("kiến nghị") if isinstance(v.get("kiến nghị"), dict) else {}
+        hs_text = kn.get("hình sự", "")
+        hc_text = kn.get("hành chính", "")
+        kt_text = kn.get("kinh tế", "")
+        if not hs_text and nghiem_trong:
+            hs_text = "Có dấu hiệu tội phạm — kiến nghị chuyển cơ quan điều tra"
+
         tr_cls = ' class="bg-red-50/40 hover:bg-red-100"' if nghiem_trong else ""
         stt_cls = "text-[#a3171e]" if nghiem_trong else "text-gray-500"
         rows.append(f"""                <tr{tr_cls}>
@@ -225,9 +253,9 @@ def _detail_table(vi_pham: list) -> str:
                   <td class="italic text-[13px] text-gray-600">{_esc(v.get("căn cứ vi phạm"))}</td>
                   <td>{_esc_or(hau_qua, _NOT_STATED)}</td>
                   <td>{_esc(v.get("trách nhiệm"))}</td>
-                  {hinh_su}
-                  <td class="empty-dash">—</td>
-                  <td class="empty-dash">—</td>
+                  {_kn_cell(hs_text, accent="hinh_su")}
+                  {_kn_cell(hc_text, accent="hanh_chinh")}
+                  {_kn_cell(kt_text, accent="kinh_te")}
                 </tr>""")
     body = "\n".join(rows) or (
         '                <tr><td colspan="9" class="empty-dash">' + _NOT_STATED + "</td></tr>"

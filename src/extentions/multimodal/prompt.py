@@ -154,11 +154,25 @@ NGUYÊN TẮC BẮT BUỘC:
 1. CHỈ ghi những gì có trong văn bản. Không suy diễn, không bịa, không tự tính toán.
 2. Nếu một trường không tìm thấy trong văn bản, để giá trị là null (số) hoặc "" (chuỗi) hoặc [] (mảng). Không bỏ trường.
 3. Không tự cộng tổng. Nếu văn bản không nêu con số tổng thì để null.
-4. Số tiền: luôn lưu dạng số nguyên, đơn vị triệu đồng. Ví dụ "4.896 triệu đồng" → 4896. Nếu là USD thì ghi chú rõ trong trường "mo ta".
+4. Số tiền: luôn lưu dạng số nguyên, đơn vị triệu đồng. Ví dụ "4.896 triệu đồng" → 4896. Nếu là USD thì ghi chú rõ trong trường "mô tả".
 5. Ngày tháng: định dạng YYYY-MM-DD. Nếu chỉ có tháng/năm thì ghi YYYY-MM.
-6. "hanh vi vi pham": dùng đúng ngôn từ pháp lý trong văn bản, không paraphrase.
-7. "dau hieu toi pham": chỉ ghi true nếu văn bản có từ "dấu hiệu tội phạm", "chuyển cơ quan điều tra", "khởi tố" hoặc tương đương. Mặc định false.
-8. Mỗi vi phạm là một object riêng trong mảng "vi pham". Không gộp nhiều vi phạm vào một object.
+6. "hành vi vi phạm": dùng đúng ngôn từ pháp lý trong văn bản, không paraphrase.
+7. "dấu hiệu tội phạm": chỉ ghi true nếu văn bản có từ "dấu hiệu tội phạm", "chuyển cơ quan điều tra", "khởi tố" hoặc tương đương. Mặc định false.
+8. Mỗi vi phạm là một object riêng trong mảng "vi phạm". Không gộp nhiều vi phạm vào một object.
+9. PHÂN BIỆT "mô tả" và "hậu quả":
+   - "mô tả": tường thuật SỰ VIỆC (đã làm gì, làm như thế nào, ở đâu, khi nào).
+   - "hậu quả": KẾT QUẢ định tính/định lượng (gây thiệt hại gì, ảnh hưởng gì, số tiền thất thoát).
+10. KIẾN NGHỊ XỬ LÝ — quy tắc tách hai cấp:
+    - "vi phạm[i].kiến nghị.{hình sự,hành chính,kinh tế}" (per-violation):
+      CHỈ điền nếu văn bản nêu rõ kiến nghị cho VI PHẠM CỤ THỂ này — qua STT,
+      đối tượng vi phạm, hành vi, hoặc số tiền cụ thể của vi phạm đó. KHÔNG
+      phỏng đoán. Mỗi loại điền 1 chuỗi (chép hoặc paraphrase ngắn từ văn bản).
+      Nếu không có kiến nghị riêng cho vi phạm đó, để chuỗi rỗng "".
+    - "kiến nghị xử lý" (cấp document):
+      Mọi kiến nghị CHUNG CHUNG / CROSS-CUTTING không gắn vi phạm cụ thể nào
+      (vd "Chấn chỉnh công tác quản lý nhà nước", "Truy thu các khoản tiền
+      thu sai") → đặt ở đây. Không lặp lại nội dung đã đặt vào vi phạm[i].kiến nghị.
+11. "hậu quả định lượng" — nếu văn bản nêu số tiền thiệt hại cụ thể cho vi phạm, ghi luôn vào "vi phạm.giá trị triệu đồng" và mô tả ngắn vào "vi phạm.hậu quả".
 
 ---
 
@@ -169,7 +183,11 @@ JSON SCHEMA CẦN ĐIỀN:
     "số văn bản": "",
     "loại văn bản": "",
     "ngày ban hành": "",
+    "ngày công bố": "",
+    "ngày kết thúc thanh tra": "",
+    "hình thức thanh tra": "",
     "cơ quan ban hành": "",
+    "đơn vị chủ trì": "",
     "người ký": "",
     "chức vụ người ký": "",
     "đối tượng thanh tra": "",
@@ -187,8 +205,15 @@ JSON SCHEMA CẦN ĐIỀN:
       "hành vi vi phạm": "",
       "mô tả": "",
       "căn cứ vi phạm": "",
-      "giá trị triệu đồng": null,
+      "hậu quả": "",
+      "nguyên nhân": "",
       "trách nhiệm": "",
+      "kiến nghị": {
+        "hình sự": "",
+        "hành chính": "",
+        "kinh tế": ""
+      },
+      "giá trị triệu đồng": null,
       "dấu hiệu tội phạm": false
     }
   ],
@@ -216,25 +241,42 @@ HƯỚNG DẪN TỪNG TRƯỜNG:
 "thông tin chung"
 - "số văn bản": số hiệu văn bản, ví dụ "2280/TB-TTCP"
 - "loại văn bản": ví dụ "Kết luận thanh tra", "Thông báo kết luận thanh tra", "Quyết định xử phạt"
+- "ngày ban hành": ngày văn bản được ký ban hành.
+- "ngày công bố": ngày Thông báo kết luận được công bố công khai (khác với "ngày ban hành" của Kết luận gốc). Nếu văn bản chỉ có 1 ngày → để trống "ngày công bố".
+- "ngày kết thúc thanh tra": ngày kết thúc cuộc thanh tra (thường trong phần mở đầu hoặc phần căn cứ). YYYY-MM-DD hoặc YYYY-MM.
+- "hình thức thanh tra": "Thường xuyên" / "Đột xuất" / "Chuyên đề" — chép theo văn bản.
+- "cơ quan ban hành": cơ quan đứng tên văn bản (vd "Thanh tra Chính phủ", "UBND tỉnh X").
+- "đơn vị chủ trì": cục/vụ/đoàn trực tiếp thực hiện cuộc thanh tra (vd "Cục I, Cục XIV", "Đoàn thanh tra theo Quyết định số ..."). Khác và cụ thể hơn "cơ quan ban hành". Để "" nếu văn bản không nêu.
 - "chức vụ người ký": chép nguyên văn, kể cả "KT. Tổng Thanh tra - Phó Tổng Thanh tra"
-- "lĩnh vực": mảng, ví dụ ["đất đai", "xăng dầu", "đầu tư xây dựng"]
-- "thời kỳ thanh tra": ví dụ "2010-01 / 2013-06"
+- "lĩnh vực": mảng, ví dụ ["đất đai", "xăng dầu", "đầu tư xây dựng", "khoáng sản"]
+- "thời kỳ thanh tra": khoảng thời gian được thanh tra (vd "2010-01 / 2013-06" hoặc "2011-2017")
 - "văn bản liên quan": các quyết định thanh tra, kết luận gốc, văn bản chỉ đạo được nhắc đến
 
 "vi phạm"
 - "nhóm": nhóm vi phạm lớn mà văn bản phân chia, ví dụ "Quản lý vốn và cổ phần hoá", "Quản lý sử dụng đất"
+- "đối tượng vi phạm": tổ chức/cá nhân thực hiện hành vi vi phạm
 - "hành vi vi phạm": tên hành vi ngắn gọn, đúng ngôn từ pháp lý
-- "mô tả": chi tiết sự việc, số liệu cụ thể, tên tổ chức/cá nhân liên quan
+- "mô tả": tường thuật sự việc — đã làm gì, làm như thế nào, ở đâu, khi nào
 - "căn cứ vi phạm": điều, khoản, văn bản pháp luật bị vi phạm
-- "giá trị triệu đồng": chỉ điền nếu văn bản nêu rõ giá trị bằng tiền, đơn vị triệu đồng
+- "hậu quả": kết quả định tính/định lượng của hành vi (vd "thất thoát ngân sách 45 tỷ", "ảnh hưởng quyền tiếp cận thông tin", "tiềm ẩn rủi ro thất thu"). Phân biệt rõ với "mô tả".
+- "nguyên nhân": chỉ ghi nếu văn bản nêu nguyên nhân (vd "buông lỏng quản lý", "chậm ban hành văn bản hướng dẫn"). Mặc định "".
 - "trách nhiệm": tên tổ chức, cá nhân, chức vụ bị xác định có trách nhiệm
+- "kiến nghị": object 3 trường, mỗi trường là 1 chuỗi:
+    - "hình sự": kiến nghị chuyển cơ quan điều tra / khởi tố CHO RIÊNG vi phạm này. Nếu chỉ có "dấu hiệu tội phạm" mà chưa có kiến nghị cụ thể → để "".
+    - "hành chính": kiến nghị kiểm điểm / kỷ luật / xử phạt hành chính CHO RIÊNG vi phạm này (vd "Kiểm điểm trách nhiệm UBND tỉnh", "Xử phạt vi phạm hành chính về đất đai").
+    - "kinh tế": kiến nghị truy thu / thu hồi / hoàn trả tiền CHO RIÊNG vi phạm này (vd "Truy thu 45 tỷ tiền sử dụng đất").
+  Nguyên tắc: ưu tiên copy text gốc ngắn gọn; không có kiến nghị riêng cho vi phạm này → "". Tránh trùng lặp với "kiến nghị xử lý" cấp document.
+- "giá trị triệu đồng": chỉ điền nếu văn bản nêu rõ giá trị bằng tiền của VI PHẠM NÀY, đơn vị triệu đồng
+- "dấu hiệu tội phạm": true nếu văn bản nói rõ vi phạm này có dấu hiệu tội phạm / chuyển CQĐT / khởi tố. Mặc định false.
 
-"kiến nghị xử lý"
-- "chính sách": mảng chuỗi, mỗi phần tử là 1 kiến nghị về cơ chế/chính sách/pháp luật
-- "kinh tế": mảng chuỗi, mỗi phần tử là 1 kiến nghị thu hồi tiền, hoàn trả, truy thu
-- "trách nhiệm": mảng chuỗi, mỗi phần tử là 1 kiến nghị kiểm điểm/kỷ luật/xử lý hành chính
-- "hình sự": mảng object, chỉ điền nếu có kiến nghị chuyển CQĐT hoặc khởi tố
+"kiến nghị xử lý" (cấp document — chỉ kiến nghị CHUNG)
+- "chính sách": mảng chuỗi, mỗi phần tử là 1 kiến nghị về cơ chế/chính sách/pháp luật chung
+- "kinh tế": mảng chuỗi, kiến nghị thu hồi/truy thu/hoàn trả KHÔNG gắn vi phạm cụ thể
+- "trách nhiệm": mảng chuỗi, kiến nghị kiểm điểm/kỷ luật chung
+- "hình sự": mảng object, kiến nghị chuyển CQĐT / khởi tố KHÔNG đã gắn vào vi phạm[i].kiến nghị.hình sự
 - "tình trạng": "kiến nghị chuyển điều tra" / "đã chuyển" / "đã khởi tố"
+
+LƯU Ý: nếu kiến nghị đã được đặt vào "vi phạm[i].kiến nghị" thì KHÔNG lặp lại ở "kiến nghị xử lý" cấp doc.
 
 ---
 

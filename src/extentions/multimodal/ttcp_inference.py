@@ -4,7 +4,18 @@ import io
 import json
 import logging
 import os
+import sys
+from pathlib import Path
+
 from dotenv import load_dotenv
+
+# Allow `python src/extentions/multimodal/ttcp_inference.py` direct-script
+# execution to resolve `harness.*` imports (the report renderer below). The
+# `python -m ...` form doesn't need this, but it's harmless when present.
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
 # Load variables from .env into the environment
 load_dotenv()
 import litellm
@@ -18,6 +29,7 @@ litellm_logger.propagate = False
 from litellm import acompletion
 from src.extentions.multimodal.prompt import ttcp_extract_prompt,ttcp_system_prompt
 from src.extentions.multimodal.make import pdf_to_corrected_images
+from harness.tools.ttcp_report import _build_html, _safe_filename
 
 VLLM_BASE_URL = os.getenv("VLLM_BASE_URL", "http://192.168.120.12:2900/v1")
 VLLM_MODEL_NAME = os.getenv("VLLM_MODEL_NAME", "cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit")
@@ -75,6 +87,38 @@ import asyncio
 import io
 
 
+_REPORTS_DIR = Path("reports")
+
+
+def render_report(result_text: str) -> Path | None:
+    """Build the standard HTML report from one extraction result.
+
+    Wraps `result_text` (the JSON string from `process_pdf`) into the same
+    shape the Mongo doc would have (``{"result": parsed}``), feeds it to
+    the canonical `_build_html` from harness/tools/ttcp_report, writes the
+    output under ``./reports/<số văn bản>.html``. Returns the file path.
+
+    Returns None if the model output isn't valid JSON (logs and skips).
+    """
+    try:
+        parsed = json.loads(result_text) if isinstance(result_text, str) else result_text
+    except (json.JSONDecodeError, TypeError):
+        print("⚠️  model output is not valid JSON — skipping report render")
+        return None
+    if not isinstance(parsed, dict):
+        print(f"⚠️  unexpected result shape: {type(parsed).__name__} — skipping report")
+        return None
+
+    so_vb = ((parsed.get("thông tin chung") or {}).get("số văn bản") or "ttcp").strip() or "ttcp"
+    doc = {"result": parsed}
+    html_text = _build_html(doc)
+
+    _REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = _REPORTS_DIR / f"{_safe_filename(so_vb)}.html"
+    out_path.write_text(html_text, encoding="utf-8")
+    return out_path
+
+
 async def infer(file_path: str):
     with open(file_path, "rb") as f:
         pdf_bytesio = io.BytesIO(f.read())
@@ -84,6 +128,10 @@ async def infer(file_path: str):
     print(f"\n{'=' * 30}")
     print(file_path)
     print(result)
+
+    out_path = render_report(result)
+    if out_path:
+        print(f"→ report: {out_path.resolve()}")
 
     return result
 
