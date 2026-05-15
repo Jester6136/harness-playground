@@ -156,12 +156,34 @@ def _rec_line(label: str, tag_class: str, text: str, *, money: bool = False) -> 
     )
 
 
-def _narrative_section(vi_pham: list) -> str:
-    """Mục I — Trích lược vi phạm (cards compact).
+def _line_primary(label: str, text: str) -> str:
+    """First-class card line: bold red label + dark text. Missing → 'Chưa rõ'."""
+    body = html.escape(text.strip()) if text.strip() else '<span class="unknown">Chưa rõ</span>'
+    return (
+        f'<p class="text-sm text-gray-800">'
+        f'<span class="font-bold text-[#8a1319]">{label}:</span> {body}</p>'
+    )
 
-    Mỗi card gồm: badge STT, dòng "Hành vi:", dòng meta italic (Điều khoản /
-    Hậu quả / Nguyên nhân), và một `rec-block` ở dưới với các tag pill
-    (Hành chính / Kinh tế / Hình sự) — chỉ hiển thị tag nào có nội dung.
+
+def _line_meta(label: str, text: str) -> str:
+    """Secondary field-line: smaller, field-label style. Missing → 'Chưa rõ'."""
+    body = html.escape(text.strip()) if text.strip() else '<span class="unknown">Chưa rõ</span>'
+    return (
+        f'<p class="field-line">'
+        f'<span class="field-label">{label}:</span> {body}</p>'
+    )
+
+
+def _narrative_section(vi_pham: list) -> str:
+    """Mục I — Trích lược vi phạm (cards V3).
+
+    Mỗi card gồm: badge STT, các dòng tách bạch theo template V3:
+      - Hành vi (first-class) — luôn render
+      - Điều khoản vi phạm (field-line) — fallback "Chưa rõ"
+      - Hậu quả (first-class, có thể kèm giá trị triệu đồng) — fallback "Chưa rõ"
+      - Nguyên nhân (field-line) — CHỈ render nếu có nội dung
+    Cuối card là `rec-block` với tag pills (Hành chính / Kinh tế / Hình sự) —
+    chỉ hiển thị tag nào có nội dung.
     """
     if not vi_pham:
         body = (
@@ -181,19 +203,24 @@ def _narrative_section(vi_pham: list) -> str:
         if not isinstance(v, dict):
             continue
         nghiem_trong = v.get("dấu hiệu tội phạm") is True
-        hanh_vi = _esc(v.get("hành vi vi phạm"))
+        hanh_vi = (v.get("hành vi vi phạm") or "").strip()
         dieu_khoan = (v.get("căn cứ vi phạm") or "").strip()
         # v2: dedicated "hậu quả" field; v1 fallback to "mô tả".
-        hau_qua = (v.get("hậu quả") or v.get("mô tả") or "").strip()
+        hau_qua_text = (v.get("hậu quả") or v.get("mô tả") or "").strip()
+        gt = v.get("giá trị triệu đồng")
+        if isinstance(gt, (int, float)) and hau_qua_text:
+            hau_qua_text = f"{hau_qua_text} (Giá trị: {_num(gt)} triệu đồng)"
+        elif isinstance(gt, (int, float)):
+            hau_qua_text = f"(Giá trị: {_num(gt)} triệu đồng)"
         nguyen_nhan = (v.get("nguyên nhân") or "").strip()
-        meta_parts = []
-        if dieu_khoan:
-            meta_parts.append(f"Điều khoản: {html.escape(dieu_khoan)}")
-        if hau_qua:
-            meta_parts.append(f"Hậu quả: {html.escape(hau_qua)}")
+
+        lines = [
+            "              " + _line_primary("Hành vi", hanh_vi),
+            "              " + _line_meta("Điều khoản vi phạm", dieu_khoan),
+            "              " + _line_primary("Hậu quả", hau_qua_text),
+        ]
         if nguyen_nhan:
-            meta_parts.append(f"Nguyên nhân: {html.escape(nguyen_nhan)}")
-        meta = " | ".join(meta_parts) if meta_parts else f"Hậu quả: {_NOT_STATED}."
+            lines.append("              " + _line_meta("Nguyên nhân", nguyen_nhan))
 
         # Per-violation kiến nghị → rec-block tag lines.
         kn = v.get("kiến nghị") if isinstance(v.get("kiến nghị"), dict) else {}
@@ -212,10 +239,9 @@ def _narrative_section(vi_pham: list) -> str:
         if hs_text:
             rec_lines.append(_rec_line("Hình sự", "tag-crim", hs_text))
 
-        rec_block = ""
         if rec_lines:
-            rec_block = (
-                '\n              <div class="rec-block">\n'
+            lines.append(
+                '              <div class="rec-block">\n'
                 '                <span class="rec-title">Kiến nghị xử lý</span>\n'
                 + "\n".join(rec_lines)
                 + "\n              </div>"
@@ -224,8 +250,7 @@ def _narrative_section(vi_pham: list) -> str:
         cards.append(f"""          <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
             <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">{i}</span>
             <div class="space-y-1">
-              <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> {hanh_vi}</p>
-              <p class="text-[13px] text-gray-500 italic">{meta}</p>{rec_block}
+{chr(10).join(lines)}
             </div>
           </div>""")
 
@@ -566,6 +591,22 @@ _CSS = """        .tt-report-container {
         }
         .tt-report-container .rec-text.eco-money {
             font-weight: 600;
+            color: #8a1319;
+        }
+        /* "Chưa rõ" placeholder */
+        .tt-report-container .unknown {
+            color: #1f2937;
+            font-style: normal;
+            font-weight: 500;
+        }
+        .tt-report-container .field-line {
+            font-size: 0.8rem;
+            color: #1f2937;
+            margin: 0.15rem 0;
+            line-height: 1.45;
+        }
+        .tt-report-container .field-label {
+            font-weight: 700;
             color: #8a1319;
         }
         @media print {
