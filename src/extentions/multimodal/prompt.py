@@ -162,16 +162,47 @@ NGUYÊN TẮC BẮT BUỘC:
 9. PHÂN BIỆT "mô tả" và "hậu quả":
    - "mô tả": tường thuật SỰ VIỆC (đã làm gì, làm như thế nào, ở đâu, khi nào).
    - "hậu quả": KẾT QUẢ định tính/định lượng (gây thiệt hại gì, ảnh hưởng gì, số tiền thất thoát).
-10. KIẾN NGHỊ XỬ LÝ — quy tắc tách hai cấp:
-    - "vi phạm[i].kiến nghị.{hình sự,hành chính,kinh tế}" (per-violation):
-      CHỈ điền nếu văn bản nêu rõ kiến nghị cho VI PHẠM CỤ THỂ này — qua STT,
-      đối tượng vi phạm, hành vi, hoặc số tiền cụ thể của vi phạm đó. KHÔNG
-      phỏng đoán. Mỗi loại điền 1 chuỗi (chép hoặc paraphrase ngắn từ văn bản).
-      Nếu không có kiến nghị riêng cho vi phạm đó, để chuỗi rỗng "".
-    - "kiến nghị xử lý" (cấp document):
-      Mọi kiến nghị CHUNG CHUNG / CROSS-CUTTING không gắn vi phạm cụ thể nào
-      (vd "Chấn chỉnh công tác quản lý nhà nước", "Truy thu các khoản tiền
-      thu sai") → đặt ở đây. Không lặp lại nội dung đã đặt vào vi phạm[i].kiến nghị.
+10. KIẾN NGHỊ XỬ LÝ — chia per-violation và doc-level:
+
+    A. "vi phạm[i].kiến nghị" (per-violation) — 3 cột Hành chính / Kinh tế /
+       Hình sự, mỗi cột là 1 chuỗi. Quy tắc per-cột:
+
+       • "hành chính" — GẦN NHƯ LUÔN ĐIỀN cho mọi vi phạm hành chính. Mặc
+         định mỗi vi phạm hành chính đều có kiến nghị dạng "chấn chỉnh /
+         kiểm điểm / rút kinh nghiệm". Cách điền:
+         (1) Ưu tiên copy ngắn gọn nếu văn bản có kiến nghị cụ thể cho vi
+             phạm này (qua STT, đối tượng, hành vi).
+         (2) Nếu văn bản chỉ nêu chung, paraphrase ngắn theo bản chất vi
+             phạm. Ví dụ:
+              - Ban hành QĐ sai quy trình → "Kiểm điểm trách nhiệm, xử lý theo thẩm quyền"
+              - Quy hoạch thiếu căn cứ → "Chấn chỉnh, rà soát, khắc phục"
+              - Chậm phê duyệt / chậm thực hiện → "Chấn chỉnh, rút kinh nghiệm"
+              - Chưa công khai / thiếu minh bạch → "Chấn chỉnh; thực hiện đúng quy định công khai"
+              - Cấp phép sai / giao đất sai → "Xử phạt vi phạm hành chính theo quy định"
+              - Quản lý buông lỏng → "Chấn chỉnh quy trình quản lý, giám sát"
+         Để TRỐNG là CỜ ĐỎ — chỉ trống khi vi phạm rõ ràng không cần kiến
+         nghị hành chính (rất hiếm).
+
+       • "kinh tế" — SPARSE, chỉ điền khi:
+         (1) Vi phạm có "giá trị triệu đồng" không null → điền cụ thể, vd
+             "Truy thu X triệu đồng" / "Thu hồi nộp ngân sách X triệu đồng".
+         (2) Hoặc văn bản nói rõ kiến nghị thu hồi/truy thu/hoàn trả cho
+             đúng vi phạm này.
+         Không có gì cụ thể → "".
+
+       • "hình sự" — SPARSE, chỉ điền khi:
+         (1) "dấu hiệu tội phạm" = true → "Nếu phát hiện dấu hiệu vi phạm
+             hình sự thì chuyển cơ quan điều tra".
+         (2) Hoặc văn bản nói rõ chuyển CQĐT / khởi tố cho vi phạm này.
+         Không có → "".
+
+    B. "kiến nghị xử lý" (doc-level) — CHỈ giữ kiến nghị thật sự cross-
+       cutting, KHÔNG quy được về 1 vi phạm cụ thể nào:
+       • "chính sách": cơ chế / chính sách / pháp luật chung (luôn ở đây).
+       • "kinh tế" / "trách nhiệm" / "hình sự": chỉ giữ những kiến nghị không
+         đặt được vào vi phạm cụ thể. Nếu đã đặt vào "vi phạm[i].kiến nghị"
+         thì KHÔNG lặp lại ở đây.
+
 11. "hậu quả định lượng" — nếu văn bản nêu số tiền thiệt hại cụ thể cho vi phạm, ghi luôn vào "vi phạm.giá trị triệu đồng" và mô tả ngắn vào "vi phạm.hậu quả".
 
 ---
@@ -261,11 +292,17 @@ HƯỚNG DẪN TỪNG TRƯỜNG:
 - "hậu quả": kết quả định tính/định lượng của hành vi (vd "thất thoát ngân sách 45 tỷ", "ảnh hưởng quyền tiếp cận thông tin", "tiềm ẩn rủi ro thất thu"). Phân biệt rõ với "mô tả".
 - "nguyên nhân": chỉ ghi nếu văn bản nêu nguyên nhân (vd "buông lỏng quản lý", "chậm ban hành văn bản hướng dẫn"). Mặc định "".
 - "trách nhiệm": tên tổ chức, cá nhân, chức vụ bị xác định có trách nhiệm
-- "kiến nghị": object 3 trường, mỗi trường là 1 chuỗi:
-    - "hình sự": kiến nghị chuyển cơ quan điều tra / khởi tố CHO RIÊNG vi phạm này. Nếu chỉ có "dấu hiệu tội phạm" mà chưa có kiến nghị cụ thể → để "".
-    - "hành chính": kiến nghị kiểm điểm / kỷ luật / xử phạt hành chính CHO RIÊNG vi phạm này (vd "Kiểm điểm trách nhiệm UBND tỉnh", "Xử phạt vi phạm hành chính về đất đai").
-    - "kinh tế": kiến nghị truy thu / thu hồi / hoàn trả tiền CHO RIÊNG vi phạm này (vd "Truy thu 45 tỷ tiền sử dụng đất").
-  Nguyên tắc: ưu tiên copy text gốc ngắn gọn; không có kiến nghị riêng cho vi phạm này → "". Tránh trùng lặp với "kiến nghị xử lý" cấp document.
+- "kiến nghị": object 3 trường, mỗi trường là 1 chuỗi. Xem quy tắc 10A ở
+  trên cho cách điền chi tiết:
+    - "hành chính": GẦN NHƯ LUÔN ĐIỀN — copy text gốc nếu có, hoặc
+      paraphrase generic ("Kiểm điểm trách nhiệm, xử lý theo thẩm quyền",
+      "Chấn chỉnh, rà soát, khắc phục", "Chấn chỉnh, rút kinh nghiệm"...)
+      theo bản chất vi phạm.
+    - "kinh tế": chỉ điền nếu có "giá trị triệu đồng" hoặc kiến nghị truy
+      thu cụ thể (vd "Truy thu 45 tỷ tiền sử dụng đất"). Không có → "".
+    - "hình sự": chỉ điền nếu "dấu hiệu tội phạm"=true hoặc văn bản nói rõ
+      chuyển CQĐT (vd "Nếu phát hiện dấu hiệu vi phạm hình sự thì chuyển
+      cơ quan điều tra"). Không có → "".
 - "giá trị triệu đồng": chỉ điền nếu văn bản nêu rõ giá trị bằng tiền của VI PHẠM NÀY, đơn vị triệu đồng
 - "dấu hiệu tội phạm": true nếu văn bản nói rõ vi phạm này có dấu hiệu tội phạm / chuyển CQĐT / khởi tố. Mặc định false.
 
