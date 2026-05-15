@@ -81,78 +81,95 @@ def _safe_filename(so_van_ban: str) -> str:
 # ── section renderers ──────────────────────────────────────────────────────
 
 
-def _info_card(label: str, value: str, *, full: bool = False, accent: str = "gray") -> str:
-    """One card in the 'Thông tin chung' grid.
+def _info_cell(label: str, value: str, *, full: bool = False, span2: bool = False) -> str:
+    """One cell of the compact info-grid.
 
-    `full` → spans both columns. `accent` ∈ {red, gray} colours the left bar
-    (full cards) or is rendered as a compact slate card (non-full).
+    `full` → spans the whole row (4 columns on desktop), with a red left
+    border for the lead "Tên / Nội dung thanh tra" entry. `span2` → spans
+    2 of 4 columns (used for Người ký, Lĩnh vực).
     """
+    classes = "info-cell"
     if full:
-        bar = "#a3171e" if accent == "red" else "#d1d5db"
-        return f"""        <div class="bg-white border border-gray-200 rounded-md p-4 md:col-span-2 shadow-sm relative overflow-hidden">
-          <div class="absolute top-0 left-0 w-1 h-full" style="background-color: {bar};"></div>
-          <label class="block text-xs font-bold text-gray-500 uppercase mb-1">{label}</label>
-          <p class="text-sm text-gray-900 leading-relaxed">{value}</p>
-        </div>"""
-    return f"""        <div class="bg-slate-50 border border-slate-200 rounded-md p-4 shadow-sm">
-          <label class="block text-[11px] font-bold text-[#a3171e] uppercase mb-1">{label}</label>
-          <p class="text-sm text-gray-900">{value}</p>
-        </div>"""
+        classes += " full"
+    style_attr = ' style="grid-column: span 2 / span 2;"' if (span2 and not full) else ""
+    return f"""            <div class="{classes}"{style_attr}>
+              <span class="info-label">{label}</span>
+              <p class="info-value">{value}</p>
+            </div>"""
 
 
 def _info_section(tic: dict) -> str:
-    """Bảng thông tin chung. Field nào schema chưa có → em-dash."""
+    """Bảng thông tin chung — compact 4-column grid (template mới).
+
+    Chỉ giữ những trường thường xuyên có giá trị: Tên/Nội dung, Quyết định,
+    Ngày ban hành, Đơn vị chủ trì, Đối tượng, Người ký, Lĩnh vực. Các field
+    schema có nhưng template gọn không hiển thị (ngày công bố, ngày kết
+    thúc, hình thức, thời kỳ) vẫn lưu trong DB — render nội tuyến nếu sau
+    này cần.
+    """
     so_vb = tic.get("số văn bản", "")
     loai = tic.get("loại văn bản", "")
     qd_kl = f"{loai} {so_vb}".strip() if (loai or so_vb) else ""
-    nguoi_ky = tic.get("người ký", "")
-    chuc_vu = tic.get("chức vụ người ký", "")
-    if nguoi_ky or chuc_vu:
-        nguoi = _esc(chuc_vu)
-        if nguoi_ky:
-            nguoi += f'<br><span class="text-gray-600 text-xs">(Ký: {_esc(nguoi_ky)})</span>'
-    else:
-        nguoi = _DASH
 
-    # v2 schema introduces ngày công bố / ngày kết thúc / hình thức / đơn vị
-    # chủ trì. For v1 docs still in the DB during transition, these come back
-    # empty → _esc renders em-dash. "Đơn vị chủ trì" falls back to "cơ quan
-    # ban hành" so v1 docs aren't blank.
+    nguoi_ky = (tic.get("người ký") or "").strip()
+    chuc_vu = (tic.get("chức vụ người ký") or "").strip()
+    if chuc_vu and nguoi_ky:
+        nguoi_html = f'{_esc(chuc_vu)} <span class="text-gray-500">({_esc(nguoi_ky)})</span>'
+    elif chuc_vu:
+        nguoi_html = _esc(chuc_vu)
+    elif nguoi_ky:
+        nguoi_html = _esc(nguoi_ky)
+    else:
+        nguoi_html = _DASH
+
+    # Fall back to "cơ quan ban hành" if "đơn vị chủ trì" missing (v1 docs).
     don_vi_chu_tri = tic.get("đơn vị chủ trì") or tic.get("cơ quan ban hành", "")
-    cards = [
-        _info_card("Tên cuộc thanh tra", _esc(tic.get("nội dung thanh tra")),
-                   full=True, accent="red"),
-        _info_card("Nội dung thanh tra", _esc(tic.get("nội dung thanh tra")), full=True),
-        _info_card("Đối tượng, thời gian thanh tra", _esc(tic.get("đối tượng thanh tra")),
-                   full=True),
-        _info_card("Thời kỳ thanh tra", _esc(tic.get("thời kỳ thanh tra")), full=True),
-        _info_card("Quyết định / Kết luận", _esc_or(qd_kl, _DASH)),
-        _info_card("Ngày ban hành", _esc(tic.get("ngày ban hành"))),
-        _info_card("Người ra QĐ / Đoàn thanh tra", nguoi),
-        _info_card("Ngày công bố KL", _esc(tic.get("ngày công bố"))),
-        _info_card("Đơn vị chủ trì", _esc(don_vi_chu_tri)),
-        _info_card("Ngày kết thúc thanh tra", _esc(tic.get("ngày kết thúc thanh tra"))),
-        _info_card("Hình thức thanh tra", _esc(tic.get("hình thức thanh tra"))),
-        _info_card("Lĩnh vực", _join(tic.get("lĩnh vực"))),
+
+    cells = [
+        _info_cell("Tên / Nội dung thanh tra", _esc(tic.get("nội dung thanh tra")), full=True),
+        _info_cell("Quyết định / Kết luận", _esc_or(qd_kl, _DASH)),
+        _info_cell("Ngày ban hành", _esc(tic.get("ngày ban hành"))),
+        _info_cell("Đơn vị chủ trì", _esc(don_vi_chu_tri)),
+        _info_cell("Đối tượng", _esc(tic.get("đối tượng thanh tra"))),
+        _info_cell("Người ký", nguoi_html, span2=True),
+        _info_cell("Lĩnh vực", _join(tic.get("lĩnh vực")), span2=True),
     ]
-    return f"""        <section class="mb-12">
+    return f"""        <section class="mb-8">
           <h2 class="section-header text-base">Thông tin chung về cuộc thanh tra</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-{chr(10).join(cards)}
+          <div class="info-grid">
+{chr(10).join(cells)}
           </div>
         </section>"""
 
 
+def _rec_line(label: str, tag_class: str, text: str, *, money: bool = False) -> str:
+    """One labelled recommendation line inside a card's `.rec-block`.
+
+    `tag_class` ∈ {tag-admin, tag-eco, tag-crim}. `money=True` styles the
+    text red+bold (used for Kinh tế lines with money figures).
+    """
+    text_cls = "rec-text eco-money" if money else "rec-text"
+    return (
+        f'                <p class="rec-line">'
+        f'<span class="rec-tag {tag_class}">{label}</span>'
+        f'<span class="{text_cls}">{html.escape(text.strip())}</span></p>'
+    )
+
+
 def _narrative_section(vi_pham: list) -> str:
-    """Mục I — Trích lược vi phạm (cards). Vi phạm có `dấu hiệu tội phạm`
-    được tô đỏ. Render TẤT CẢ vi phạm (khác bản mẫu chỉ trích chọn lọc)."""
+    """Mục I — Trích lược vi phạm (cards compact).
+
+    Mỗi card gồm: badge STT, dòng "Hành vi:", dòng meta italic (Điều khoản /
+    Hậu quả / Nguyên nhân), và một `rec-block` ở dưới với các tag pill
+    (Hành chính / Kinh tế / Hình sự) — chỉ hiển thị tag nào có nội dung.
+    """
     if not vi_pham:
         body = (
             '          <div class="flex items-start gap-4 p-4 bg-white border '
             f'border-gray-200 rounded-md shadow-sm"><p class="text-sm text-gray-500">'
             f'{_NOT_STATED}.</p></div>'
         )
-        return f"""        <section class="mb-14">
+        return f"""        <section class="mb-10">
           <h2 class="section-header text-base">I. Trích lược vi phạm</h2>
           <div class="grid grid-cols-1 gap-4">
 {body}
@@ -178,24 +195,41 @@ def _narrative_section(vi_pham: list) -> str:
             meta_parts.append(f"Nguyên nhân: {html.escape(nguyen_nhan)}")
         meta = " | ".join(meta_parts) if meta_parts else f"Hậu quả: {_NOT_STATED}."
 
-        if nghiem_trong:
-            cards.append(f"""          <div class="flex items-start gap-4 p-4 bg-red-50 border border-red-300 rounded-md shadow-sm">
-            <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-red-600 text-white font-bold rounded-full text-sm shadow-md">{i}</span>
-            <div class="space-y-1">
-              <p class="text-sm text-gray-900"><span class="font-bold text-red-700">Hành vi nghiêm trọng:</span> {hanh_vi}</p>
-              <p class="text-[13px] text-red-600 font-medium">{meta}</p>
-            </div>
-          </div>""")
-        else:
-            cards.append(f"""          <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+        # Per-violation kiến nghị → rec-block tag lines.
+        kn = v.get("kiến nghị") if isinstance(v.get("kiến nghị"), dict) else {}
+        hc_text = (kn.get("hành chính") or "").strip()
+        kt_text = (kn.get("kinh tế") or "").strip()
+        hs_text = (kn.get("hình sự") or "").strip()
+        # v1 fallback: derive Hình sự from the dấu hiệu tội phạm flag.
+        if not hs_text and nghiem_trong:
+            hs_text = "Nếu phát hiện dấu hiệu vi phạm hình sự thì chuyển cơ quan điều tra"
+
+        rec_lines = []
+        if hc_text:
+            rec_lines.append(_rec_line("Hành chính", "tag-admin", hc_text))
+        if kt_text:
+            rec_lines.append(_rec_line("Kinh tế", "tag-eco", kt_text, money=True))
+        if hs_text:
+            rec_lines.append(_rec_line("Hình sự", "tag-crim", hs_text))
+
+        rec_block = ""
+        if rec_lines:
+            rec_block = (
+                '\n              <div class="rec-block">\n'
+                '                <span class="rec-title">Kiến nghị xử lý</span>\n'
+                + "\n".join(rec_lines)
+                + "\n              </div>"
+            )
+
+        cards.append(f"""          <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
             <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">{i}</span>
             <div class="space-y-1">
               <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> {hanh_vi}</p>
-              <p class="text-[13px] text-gray-500 italic">{meta}</p>
+              <p class="text-[13px] text-gray-500 italic">{meta}</p>{rec_block}
             </div>
           </div>""")
 
-    return f"""        <section class="mb-14">
+    return f"""        <section class="mb-10">
           <h2 class="section-header text-base">I. Trích lược vi phạm</h2>
           <div class="grid grid-cols-1 gap-4">
 {chr(10).join(cards)}
@@ -434,6 +468,106 @@ _CSS = """        .tt-report-container {
             color: #cbd5e1;
             font-weight: bold;
         }
+        /* === Compact info block === */
+        .tt-report-container .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.5rem;
+            background: #f8fafc;
+            border: 1px solid var(--tt-border);
+            border-radius: 8px;
+            padding: 0.875rem;
+        }
+        @media (min-width: 768px) {
+            .tt-report-container .info-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+        .tt-report-container .info-cell {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 5px;
+            padding: 0.55rem 0.75rem;
+        }
+        .tt-report-container .info-cell.full {
+            grid-column: 1 / -1;
+            border-left: 3px solid var(--tt-red);
+        }
+        .tt-report-container .info-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--tt-red);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.15rem;
+            display: block;
+        }
+        .tt-report-container .info-value {
+            font-size: 0.8rem;
+            color: #1f2937;
+            line-height: 1.45;
+        }
+        .tt-report-container .info-cell.full .info-value {
+            font-size: 0.85rem;
+            line-height: 1.55;
+        }
+        /* === Recommendation block trong phần I === */
+        .tt-report-container .rec-block {
+            margin-top: 0.5rem;
+            padding: 0.55rem 0.7rem;
+            background: #fff8f1;
+            border-left: 3px solid #d4af37;
+            border-radius: 4px;
+        }
+        .tt-report-container .rec-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #8a1319;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+        .tt-report-container .rec-line {
+            font-size: 0.8rem;
+            color: #1f2937;
+            line-height: 1.45;
+            margin: 0.1rem 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.4rem;
+        }
+        .tt-report-container .rec-tag {
+            flex-shrink: 0;
+            display: inline-block;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 0.1rem 0.45rem;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            line-height: 1.4;
+            white-space: nowrap;
+        }
+        .tt-report-container .rec-tag.tag-admin {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .tt-report-container .rec-tag.tag-eco {
+            background: #fee2e2;
+            color: #8a1319;
+        }
+        .tt-report-container .rec-tag.tag-crim {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .tt-report-container .rec-text {
+            flex: 1;
+        }
+        .tt-report-container .rec-text.eco-money {
+            font-weight: 600;
+            color: #8a1319;
+        }
         @media print {
             .tt-report-container .no-print { display: none !important; }
             .tt-report-container { padding: 0 !important; background: white !important; }
@@ -441,6 +575,7 @@ _CSS = """        .tt-report-container {
             .tt-report-container .v-table thead th.sub-th { background-color: #b72028 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .tt-report-container .v-table tbody tr:nth-child(even) { background-color: #fafafa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .tt-report-container .section-header { color: var(--tt-red) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .tt-report-container .info-grid { background: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }"""
 
 
@@ -463,13 +598,7 @@ def _build_html(doc: dict) -> str:
     kien_nghi = result.get("kiến nghị xử lý", {}) or {}
 
     so_vb = tic.get("số văn bản", "") or "(không rõ số văn bản)"
-    generated = datetime.now().strftime("%d/%m/%Y %H:%M")
-    subtitle = (tic.get("nội dung thanh tra") or "").strip()
-    subtitle_html = (
-        f'<p class="mt-3 text-white/90 text-sm md:text-base font-medium max-w-3xl">'
-        f"{html.escape(subtitle)}</p>"
-        if subtitle else ""
-    )
+    generated = datetime.now().strftime("%d/%m/%Y")
 
     info = _info_section(tic)
     narrative = _narrative_section(vi_pham)
@@ -493,13 +622,12 @@ def _build_html(doc: dict) -> str:
   <div class="tt-report-container antialiased w-full h-full p-2 md:p-6 bg-transparent">
     <div class="max-w-[1400px] mx-auto bg-white shadow-lg border border-gray-200 rounded-lg overflow-hidden">
 
-      <header class="bg-gradient-to-b from-[#a3171e] to-[#8a1319] text-white p-6 md:p-10 flex flex-col items-center text-center relative border-b-4 border-[#d4af37]">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/a/a3/Emblem_of_Vietnam.svg" alt="Quốc huy Việt Nam" class="w-20 md:w-24 mb-4 drop-shadow-lg">
-        <h1 class="text-xl md:text-2xl lg:text-3xl font-bold uppercase tracking-wide text-[#f8e5ad]">
+      <header class="bg-gradient-to-b from-[#a3171e] to-[#8a1319] text-white p-6 md:p-8 flex flex-col items-center text-center relative border-b-4 border-[#d4af37]">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/a/a3/Emblem_of_Vietnam.svg" alt="Quốc huy Việt Nam" class="w-16 md:w-20 mb-3 drop-shadow-lg">
+        <h1 class="text-lg md:text-xl lg:text-2xl font-bold uppercase tracking-wide text-[#f8e5ad]">
           Bảng Tóm Tắt Nội Dung Kết Luận Thanh Tra
         </h1>
         <p class="mt-2 text-white/80 text-sm font-medium">Số văn bản: {html.escape(so_vb)}</p>
-        {subtitle_html}
       </header>
 
       <main class="p-6 md:p-8">
