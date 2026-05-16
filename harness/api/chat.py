@@ -13,6 +13,24 @@ from harness.api.deps import get_user
 from harness.api.streaming import event_stream
 from harness.extensions.commands import dispatch, parse_command
 from harness.persistence.checkpoints import delete_session, thread_id
+from harness.persistence.session_titles import (
+    delete_title,
+    set_title_if_missing,
+    touch,
+)
+
+
+def _derive_title(msg: str) -> str:
+    """Một-dòng, ≤60 ký tự, bỏ tiền tố ``[Attached file at: ...]`` UI nhét vào."""
+    if not msg:
+        return ""
+    if msg.startswith("[Attached file at:") and "]" in msg:
+        msg = msg.split("]", 1)[1]
+    msg = msg.strip()
+    if not msg:
+        return ""
+    first_line = msg.splitlines()[0].strip()
+    return first_line if len(first_line) <= 60 else first_line[:57].rstrip() + "…"
 
 router = APIRouter()
 
@@ -44,6 +62,7 @@ async def chat_stream(
         async def generate_cmd():
             if handler_type == "clear":
                 delete_session(user, body.session_id)
+                delete_title(tid)
                 yield {"event": "message", "data": json.dumps({"type": "ai", "content": result})}
                 yield {"event": "session_cleared", "data": json.dumps({"session_id": body.session_id})}
                 yield {"event": "done", "data": "{}"}
@@ -55,18 +74,27 @@ async def chat_stream(
                 prior = await agent.aget_state(config)
                 seen = len(prior.values.get("messages", [])) if prior.values else 0
                 inputs = {"messages": [{"role": "user", "content": result}]}
+                is_new = seen == 0
+                touch(tid)
                 async for event in event_stream(agent, inputs, config, seen):
                     yield event
+                if is_new:
+                    set_title_if_missing(tid, _derive_title(result))
 
         return EventSourceResponse(generate_cmd())
 
     prior = await agent.aget_state(config)
     seen = len(prior.values.get("messages", [])) if prior.values else 0
     inputs = {"messages": [{"role": "user", "content": body.message}]}
+    is_new = seen == 0
+    touch(tid)  # bump "last active" → sidebar đẩy phiên này lên đầu
 
     async def generate():
         async for event in event_stream(agent, inputs, config, seen):
             yield event
+        if is_new:
+            # Tin nhắn đầu của phiên này → tự sinh title (nếu chưa có).
+            set_title_if_missing(tid, _derive_title(body.message))
 
     return EventSourceResponse(generate())
 

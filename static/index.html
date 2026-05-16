@@ -71,7 +71,18 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
 .sess-label { display: flex; align-items: center; padding: 0 14px; font-size: 11px; color: var(--muted); margin-left: auto; }
 
-.chat-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.chat-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+/* Drag-and-drop overlay on the chat panel */
+.chat-panel.drop-hot::after {
+  content: '⬇  Thả file PDF / ảnh vào đây để đính kèm';
+  position: absolute; inset: 6px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(59,130,246,.08);
+  border: 2px dashed var(--primary);
+  border-radius: 10px;
+  color: var(--primary); font-weight: 600; font-size: 15px;
+  pointer-events: none; z-index: 5;
+}
 .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
 .messages > * { flex-shrink: 0; }
 @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
@@ -248,14 +259,13 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
     </div>
 
     <div class="sb-section">
-      <div class="sb-label">Sessions</div>
-      <div class="row" style="margin-bottom:0;">
-        <input class="input-sm" id="newSess" placeholder="session name" value="main" style="flex:1;">
-        <button class="btn btn-sm" onclick="createSession()">+ New</button>
-      </div>
+      <div class="sb-label">Phiên chat</div>
+      <button class="btn btn-sm" onclick="newChat()" style="width:100%;">
+        + Phiên mới
+      </button>
     </div>
     <div class="sessions-list" id="sessionsList">
-      <div style="text-align:center;color:var(--muted);font-size:12px;padding:14px;">Apply settings to load</div>
+      <div style="text-align:center;color:var(--muted);font-size:12px;padding:14px;">Đang tải…</div>
     </div>
 
     <div class="sb-section" style="border-top:1px solid var(--border);border-bottom:none;flex-shrink:0;">
@@ -271,11 +281,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
     </div>
 
     <div class="chat-panel" id="chatPanel">
-      <div class="messages" id="messages">
-        <div style="text-align:center;color:var(--muted);font-size:13px;padding:40px 20px;">
-          Select or create a session to start chatting.
-        </div>
-      </div>
+      <div class="messages" id="messages"></div>
       <div class="input-area">
         <div class="autocomplete" id="ac"></div>
         <div class="attach-pill" id="attachPill">
@@ -304,7 +310,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 const S = {
   base: '',
   user: 'ttcp',
-  session: 'main',
+  session: '',   // '' = đang ở màn welcome, chưa chọn phiên nào
   sessions: [],
   commands: [],
   streaming: false,
@@ -313,6 +319,8 @@ const S = {
   streamBubble: null,   // DOM node of the live streaming AI bubble
   streamContent: '',    // accumulated raw text while streaming
   attachedFile: null,
+  toolCards: new Map(),     // tool_call_id → {node, name}
+  pendingByName: new Map(), // toolName → [{id, node}, ...]  (fallback queue)
 };
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -336,7 +344,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
   loadSessions();
   loadCommands();
-  refreshSession(S.session);
+  newChat();           // mặc định vào → màn welcome, chưa gắn phiên nào
+  initDropZone();      // kéo-thả file PDF/ảnh vào khung chat
   loadHealth();
   setInterval(loadHealth, 15000);
 });
@@ -360,7 +369,9 @@ async function loadSessions() {
   try {
     const r = await fetch(`${S.base}/threads/${enc(S.user)}`, { headers: xuid() });
     const d = await r.json();
-    S.sessions = d.sessions || [];
+    // Server giờ trả `items: [{id, title, updated_at}]` đã sort recency desc.
+    // Fallback: nếu chỉ có `sessions: [...]` (server cũ) thì map sang shape mới.
+    S.sessions = d.items || (d.sessions || []).map(id => ({ id, title: '', updated_at: null }));
     renderSessions();
   } catch {
     document.getElementById('sessionsList').innerHTML =
@@ -371,41 +382,81 @@ async function loadSessions() {
 function renderSessions() {
   const el = document.getElementById('sessionsList');
   if (!S.sessions.length) {
-    el.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:12px;padding:14px;">No sessions yet</div>';
+    el.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:12px;padding:14px;">Chưa có phiên nào</div>';
     return;
   }
-  el.innerHTML = S.sessions.map(s => `
-    <div class="sess-item ${s === S.session ? 'active' : ''}" onclick="refreshSession('${esc(s)}')">
-      <span class="sess-name">${esc(s)}</span>
-      <button class="sess-del" onclick="event.stopPropagation();delSession('${esc(s)}')" title="Delete">✕</button>
-    </div>`).join('');
+  el.innerHTML = S.sessions.map(s => {
+    const label = s.title || s.id;
+    return `
+    <div class="sess-item ${s.id === S.session ? 'active' : ''}"
+         onclick="openSession('${esc(s.id)}')" title="${esc(s.id)}">
+      <span class="sess-name">${esc(label)}</span>
+      <button class="sess-del" onclick="event.stopPropagation();renameSession('${esc(s.id)}', ${JSON.stringify(label)})" title="Đổi tên">✎</button>
+      <button class="sess-del" onclick="event.stopPropagation();delSession('${esc(s.id)}')" title="Xoá">✕</button>
+    </div>`;
+  }).join('');
 }
 
-async function refreshSession(sid) {
+async function renameSession(sid, current) {
+  const t = prompt('Đặt tên cho phiên:', current);
+  if (t === null) return;
+  const title = t.trim();
+  if (!title) return;
+  try {
+    await fetch(`${S.base}/threads/${enc(S.user)}/${enc(sid)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...xuid() },
+      body: JSON.stringify({ title }),
+    });
+    await loadSessions();
+  } catch(e) { alert('Đổi tên thất bại: ' + e.message); }
+}
+
+function setSessLabel() {
+  document.getElementById('sessLabel').textContent =
+    S.session ? `${S.user} · ${S.session}` : 'Phiên mới';
+}
+
+function showWelcome() {
+  const greet = S.user ? `Xin chào, ${esc(S.user)}!` : 'Xin chào!';
+  document.getElementById('messages').innerHTML = `
+    <div style="margin:auto;text-align:center;color:var(--muted);
+                font-size:15px;line-height:1.7;max-width:560px;padding:20px;">
+      <div style="font-size:34px;margin-bottom:8px;">💬</div>
+      <div style="font-size:18px;color:var(--text);font-weight:600;margin-bottom:6px;">
+        ${greet}
+      </div>
+      <div>Gõ tin nhắn bên dưới để bắt đầu phiên chat mới,
+      hoặc mở một phiên cũ ở thanh bên trái.</div>
+    </div>`;
+}
+
+// "+ Phiên mới" — reset về welcome; phiên thật sẽ tự sinh khi user gửi tin đầu.
+function newChat() {
+  S.session = '';
+  setSessLabel();
+  renderSessions();
+  showWelcome();
+}
+
+async function openSession(sid) {
   S.session = sid;
-  document.getElementById('sessLabel').textContent = `${S.user} · ${sid}`;
+  setSessLabel();
   renderSessions();
   await loadMessages();
 }
 
-async function createSession() {
-  const name = document.getElementById('newSess').value.trim();
-  if (!name) return;
-  if (!S.sessions.includes(name)) S.sessions = [...S.sessions, name];
-  document.getElementById('newSess').value = '';
-  await refreshSession(name);
-  renderSessions();
-}
-
 async function delSession(sid) {
-  if (!confirm(`Delete session "${sid}"?`)) return;
+  if (!confirm(`Xoá phiên "${sid}"?`)) return;
   try {
     await fetch(`${S.base}/threads/${enc(S.user)}/${enc(sid)}`, { method: 'DELETE', headers: xuid() });
-    S.sessions = S.sessions.filter(s => s !== sid);
-    if (S.session === sid) S.session = S.sessions[0] || 'main';
-    renderSessions();
-    await loadMessages();
-  } catch(e) { alert('Delete failed: ' + e.message); }
+    S.sessions = S.sessions.filter(s => s.id !== sid);
+    if (S.session === sid) {
+      newChat();                       // phiên hiện tại bị xoá → về welcome
+    } else {
+      renderSessions();
+    }
+  } catch(e) { alert('Xoá thất bại: ' + e.message); }
 }
 
 // ─── Message history ──────────────────────────────────────────────────────────
@@ -440,7 +491,10 @@ function addHistoryMsg(type, content, name) {
     node.innerHTML = `<div class="msg-label">Assistant</div><div class="bubble md">${md(content)}</div>`;
     el.appendChild(node);
   } else if (type === 'tool') {
-    el.appendChild(makeToolBlock('result', name, content || ''));
+    // Lịch sử: không còn cặp call để khớp → render thẻ standalone (fallback
+    // path của fillToolCard tự tạo card đầy đủ).
+    const node = fillToolCard(null, name, content || '');
+    if (node) el.appendChild(node);
   } else {
     const node = document.createElement('div');
     node.className = 'msg msg-center';
@@ -449,34 +503,74 @@ function addHistoryMsg(type, content, name) {
   }
 }
 
-function makeToolBlock(kind, toolName, body) {
+// 1 thẻ duy nhất / lần gọi tool: pill nhỏ "🔧 <tên> · <trạng thái>"; bấm mở
+// thấy cả Input lẫn Output trong cùng expander (giống Claude Desktop).
+//
+// Khớp call ↔ result theo `tool_call_id` (server đã gửi); nếu thiếu id thì
+// fallback theo tên: lấy call sớm nhất chưa-có-result của cùng tên.
+function _toolPill(state, name, meta) {
+  // state: 'run' (đang chạy) | 'ok' (đã có kết quả)
+  const badge = state === 'ok' ? 'badge-result' : 'badge-call';
+  const label = state === 'ok' ? '✓' : '⏳';
+  return `
+    <summary>
+      <span class="badge ${badge}">${label}</span>
+      <span class="tool-name">${esc(name)}</span>
+      <span class="tool-meta">${esc(meta || '')}</span>
+      <span class="chevron">▸</span>
+    </summary>`;
+}
+
+function makeToolCard(id, toolName, args) {
   const n = document.createElement('div');
-  n.className = 'tool-block' + (kind === 'result' ? ' result-block' : '');
-  const badgeCls = kind === 'result' ? 'badge-result' : 'badge-call';
-  const badgeTxt = kind === 'result' ? 'result' : 'calling';
-  const name = esc(toolName || 'tool');
-  const trimmed = (body || '').trim();
-  const compact = !trimmed || trimmed === '{}' || trimmed === '""';
-  if (compact) {
-    n.innerHTML = `
-      <div class="tb-pill">
-        <span class="badge ${badgeCls}">${badgeTxt}</span>
-        <span class="tool-name">${name}</span>
-      </div>`;
-  } else {
-    const meta = `${trimmed.length.toLocaleString()} chars`;
+  n.className = 'tool-block';
+  const argsTxt = (args && Object.keys(args).length)
+    ? JSON.stringify(args, null, 2) : '';
+  n.innerHTML = `
+    <details>
+      ${_toolPill('run', toolName, 'đang chạy…')}
+      <div class="tool-content" data-section="input">${
+        argsTxt ? esc(argsTxt) : '<em style="opacity:.6">(không có tham số)</em>'
+      }</div>
+      <div class="tool-content" data-section="output"
+           style="border-top:1px dashed var(--border);opacity:.6">đang chờ kết quả…</div>
+    </details>`;
+  // Track for matching result later.
+  if (id) S.toolCards.set(id, { node: n, name: toolName });
+  if (!S.pendingByName.has(toolName)) S.pendingByName.set(toolName, []);
+  S.pendingByName.get(toolName).push({ id, node: n });
+  return n;
+}
+
+function fillToolCard(id, toolName, output) {
+  // 1) Match theo id chính xác. 2) Fallback: pop call sớm nhất cùng tên.
+  let entry = id ? S.toolCards.get(id) : null;
+  if (!entry) {
+    const q = S.pendingByName.get(toolName) || [];
+    entry = q.shift() || null;
+  }
+  if (!entry) {
+    // Không có call tương ứng → render thẻ độc lập (degrade gracefully).
+    const n = document.createElement('div');
+    n.className = 'tool-block';
     n.innerHTML = `
       <details>
-        <summary>
-          <span class="badge ${badgeCls}">${badgeTxt}</span>
-          <span class="tool-name">${name}</span>
-          <span class="tool-meta">${meta}</span>
-          <span class="chevron">▸</span>
-        </summary>
-        <div class="tool-content">${esc(trimmed)}</div>
+        ${_toolPill('ok', toolName, `${(output || '').length.toLocaleString()} ký tự`)}
+        <div class="tool-content">${esc(output || '')}</div>
       </details>`;
+    return n;
   }
-  return n;
+  const out = (output || '').trim();
+  entry.node.querySelector('[data-section="output"]').textContent = out || '(rỗng)';
+  entry.node.querySelector('[data-section="output"]').style.opacity = '1';
+  entry.node.querySelector('summary').outerHTML =
+    _toolPill('ok', entry.name, `${out.length.toLocaleString()} ký tự`);
+  if (id) S.toolCards.delete(id);
+  // Pop khỏi queue tên cho an toàn.
+  const q = S.pendingByName.get(toolName) || [];
+  const idx = q.findIndex(e => e.node === entry.node);
+  if (idx >= 0) q.splice(idx, 1);
+  return null;  // đã update tại chỗ, không append thêm node
 }
 
 // ─── Send + SSE ───────────────────────────────────────────────────────────────
@@ -495,6 +589,14 @@ async function sendMessage() {
     removeAttachment();
   }
 
+  // Đang ở màn welcome → tự sinh phiên mới (LangGraph checkpointer tạo
+  // thread lúc gặp lần đầu; sidebar sẽ tự refresh sau khi stream xong).
+  if (!S.session) {
+    S.session = 's-' + Date.now().toString(36);
+    document.getElementById('messages').innerHTML = '';   // xoá welcome
+    setSessLabel();
+  }
+
   addHistoryMsg('human', displayMsg);
   inp.value = ''; inp.style.height = 'auto';
   showTyping();
@@ -503,6 +605,8 @@ async function sendMessage() {
   // Reset stream state before each new request
   S.streamBubble = null;
   S.streamContent = '';
+  S.toolCards = new Map();
+  S.pendingByName = new Map();
 
   try {
     const resp = await fetch(`${S.base}/chat/stream`, {
@@ -521,6 +625,9 @@ async function sendMessage() {
     finalizeStream();
     removeTyping();
     setDisabled(false);
+    // Refresh sidebar — phiên mới (nếu vừa sinh) sẽ xuất hiện sau khi
+    // checkpointer ghi xong; cho phiên cũ thì call này rẻ (1 truy vấn).
+    loadSessions();
   }
 }
 
@@ -612,13 +719,12 @@ function onEvent(type, raw) {
   // ── Handle specific event types ──────────────────────────────────────────
   if (type === 'tool_call') {
     if (!payload) return;
-    const args = payload.args && Object.keys(payload.args).length
-      ? JSON.stringify(payload.args, null, 2) : '';
-    msgs.appendChild(makeToolBlock('call', payload.tool, args));
+    msgs.appendChild(makeToolCard(payload.id, payload.tool, payload.args || {}));
 
   } else if (type === 'tool_result') {
     if (!payload) return;
-    msgs.appendChild(makeToolBlock('result', payload.tool, payload.content || ''));
+    const standalone = fillToolCard(payload.id, payload.tool, payload.content || '');
+    if (standalone) msgs.appendChild(standalone);
 
   } else if (type === 'message') {
     // Legacy fallback for backends that emit full message objects
@@ -630,9 +736,7 @@ function onEvent(type, raw) {
       msgs.appendChild(n);
     }
     for (const tc of payload.tool_calls || []) {
-      const args = tc.args && Object.keys(tc.args).length
-        ? JSON.stringify(tc.args, null, 2) : '';
-      msgs.appendChild(makeToolBlock('call', tc.tool, args));
+      msgs.appendChild(makeToolCard(tc.id, tc.tool, tc.args || {}));
     }
 
   } else if (type === 'interrupt') {
@@ -651,8 +755,8 @@ function onEvent(type, raw) {
     msgs.appendChild(n);
 
   } else if (type === 'session_cleared') {
-    // Wipe message view and refresh sessions immediately (no setTimeout)
-    document.getElementById('messages').innerHTML = '';
+    // /clear → phiên hiện tại đã bị xoá → quay về màn welcome.
+    newChat();
     loadSessions();
 
   } else if (type === 'done') {
@@ -769,9 +873,14 @@ function handleKey(e) {
 }
 
 // ─── File upload ──────────────────────────────────────────────────────────────
-async function handleFileSelect(e) {
-  const file = e.target.files?.[0];
+async function uploadFile(file) {
   if (!file) return;
+  // Server-side `/upload` đã giới hạn type; tự lọc trước để UX rõ.
+  const ok = file.type.startsWith('image/') || /\.pdf$/i.test(file.name);
+  if (!ok) {
+    alert('Chỉ nhận ảnh hoặc PDF.');
+    return;
+  }
   const form = new FormData();
   form.append('file', file);
   try {
@@ -782,12 +891,42 @@ async function handleFileSelect(e) {
     document.getElementById('attachName').textContent = S.attachedFile.name;
     document.getElementById('attachPill').classList.add('show');
   } catch(err) { alert('Upload failed: ' + err.message); }
-  e.target.value = '';
+}
+
+async function handleFileSelect(e) {
+  await uploadFile(e.target.files?.[0]);
+  e.target.value = '';   // cho phép chọn lại cùng file
 }
 
 function removeAttachment() {
   S.attachedFile = null;
   document.getElementById('attachPill').classList.remove('show');
+}
+
+// Drag & drop: kéo file PDF/ảnh thả vào khung chat. Bind 1 lần lúc init.
+function initDropZone() {
+  const zone = document.getElementById('chatPanel');
+  if (!zone) return;
+  let depth = 0;  // counter cho dragenter/leave (con elements bắn event lung tung)
+  zone.addEventListener('dragenter', e => {
+    if (![...(e.dataTransfer?.types || [])].includes('Files')) return;
+    e.preventDefault();
+    if (depth++ === 0) zone.classList.add('drop-hot');
+  });
+  zone.addEventListener('dragover', e => {
+    if (![...(e.dataTransfer?.types || [])].includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+  zone.addEventListener('dragleave', e => {
+    if (--depth <= 0) { depth = 0; zone.classList.remove('drop-hot'); }
+  });
+  zone.addEventListener('drop', async e => {
+    e.preventDefault();
+    depth = 0; zone.classList.remove('drop-hot');
+    const file = e.dataTransfer?.files?.[0];
+    if (file) await uploadFile(file);
+  });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

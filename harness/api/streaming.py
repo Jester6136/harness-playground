@@ -50,12 +50,17 @@ async def event_stream(
                         for tc in (getattr(msg, "tool_calls", []) or []):
                             yield {
                                 "event": "tool_call",
-                                "data": json.dumps({"tool": tc["name"], "args": tc["args"]}),
+                                "data": json.dumps({
+                                    "id": tc.get("id"),
+                                    "tool": tc["name"],
+                                    "args": tc["args"],
+                                }),
                             }
                     elif t == "tool":
                         yield {
                             "event": "tool_result",
                             "data": json.dumps({
+                                "id": getattr(msg, "tool_call_id", None),
                                 "tool": getattr(msg, "name", "?"),
                                 "content": getattr(msg, "content", "") or "",
                             }),
