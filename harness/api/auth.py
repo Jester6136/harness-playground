@@ -127,7 +127,12 @@ def resolve_session_and_bind_tenant(request: Request) -> str | None:
     acct = get_account(sess.username)
     if not acct or acct.get("disabled"):
         return None
-    set_tenant(tenant_for_account(acct))
+    t = tenant_for_account(acct)
+    set_tenant(t)
+    log.debug(
+        "tenant bound: user=%s collection=%s prefix=%s datalens=%s",
+        sess.username, t.ttcp_collection, t.ttcp_prefix, t.datalens_chatbot_code,
+    )
     return sess.username
 
 

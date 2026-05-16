@@ -6,13 +6,20 @@ from fastapi import Header, HTTPException, Request
 from harness.api.auth import resolve_session_and_bind_tenant
 
 
-def get_user(
+async def get_user(
     request: Request,
     x_user_id: str | None = Header(default=None),
 ) -> str:
     """Authenticate the request and bind the per-account tenant.
 
-    Two paths are accepted (in order of preference):
+    MUST be ``async`` — FastAPI runs sync deps in a threadpool with a COPIED
+    context, so a ``ContextVar.set()`` there would not be visible to the
+    handler's task. An async dep is awaited in the handler's own task, so
+    the tenant binding propagates correctly to LangGraph and to the tools
+    (langchain-core copies the active context into its tool-executor
+    threads on top of that).
+
+    Two auth paths are accepted (in order of preference):
       1. Browser session cookie — set by ``POST /login``. On success we load
          the account, bind :mod:`harness.tenant` for the request (so tools
          use that account's collection / prefix / DataLens code), and return

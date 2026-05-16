@@ -77,7 +77,7 @@ async def upload_file(
 
 
 @router.get("/files/{key:path}")
-async def serve_ttcp_file(key: str):
+async def serve_ttcp_file(key: str, _user: str = Depends(get_user)):
     """Stream an object from the TTCP MinIO bucket.
 
     `key` is the full object key (e.g. ttcp/ttcp-bot/abc.pdf). MinIO isn't
@@ -102,7 +102,7 @@ async def serve_ttcp_file(key: str):
 
 
 @router.get("/reports/{name}", response_class=FileResponse)
-async def get_report(name: str):
+async def get_report(name: str, _user: str = Depends(get_user)):
     """Serve a generated TTCP HTML report by file name.
 
     `render_ttcp_report` writes `reports/<id>.html`; this endpoint hands it

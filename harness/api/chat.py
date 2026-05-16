@@ -94,7 +94,12 @@ async def _build_resume_command(agent, config: dict, decision: str) -> Command:
 
 
 @router.post("/threads/{raw_thread_id:path}/runs/resume")
-async def resume(raw_thread_id: str, body: ResumeRequest, request: Request):
+async def resume(
+    raw_thread_id: str,
+    body: ResumeRequest,
+    request: Request,
+    _user: str = Depends(get_user),  # auth + bind tenant for resumed tool runs
+):
     """Resume an interrupted run. raw_thread_id = '{user}:{session}'."""
     agent = request.app.state.agent
     config = {"configurable": {"thread_id": raw_thread_id}}
