@@ -754,6 +754,19 @@ function onEvent(type, raw) {
     S.intrTid = tid;
     msgs.appendChild(n);
 
+  } else if (type === 'session_titled') {
+    // Tin đầu phiên → server vừa sinh title (LLM hoặc fallback). Cập nhật
+    // chỗ trong S.sessions + rerender sidebar, không cần refetch toàn bộ.
+    if (!payload) return;
+    const idx = S.sessions.findIndex(s => s.id === payload.id);
+    if (idx >= 0) {
+      S.sessions[idx].title = payload.title;
+    } else {
+      // Phiên mới chưa kịp xuất hiện do loadSessions chạy trước title được set
+      S.sessions.unshift({ id: payload.id, title: payload.title, updated_at: new Date().toISOString() });
+    }
+    renderSessions();
+
   } else if (type === 'session_cleared') {
     // /clear → phiên hiện tại đã bị xoá → quay về màn welcome.
     newChat();

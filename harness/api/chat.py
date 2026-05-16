@@ -18,6 +18,7 @@ from harness.persistence.session_titles import (
     set_title_if_missing,
     touch,
 )
+from harness.title_gen import generate_title
 
 
 def _derive_title(msg: str) -> str:
@@ -76,10 +77,12 @@ async def chat_stream(
                 inputs = {"messages": [{"role": "user", "content": result}]}
                 is_new = seen == 0
                 touch(tid)
-                async for event in event_stream(agent, inputs, config, seen):
-                    yield event
-                if is_new:
-                    set_title_if_missing(tid, _derive_title(result))
+                async for ev in _stream_with_title(
+                    agent, inputs, config, seen,
+                    tid=tid, body_message=result, is_new=is_new,
+                    session_id=body.session_id,
+                ):
+                    yield ev
 
         return EventSourceResponse(generate_cmd())
 
@@ -90,13 +93,43 @@ async def chat_stream(
     touch(tid)  # bump "last active" → sidebar đẩy phiên này lên đầu
 
     async def generate():
-        async for event in event_stream(agent, inputs, config, seen):
-            yield event
-        if is_new:
-            # Tin nhắn đầu của phiên này → tự sinh title (nếu chưa có).
-            set_title_if_missing(tid, _derive_title(body.message))
+        async for ev in _stream_with_title(
+            agent, inputs, config, seen,
+            tid=tid, body_message=body.message, is_new=is_new,
+            session_id=body.session_id,
+        ):
+            yield ev
 
     return EventSourceResponse(generate())
+
+
+async def _stream_with_title(
+    agent, inputs, config, seen,
+    *, tid: str, body_message: str, is_new: bool, session_id: str,
+):
+    """Wrap event_stream: tin đầu phiên → gọi LLM sinh title SAU khi đã yield
+    ``done`` (input được unlock ngay), rồi gửi event ``session_titled`` để
+    SPA cập nhật riêng sidebar mà không phải refetch."""
+    pending_done = None
+    async for event in event_stream(agent, inputs, config, seen):
+        if event.get("event") == "done":
+            pending_done = event   # giữ lại, yield sau title
+            continue
+        yield event
+
+    if pending_done is not None:
+        yield pending_done   # cho client unlock input/typing indicator ngay
+
+    if is_new:
+        title = await generate_title(body_message)
+        if not title:
+            title = _derive_title(body_message)  # fallback an toàn
+        if title:
+            set_title_if_missing(tid, title)
+            yield {
+                "event": "session_titled",
+                "data": json.dumps({"id": session_id, "title": title}),
+            }
 
 
 async def _build_resume_command(agent, config: dict, decision: str) -> Command:
