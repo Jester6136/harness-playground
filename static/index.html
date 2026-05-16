@@ -227,15 +227,23 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 <div class="main">
   <div class="sidebar">
     <div class="sb-section">
-      <div class="sb-label">Settings</div>
-      <div style="margin-bottom:7px;">
-        <label class="form-label" style="margin-bottom:3px;">API Base URL</label>
-        <input class="input-sm" id="apiBase" placeholder="http://localhost:8000">
-      </div>
-      <label class="form-label" style="margin-bottom:3px;">User ID</label>
-      <div class="row">
-        <input class="input-sm" id="userId" value="ttcp" style="flex:1;">
-        <button class="btn btn-sm" onclick="applySettings()">Apply</button>
+      <div class="sb-label">Tài khoản</div>
+      <div class="row" style="margin-bottom:0;align-items:center;">
+        <div style="flex:1;min-width:0;">
+          <div id="acctName"
+               style="font-weight:600;font-size:.92rem;
+                      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            …
+          </div>
+          <div id="acctLabel"
+               style="font-size:.75rem;color:#64748b;
+                      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          </div>
+        </div>
+        <form method="post" action="/logout" style="margin:0;">
+          <button class="btn btn-sm" type="submit"
+                  title="Đăng xuất">Đăng xuất</button>
+        </form>
       </div>
     </div>
 
@@ -258,8 +266,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 
   <div class="content">
     <div class="tabs">
-      <div class="tab active" id="tabChat" onclick="switchTab('chat')">💬 Chat</div>
-      <div class="tab" id="tabPipe" onclick="switchTab('pipe')">⚡ Pipelines</div>
+      <div class="tab active" id="tabChat">💬 Chat</div>
       <div class="sess-label" id="sessLabel">—</div>
     </div>
 
@@ -287,9 +294,6 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
       </div>
     </div>
 
-    <div class="pipe-panel" id="pipePanel">
-      <div style="color:var(--muted);text-align:center;padding:40px;">Loading pipelines…</div>
-    </div>
   </div>
 </div>
 
@@ -303,7 +307,6 @@ const S = {
   session: 'main',
   sessions: [],
   commands: [],
-  pipelines: [],
   streaming: false,
   intrTid: null,
   acIdx: -1,
@@ -313,25 +316,30 @@ const S = {
 };
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', () => {
-  S.base = (window.location.origin === 'null' || window.location.origin === '')
-    ? 'http://localhost:8000'
-    : window.location.origin;
-  document.getElementById('apiBase').value = S.base;
-  document.getElementById('userId').value = S.user;
-  applySettings();
+window.addEventListener('DOMContentLoaded', async () => {
+  S.base = window.location.origin;  // luôn cùng origin với trang
+  // /me dùng cookie session (đã ký) → biết account đang login. Chưa login →
+  // chuyển sang trang đăng nhập, KHÔNG hiện UI nửa vời.
+  try {
+    const r = await fetch(`${S.base}/me`);
+    const d = await r.json();
+    if (!d.authenticated) {
+      window.location.href = '/login?next=/ui';
+      return;
+    }
+    S.user = d.username;
+    document.getElementById('acctName').textContent = d.username;
+    document.getElementById('acctLabel').textContent = d.label || '';
+  } catch {
+    window.location.href = '/login?next=/ui';
+    return;
+  }
+  loadSessions();
+  loadCommands();
+  refreshSession(S.session);
   loadHealth();
   setInterval(loadHealth, 15000);
 });
-
-function applySettings() {
-  S.base = (document.getElementById('apiBase').value || '').replace(/\/$/, '') || 'http://localhost:8000';
-  S.user = document.getElementById('userId').value.trim() || 'ttcp';
-  loadSessions();
-  loadCommands();
-  loadPipelines();
-  refreshSession(S.session);
-}
 
 // ─── Health ───────────────────────────────────────────────────────────────────
 async function loadHealth() {
@@ -758,74 +766,6 @@ function handleKey(e) {
   } else if (e.key === 'ArrowUp' && visible) {
     e.preventDefault(); S.acIdx = Math.max(S.acIdx - 1, 0); showAC(filtered());
   } else if (e.key === 'Escape') { hideAC(); }
-}
-
-// ─── Pipelines ────────────────────────────────────────────────────────────────
-async function loadPipelines() {
-  try {
-    const r = await fetch(`${S.base}/pipelines`);
-    const d = await r.json();
-    S.pipelines = d.pipelines || [];
-    renderPipelines();
-  } catch { S.pipelines = []; }
-}
-
-function renderPipelines() {
-  const panel = document.getElementById('pipePanel');
-  if (!S.pipelines.length) {
-    panel.innerHTML = '<div style="color:var(--muted);text-align:center;padding:40px;">No pipelines registered.</div>';
-    return;
-  }
-  panel.innerHTML = S.pipelines.map(p => `
-    <div class="pipe-card">
-      <div class="pipe-title">⚡ ${esc(p.name)}</div>
-      <div class="pipe-desc">${esc(p.description)}</div>
-      ${buildForm(p)}
-      <button class="btn btn-sm" onclick="runPipeline('${esc(p.name)}')">▶ Run</button>
-      <div class="pipe-result" id="pr-${esc(p.name)}"></div>
-    </div>`).join('');
-}
-
-function buildForm(p) {
-  const props = p.input_schema?.properties || {};
-  return Object.entries(props).map(([k, s]) => {
-    const big = s.type === 'string' && (!s.maxLength || s.maxLength > 100 || k === 'text');
-    if (big) {
-      return `<label class="form-label">${esc(k)}</label>
-              <textarea class="form-area" id="pf-${esc(p.name)}-${esc(k)}" rows="${k==='text'?6:3}"
-                placeholder="${esc(s.description||k)}"></textarea>`;
-    }
-    return `<label class="form-label">${esc(k)}</label>
-            <input class="input-sm" style="margin-bottom:10px;" id="pf-${esc(p.name)}-${esc(k)}"
-              value="${esc(s.default||'')}" placeholder="${esc(s.description||k)}">`;
-  }).join('');
-}
-
-async function runPipeline(name) {
-  const p = S.pipelines.find(x => x.name === name);
-  if (!p) return;
-  const resEl = document.getElementById(`pr-${name}`);
-  resEl.textContent = 'Running…'; resEl.classList.add('show');
-  const data = {};
-  for (const k of Object.keys(p.input_schema?.properties || {})) {
-    const f = document.getElementById(`pf-${name}-${k}`);
-    if (f?.value) data[k] = f.value;
-  }
-  try {
-    const r = await fetch(`${S.base}/api/${name}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
-    });
-    const result = await r.json();
-    resEl.textContent = JSON.stringify(result, null, 2);
-  } catch(e) { resEl.textContent = 'Error: ' + e.message; }
-}
-
-// ─── Tabs ─────────────────────────────────────────────────────────────────────
-function switchTab(t) {
-  document.getElementById('chatPanel').style.display = t === 'chat' ? 'flex' : 'none';
-  document.getElementById('pipePanel').className = 'pipe-panel' + (t === 'pipe' ? ' show' : '');
-  document.getElementById('tabChat').className = 'tab' + (t === 'chat' ? ' active' : '');
-  document.getElementById('tabPipe').className = 'tab' + (t === 'pipe' ? ' active' : '');
 }
 
 // ─── File upload ──────────────────────────────────────────────────────────────
