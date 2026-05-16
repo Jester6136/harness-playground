@@ -62,34 +62,50 @@ VLLM_MODEL_NAME = os.getenv("VLLM_MODEL_NAME", "cyankiwi/gemma-4-26B-A4B-it-AWQ-
 VLLM_API_KEY = os.getenv("VLLM_API_KEY", "EMPTY")
 
 # Mặc định theo yêu cầu: 50 trang / lần detect. Render nhẹ — chỉ cần đọc được
-# tiêu đề "PHỤ LỤC" / "Biểu số", không cần độ nét để trích xuất số liệu.
+# tiêu đề / khối chữ ký, không cần độ nét để trích xuất số liệu.
 DETECT_CHUNK_SIZE = int(os.getenv("PHU_LUC_CHUNK_SIZE", "50"))
-DETECT_DPI = int(os.getenv("PHU_LUC_DPI", "100"))
-DETECT_MAX_IMG = int(os.getenv("PHU_LUC_MAX_IMG", "1000"))
+DETECT_DPI = int(os.getenv("PHU_LUC_DPI", "110"))
+DETECT_MAX_IMG = int(os.getenv("PHU_LUC_MAX_IMG", "1100"))
+# Đệm an toàn: giữ thêm N trang sau ranh giới phát hiện được. Cắt HỤT (mất nội
+# dung chính) là lỗi chết người; cắt THỪA chỉ chậm hơn chút. Mặc định 0 vì
+# cách neo theo khối ký đã khá chắc; tăng nếu thấy còn bị hụt.
+DETECT_SAFETY_PAGES = int(os.getenv("PHU_LUC_SAFETY_PAGES", "0"))
 
 
-_DETECT_SYSTEM = """Bạn là bộ phân loại trang của văn bản KẾT LUẬN THANH TRA Việt Nam.
+_DETECT_SYSTEM = """Bạn phân tích bố cục văn bản KẾT LUẬN THANH TRA Việt Nam.
 
-Phân biệt 2 loại trang:
-- "Nội dung chính": phần mở đầu, căn cứ, kết quả thanh tra, nhận xét – đánh giá,
-  kết luận, KIẾN NGHỊ xử lý, nơi nhận, chữ ký, con dấu. Là văn bản tường thuật
-  hành chính liền mạch.
-- "Phụ lục": phần ĐÍNH KÈM SAU nội dung chính — các biểu mẫu, bảng kê, danh
-  sách, tổng hợp số liệu chi tiết. Dấu hiệu: tiêu đề "PHỤ LỤC", "Phụ lục số",
-  "Biểu số", "Mẫu số", "Danh sách ...", hoặc cả trang là bảng số liệu/danh
-  sách dài, không còn là văn bản tường thuật của kết luận.
+Một bộ hồ sơ gồm 2 phần, theo thứ tự cố định:
+1. NỘI DUNG CHÍNH: công văn ban hành + bản kết luận thanh tra (mở đầu, căn cứ,
+   kết quả, nhận xét, KIẾN NGHỊ xử lý). Phần này KẾT THÚC bằng KHỐI KÝ của bản
+   kết luận: chức danh người ký (vd "TỔNG THANH TRA", "PHÓ TỔNG THANH TRA",
+   "KT. TỔNG THANH TRA", "CHÁNH THANH TRA TỈNH"...), chữ ký, con dấu, và mục
+   "Nơi nhận:". TRONG phần này có thể CÓ bảng/biểu số liệu minh hoạ — chúng
+   VẪN là nội dung chính, KHÔNG phải phụ lục.
+2. PHỤ LỤC: các biểu mẫu, bảng kê, danh sách, tổng hợp số liệu ĐÍNH KÈM SAU
+   khối ký kết luận. Thường có tiêu đề trang "PHỤ LỤC", "Phụ lục số ...",
+   "Biểu số ...", "Mẫu số ...", hoặc cả trang là bảng/danh sách dài.
 
-Ranh giới chỉ chuyển MỘT chiều: nội dung chính trước, phụ lục sau."""
+QUY TẮC QUAN TRỌNG:
+- TRANG TRẮNG hoặc gần như trống (không chữ, hoặc chỉ vài dòng vô nghĩa, trang
+  ngăn cách) KHÔNG phải ranh giới. Bỏ qua, coi như tiếp nối phần xung quanh.
+- Bảng/biểu nằm TRƯỚC khối ký kết luận = vẫn nội dung chính.
+- Ranh giới THẬT = ngay SAU khối ký + "Nơi nhận" của bản kết luận thanh tra
+  (KHÔNG phải chữ ký của công văn ban hành ở đầu hồ sơ).
+- Câu kiểu "...chi tiết tại Phụ lục 01 kèm theo" nằm trong văn bản tường thuật
+  chỉ là LỜI DẪN, KHÔNG phải trang phụ lục thật."""
 
-_DETECT_USER = """Dưới đây là {n} ảnh trang LIÊN TIẾP, đánh số 1..{n} đúng theo \
-thứ tự xuất hiện.
+_DETECT_USER = """Các ảnh kèm dưới đây là những trang LIÊN TIẾP của hồ sơ, mỗi \
+ảnh có nhãn "=== Trang <số> ===" ngay trước nó (số trang tuyệt đối trong hồ sơ).
 
-Hãy tìm ảnh ĐẦU TIÊN (số nhỏ nhất) bắt đầu phần PHỤ LỤC / biểu mẫu đính kèm \
-— tức trang mà từ đó trở đi không còn là văn bản tường thuật của kết luận \
-thanh tra nữa.
+Xác định ranh giới nội dung chính → phụ lục:
+- "trang_ket_thuc_ket_luan": số trang chứa KHỐI KÝ + "Nơi nhận" CUỐI CÙNG của
+  bản kết luận thanh tra (trang cuối của nội dung chính). null nếu không thấy.
+- "trang_phu_luc_dau_tien": số trang ĐẦU TIÊN thực sự thuộc phụ lục (tiêu đề
+  trang là "PHỤ LỤC"/"Phụ lục số"/"Biểu số"/"Mẫu số", hoặc trang bảng/danh
+  sách đính kèm SAU khối ký). Bỏ qua trang trắng. null nếu chưa sang phụ lục.
 
-Chỉ trả về JSON, không giải thích:
-{{"phu_luc_bat_dau_o_anh": <số nguyên 1..{n}, hoặc null nếu CẢ {n} trang vẫn là nội dung chính>}}"""
+Suy luận ngắn gọn rồi CHỈ trả JSON:
+{"ly_do": "<1-2 câu căn cứ>", "trang_ket_thuc_ket_luan": <số hoặc null>, "trang_phu_luc_dau_tien": <số hoặc null>}"""
 
 
 def _b64_image_block(img_b64: str) -> dict:
@@ -111,10 +127,34 @@ def _render_chunk(tmp_path: str, page_indices: list[int]) -> list[str]:
     return [b64 for _, b64 in pairs]
 
 
-async def _ask_appendix_ordinal(images_b64: list[str]) -> int | None:
-    """Hỏi model: trang phụ lục đầu tiên là ảnh thứ mấy (1-based) trong cụm?
-    Trả None nếu cả cụm vẫn là nội dung chính (hoặc model trả không hợp lệ)."""
-    n = len(images_b64)
+def _coerce_page(val, valid: set[int]) -> int | None:
+    """Ép giá trị model trả về thành số trang hợp lệ nằm trong cụm, hoặc None."""
+    if val is None:
+        return None
+    try:
+        p = int(val)
+    except (TypeError, ValueError):
+        return None
+    return p if p in valid else None
+
+
+async def _ask_boundary(page_indices: list[int], images_b64: list[str]) -> int | None:
+    """Hỏi model điểm kết thúc kết luận + trang phụ lục đầu trong cụm này.
+
+    Trả về chỉ số trang (0-based, tuyệt đối) BẮT ĐẦU phụ lục, hoặc None nếu
+    cụm này vẫn toàn nội dung chính / không xác định được.
+
+    Mỗi ảnh được gán nhãn "=== Trang <n> ===" để model trả số trang tuyệt đối
+    (đỡ đếm sai khi 50 ảnh). Lấy mốc neo theo KHỐI KÝ kết luận; chọn ranh giới
+    LỚN HƠN giữa các tín hiệu — cắt hụt làm mất nội dung chính, cắt thừa chỉ
+    chậm hơn.
+    """
+    valid = set(page_indices)
+    content: list[dict] = [{"type": "text", "text": _DETECT_USER}]
+    for pidx, b64 in zip(page_indices, images_b64):
+        content.append({"type": "text", "text": f"=== Trang {pidx} ==="})
+        content.append(_b64_image_block(b64))
+
     resp = await acompletion(
         model=f"openai/{VLLM_MODEL_NAME}",
         api_base=VLLM_BASE_URL,
@@ -123,30 +163,29 @@ async def _ask_appendix_ordinal(images_b64: list[str]) -> int | None:
         response_format={"type": "json_object"},
         messages=[
             {"role": "system", "content": _DETECT_SYSTEM},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": _DETECT_USER.format(n=n)},
-                    *[_b64_image_block(b) for b in images_b64],
-                ],
-            },
+            {"role": "user", "content": content},
         ],
     )
     raw = resp.choices[0].message.content
     try:
-        val = json.loads(raw).get("phu_luc_bat_dau_o_anh")
-    except (json.JSONDecodeError, TypeError, AttributeError):
+        data = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
         log.warning("detect: model trả về không phải JSON hợp lệ: %r", raw)
         return None
-    if val is None:
+
+    ket_thuc = _coerce_page(data.get("trang_ket_thuc_ket_luan"), valid)
+    phu_luc = _coerce_page(data.get("trang_phu_luc_dau_tien"), valid)
+    log.info("detect: lý do = %s", str(data.get("ly_do", ""))[:300])
+
+    candidates: list[int] = []
+    if ket_thuc is not None:
+        candidates.append(ket_thuc + 1)  # phụ lục bắt đầu NGAY SAU khối ký
+    if phu_luc is not None:
+        candidates.append(phu_luc)
+    if not candidates:
         return None
-    try:
-        ordinal = int(val)
-    except (TypeError, ValueError):
-        return None
-    if 1 <= ordinal <= n:
-        return ordinal
-    return None  # ngoài khoảng → coi như không có
+    # Thiên về GIỮ NHIỀU HƠN: lấy mốc lớn hơn để tránh cắt hụt nội dung chính.
+    return max(candidates)
 
 
 async def detect_appendix_start(
@@ -168,15 +207,19 @@ async def detect_appendix_start(
         images = await asyncio.get_running_loop().run_in_executor(
             None, _render_chunk, pdf_path, page_indices
         )
-        ordinal = await _ask_appendix_ordinal(images)
+        boundary = await _ask_boundary(page_indices, images)
         log.info(
             "detect: trang %d-%d → %s",
             page_indices[0],
             page_indices[-1],
-            f"phụ lục bắt đầu ở trang {start + ordinal - 1}" if ordinal else "toàn nội dung chính",
+            f"phụ lục bắt đầu ở trang {boundary}" if boundary is not None
+            else "toàn nội dung chính",
         )
-        if ordinal is not None:
-            return start + ordinal - 1  # ordinal 1-based trong cụm → page 0-based
+        if boundary is not None:
+            # Đệm an toàn + chặn biên: luôn giữ tối thiểu trang 0, không vượt
+            # quá tổng số trang.
+            boundary = min(max(boundary + DETECT_SAFETY_PAGES, 1), num_pages)
+            return boundary
     return None
 
 
