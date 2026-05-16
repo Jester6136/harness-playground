@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import functools
 import io
 import json
 import logging
@@ -48,6 +49,7 @@ import os
 import socket
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -123,6 +125,23 @@ def coll():
     if _mongo_client is None:
         _mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     return _mongo_client[MONGO_DB][MONGO_COLL]
+
+
+# Dedicated thread pool for blocking I/O (S3 download + Mongo claim/mark).
+# `asyncio.to_thread` shares ONE small default pool (min(32, cpu+4)); with
+# CONCURRENCY≈40, slow downloads there starve the scheduler's claim_one calls
+# → the in-flight pool drains then refills in waves. A pool sized to
+# CONCURRENCY + headroom keeps claims/marks from queueing behind downloads so
+# the pool stays full and vLLM gets a steady request stream.
+_IO_POOL = ThreadPoolExecutor(
+    max_workers=CONCURRENCY + 8, thread_name_prefix="ttcp-io"
+)
+
+
+async def _io(fn, *args):
+    """Run a blocking fn on the dedicated I/O pool (not the shared default)."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_IO_POOL, functools.partial(fn, *args))
 
 
 def ensure_indexes() -> None:
@@ -328,7 +347,7 @@ async def _download(key: str) -> io.BytesIO:
         s3().download_fileobj(BUCKET, key, buf)
         buf.seek(0)
         return buf
-    return await asyncio.to_thread(_do)
+    return await _io(_do)
 
 
 async def _extract(key: str) -> Any:
@@ -353,18 +372,16 @@ async def _process_one(doc: dict) -> bool:
     attempts = doc.get("attempts", 1)
     try:
         parsed = await asyncio.wait_for(_extract(key), timeout=TIMEOUT_SEC)
-        await asyncio.to_thread(mark_done, key, parsed)
+        await _io(mark_done, key, parsed)
         log.info("✓ %s", key)
         return True
     except asyncio.TimeoutError:
         log.warning("⏱ %s timed out >%ds (attempt %d/%d)", key, TIMEOUT_SEC, attempts, MAX_ATTEMPTS)
-        await asyncio.to_thread(
-            mark_error, key, f"TimeoutError: exceeded {TIMEOUT_SEC}s", attempts,
-        )
+        await _io(mark_error, key, f"TimeoutError: exceeded {TIMEOUT_SEC}s", attempts)
         return False
     except Exception as exc:
         log.exception("✗ %s (attempt %d/%d)", key, attempts, MAX_ATTEMPTS)
-        await asyncio.to_thread(mark_error, key, f"{type(exc).__name__}: {exc}", attempts)
+        await _io(mark_error, key, f"{type(exc).__name__}: {exc}", attempts)
         return False
 
 
@@ -375,24 +392,37 @@ async def run_loop() -> dict:
     tasks: set[asyncio.Task] = set()
     counters = {"done": 0, "error": 0}
 
-    initial = await asyncio.to_thread(count_workload)
+    initial = await _io(count_workload)
     pbar = tqdm(total=initial, desc="extract", unit="pdf", dynamic_ncols=True)
+
+    async def _refill() -> int:
+        """Claim up to the number of free slots IN PARALLEL and start them.
+        Parallel claim (vs the old one-at-a-time await) refills freed slots
+        immediately so ~CONCURRENCY files stay in flight → vLLM keeps a steady
+        request stream instead of running in waves. Returns #started."""
+        free = CONCURRENCY - len(tasks)
+        if free <= 0:
+            return 0
+        docs = await asyncio.gather(*(_io(claim_one) for _ in range(free)))
+        started = 0
+        for doc in docs:
+            if doc is not None:
+                tasks.add(asyncio.create_task(_process_one(doc)))
+                started += 1
+        return started
+
     # Retries re-enter the workload after a fail, so the real total can grow
     # beyond `initial`. We bump total whenever the pool is refilled.
     try:
         while True:
-            while len(tasks) < CONCURRENCY:
-                doc = await asyncio.to_thread(claim_one)
-                if doc is None:
-                    break
-                t = asyncio.create_task(_process_one(doc))
-                tasks.add(t)
-                t.add_done_callback(tasks.discard)
-
+            await _refill()
             if not tasks:
                 break  # drained: nothing claimable, nothing in flight
 
-            done, _pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            done, pending = await asyncio.wait(
+                tasks, return_when=asyncio.FIRST_COMPLETED
+            )
+            tasks = set(pending)  # robust: rebuild from what's still running
             for d in done:
                 try:
                     ok = d.result()
@@ -407,6 +437,7 @@ async def run_loop() -> dict:
             pbar.set_postfix(counters, refresh=False)
     finally:
         pbar.close()
+        _IO_POOL.shutdown(wait=False, cancel_futures=True)
 
     return counters
 

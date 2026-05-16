@@ -13,7 +13,13 @@ from PIL import Image
 from src.extentions.multimodal.models.dat import OrientationDetector
 
 CPU_COUNT = multiprocessing.cpu_count()
-PDF_RENDER_EXECUTOR = ProcessPoolExecutor(max_workers=min(20, CPU_COUNT // 2 + 1))
+# Số process render PDF. Render là CPU-bound và là chốt nghẽn: nếu quá nhỏ so
+# với batch concurrency thì request bắn sang vLLM theo từng cụm (vLLM bị đói
+# giữa các cụm). Chỉnh qua PDF_RENDER_WORKERS; mặc định giữ nguyên hành vi cũ.
+_PDF_RENDER_WORKERS = int(
+    os.getenv("PDF_RENDER_WORKERS", str(min(20, CPU_COUNT // 2 + 1)))
+)
+PDF_RENDER_EXECUTOR = ProcessPoolExecutor(max_workers=_PDF_RENDER_WORKERS)
 DETECTOR = None
 
 
