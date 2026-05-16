@@ -175,7 +175,7 @@ async def _ask_boundary(page_indices: list[int], images_b64: list[str]) -> int |
 
     ket_thuc = _coerce_page(data.get("trang_ket_thuc_ket_luan"), valid)
     phu_luc = _coerce_page(data.get("trang_phu_luc_dau_tien"), valid)
-    log.info("detect: lý do = %s", str(data.get("ly_do", ""))[:300])
+    # log.info("detect: lý do = %s", str(data.get("ly_do", ""))[:300])
 
     candidates: list[int] = []
     if ket_thuc is not None:
