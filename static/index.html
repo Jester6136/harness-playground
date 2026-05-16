@@ -56,10 +56,31 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 .sess-item.active { background: var(--primary); }
 .sess-item.active .sess-name { color: #fff; }
 .sess-name { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sess-del { opacity: 0; background: none; border: none; color: var(--error); cursor: pointer;
-            font-size: 13px; padding: 0 2px; transition: opacity .1s; flex-shrink: 0; }
-.sess-item:hover .sess-del { opacity: 1; }
-.sess-item.active .sess-del { opacity: .8; color: #fff; }
+.sess-acts { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.sess-btn { background: none; border: none; cursor: pointer; padding: 2px 5px;
+            font-size: 13px; color: var(--muted); opacity: 0;
+            transition: opacity .12s, color .12s; }
+.sess-item:hover .sess-btn { opacity: .75; }
+.sess-btn:hover { opacity: 1; color: var(--text); }
+.sess-item.active .sess-btn { color: #fff; opacity: .85; }
+/* Idle: chỉ hiện ✎ và ✕ */
+.sess-acts[data-state="idle"] .sess-confirm-text,
+.sess-acts[data-state="idle"] .sess-yes,
+.sess-acts[data-state="idle"] .sess-no { display: none; }
+/* Confirm: ẩn ✎ và ✕ gốc, hiện "Xoá?" + ✓ + ↩ */
+.sess-acts[data-state="confirm"] .sess-rename,
+.sess-acts[data-state="confirm"] .sess-del { display: none; }
+.sess-acts[data-state="confirm"] .sess-btn { opacity: 1; }
+.sess-acts[data-state="confirm"] .sess-confirm-text {
+  font-size: 11px; color: var(--error); font-weight: 600; margin-right: 2px;
+  animation: confirmSlide .18s ease;
+}
+.sess-acts[data-state="confirm"] .sess-yes { color: var(--error); }
+.sess-acts[data-state="confirm"] .sess-no  { color: var(--muted); }
+@keyframes confirmSlide {
+  from { transform: translateX(10px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
 .cmd-ref { font-size: 12px; color: var(--muted); line-height: 1.7; }
 .cmd-ref span { font-family: var(--mono); color: var(--primary); }
 
@@ -387,28 +408,44 @@ function renderSessions() {
   }
   el.innerHTML = S.sessions.map(s => {
     const label = s.title || s.id;
+    const active = s.id === S.session ? 'active' : '';
+    // Truyền chỉ id qua onclick (tránh quote-trong-quote khi title có dấu " ').
+    // Title hiện tại đọc lại từ S.sessions trong renameSession.
+    const sid = esc(s.id);
     return `
-    <div class="sess-item ${s.id === S.session ? 'active' : ''}"
-         onclick="openSession('${esc(s.id)}')" title="${esc(s.id)}">
+    <div class="sess-item ${active}" onclick="openSession('${sid}')" title="${sid}">
       <span class="sess-name">${esc(label)}</span>
-      <button class="sess-del" onclick="event.stopPropagation();renameSession('${esc(s.id)}', ${JSON.stringify(label)})" title="Đổi tên">✎</button>
-      <button class="sess-del" onclick="event.stopPropagation();delSession('${esc(s.id)}')" title="Xoá">✕</button>
+      <span class="sess-acts" data-state="idle">
+        <button class="sess-btn sess-rename" title="Đổi tên"
+                onclick="event.stopPropagation();renameSession('${sid}')">✎</button>
+        <button class="sess-btn sess-del" title="Xoá"
+                onclick="event.stopPropagation();askDelete(this.parentElement)">✕</button>
+        <span class="sess-confirm-text">Xoá?</span>
+        <button class="sess-btn sess-yes" title="Xác nhận xoá"
+                onclick="event.stopPropagation();confirmDelete('${sid}', this.parentElement)">✓</button>
+        <button class="sess-btn sess-no" title="Huỷ"
+                onclick="event.stopPropagation();cancelDelete(this.parentElement)">↩</button>
+      </span>
     </div>`;
   }).join('');
 }
 
-async function renameSession(sid, current) {
+async function renameSession(sid) {
+  const sess = S.sessions.find(s => s.id === sid);
+  const current = sess?.title || sid;
   const t = prompt('Đặt tên cho phiên:', current);
   if (t === null) return;
   const title = t.trim();
   if (!title) return;
   try {
-    await fetch(`${S.base}/threads/${enc(S.user)}/${enc(sid)}`, {
+    const r = await fetch(`${S.base}/threads/${enc(S.user)}/${enc(sid)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...xuid() },
       body: JSON.stringify({ title }),
     });
-    await loadSessions();
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    if (sess) sess.title = title;     // update tại chỗ, đỡ refetch
+    renderSessions();
   } catch(e) { alert('Đổi tên thất bại: ' + e.message); }
 }
 
@@ -446,10 +483,31 @@ async function openSession(sid) {
   await loadMessages();
 }
 
-async function delSession(sid) {
-  if (!confirm(`Xoá phiên "${sid}"?`)) return;
+// Inline slide-confirm: bấm ✕ → đổi sang state "Xoá? ✓ ↩" thay vì popup.
+// Tự huỷ sau 4s nếu user không bấm gì (đỡ để trạng thái rác lủng lẳng).
+function askDelete(actsEl) {
+  // Đóng confirm đang mở ở item khác (cùng lúc chỉ 1 cái đang hỏi).
+  document.querySelectorAll('.sess-acts[data-state="confirm"]').forEach(el => {
+    if (el !== actsEl) cancelDelete(el);
+  });
+  actsEl.dataset.state = 'confirm';
+  if (actsEl._timer) clearTimeout(actsEl._timer);
+  actsEl._timer = setTimeout(() => cancelDelete(actsEl), 4000);
+}
+
+function cancelDelete(actsEl) {
+  if (actsEl._timer) clearTimeout(actsEl._timer);
+  actsEl._timer = null;
+  actsEl.dataset.state = 'idle';
+}
+
+async function confirmDelete(sid, actsEl) {
+  cancelDelete(actsEl);   // dọn timer trước khi thao tác
   try {
-    await fetch(`${S.base}/threads/${enc(S.user)}/${enc(sid)}`, { method: 'DELETE', headers: xuid() });
+    const r = await fetch(`${S.base}/threads/${enc(S.user)}/${enc(sid)}`, {
+      method: 'DELETE', headers: xuid(),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     S.sessions = S.sessions.filter(s => s.id !== sid);
     if (S.session === sid) {
       newChat();                       // phiên hiện tại bị xoá → về welcome
