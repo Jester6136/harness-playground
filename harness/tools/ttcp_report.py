@@ -610,13 +610,141 @@ _CSS = """        .tt-report-container {
             color: #8a1319;
         }
         @media print {
+            /* --- Khổ giấy A4 ngang, lề hẹp để có tối đa không gian --- */
+            @page {
+                size: A4 landscape;
+                margin: 8mm;
+            }
+
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            html, body {
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+            }
+
+            /* --- Bỏ các yếu tố không cần in --- */
             .tt-report-container .no-print { display: none !important; }
-            .tt-report-container { padding: 0 !important; background: white !important; }
-            .tt-report-container .v-table thead th { background-color: var(--tt-red-dark) !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .tt-report-container .v-table thead th.sub-th { background-color: #b72028 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .tt-report-container .v-table tbody tr:nth-child(even) { background-color: #fafafa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .tt-report-container .section-header { color: var(--tt-red) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .tt-report-container .info-grid { background: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+            /* --- Khung ngoài: bỏ padding, bo góc, đổ bóng --- */
+            .tt-report-container {
+                padding: 0 !important;
+                background: white !important;
+                font-size: 9pt !important;
+            }
+            .tt-report-container .max-w-\\[1400px\\] {
+                max-width: 100% !important;
+                box-shadow: none !important;
+                border: none !important;
+                border-radius: 0 !important;
+            }
+
+            /* --- Header gọn lại --- */
+            .tt-report-container header {
+                padding: 10px 8px !important;
+            }
+            .tt-report-container header img { width: 42px !important; margin-bottom: 4px !important; }
+            .tt-report-container header h1 { font-size: 13pt !important; }
+            .tt-report-container header p { font-size: 8pt !important; margin-top: 2px !important; }
+
+            .tt-report-container main { padding: 8px 6px !important; }
+            .tt-report-container section { margin-bottom: 10px !important; }
+            .tt-report-container .section-header {
+                color: var(--tt-red) !important;
+                font-size: 10.5pt !important;
+                margin-bottom: 8px !important;
+                padding-bottom: 3px !important;
+            }
+
+            /* --- Thông tin chung --- */
+            .tt-report-container .info-grid {
+                background: #f8fafc !important;
+                gap: 3px !important;
+                padding: 5px !important;
+                break-inside: avoid;
+            }
+            .tt-report-container .info-cell { padding: 3px 6px !important; }
+            .tt-report-container .info-label { font-size: 6pt !important; }
+            .tt-report-container .info-value { font-size: 7.5pt !important; line-height: 1.3 !important; }
+            .tt-report-container .info-cell.full .info-value { font-size: 8pt !important; }
+
+            /* --- Card trích lược: không bị cắt ngang trang --- */
+            .tt-report-container .grid.grid-cols-1 { gap: 6px !important; }
+            .tt-report-container .grid.grid-cols-1 > div {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                padding: 7px !important;
+            }
+            .tt-report-container .grid.grid-cols-1 > div span.flex-shrink-0 {
+                width: 22px !important;
+                height: 22px !important;
+                font-size: 8pt !important;
+            }
+            .tt-report-container .grid.grid-cols-1 > div p { font-size: 7.5pt !important; }
+            .tt-report-container .field-line { font-size: 7.5pt !important; }
+            .tt-report-container .rec-block { padding: 4px 6px !important; margin-top: 4px !important; }
+            .tt-report-container .rec-title { font-size: 6.5pt !important; }
+            .tt-report-container .rec-line { font-size: 7.5pt !important; }
+            .tt-report-container .rec-tag { font-size: 6pt !important; padding: 1px 4px !important; }
+
+            /* --- BẢNG CHI TIẾT VI PHẠM: ép vừa khít chiều ngang trang --- */
+            .tt-report-container .table-container {
+                overflow: visible !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
+            .tt-report-container .v-table {
+                min-width: 0 !important;
+                width: 100% !important;
+                table-layout: fixed !important;
+                font-size: 7pt !important;
+            }
+            .tt-report-container .v-table thead {
+                display: table-header-group; /* lặp lại tiêu đề mỗi trang */
+            }
+            .tt-report-container .v-table thead th {
+                background-color: var(--tt-red-dark) !important;
+                color: white !important;
+                padding: 4px 3px !important;
+                font-size: 7pt !important;
+                line-height: 1.2 !important;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+            .tt-report-container .v-table thead th.sub-th {
+                background-color: #b72028 !important;
+                font-size: 6.5pt !important;
+            }
+            .tt-report-container .v-table tbody td {
+                padding: 4px 5px !important;
+                font-size: 7pt !important;
+                line-height: 1.3 !important;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                hyphens: auto;
+            }
+            .tt-report-container .v-table tbody tr {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            .tt-report-container .v-table tbody tr:nth-child(even) {
+                background-color: #fafafa !important;
+            }
+            .tt-report-container .v-table tbody tr:hover { background-color: transparent !important; }
+            .tt-report-container .v-table .italic.text-\\[13px\\],
+            .tt-report-container .v-table .text-\\[13px\\] { font-size: 6.5pt !important; }
+            /* Cột STT hẹp cố định để fixed-layout chia đúng các cột còn lại */
+            .tt-report-container .v-table thead th:first-child,
+            .tt-report-container .v-table tbody td:first-child {
+                width: 28px !important;
+                padding-left: 2px !important;
+                padding-right: 2px !important;
+            }
         }"""
 
 

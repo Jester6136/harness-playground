@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bảng tóm tắt Kết luận thanh tra - Viện Hàn lâm KHCN Việt Nam</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+        .tt-report-container {
+            --tt-red: #a3171e;
+            --tt-red-dark: #8a1319;
+            --tt-gold: #d4af37;
+            --tt-text: #333333;
+            --tt-border: #e2e8f0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: var(--tt-text);
+            line-height: 1.6;
+        }
+        .tt-report-container .table-container {
+            overflow-x: auto;
+            border-radius: 6px;
+            box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.08);
+            background: white;
+            border: 1px solid var(--tt-border);
+        }
+        .tt-report-container .v-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1250px;
+        }
+        .tt-report-container .v-table th,
+        .tt-report-container .v-table td {
+            border: 1px solid var(--tt-border);
+        }
+        .tt-report-container .v-table thead {
+            border-top: 4px solid var(--tt-gold);
+        }
+        .tt-report-container .v-table thead th {
+            background-color: var(--tt-red-dark);
+            color: #ffffff;
+            text-align: center;
+            vertical-align: middle;
+            padding: 0.875rem 0.5rem;
+            font-weight: 600;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        .tt-report-container .v-table thead th.sub-th {
+            background-color: #b72028;
+            font-weight: 500;
+            border-color: #9c151b;
+        }
+        .tt-report-container .v-table thead th.border-b-gold {
+            border-bottom: 1px solid #d66468;
+        }
+        .tt-report-container .v-table tbody td {
+            padding: 0.875rem 1rem;
+            vertical-align: top;
+            font-size: 0.875rem;
+            color: #1e293b;
+        }
+        .tt-report-container .v-table tbody tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+        .tt-report-container .v-table tbody tr:hover {
+            background-color: #fef2f2;
+        }
+        .tt-report-container .section-header {
+            border-bottom: 2px solid var(--tt-red);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            color: var(--tt-red);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+            display: flex;
+            align-items: center;
+        }
+        .tt-report-container .section-header::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 1.2rem;
+            background-color: var(--tt-gold);
+            margin-right: 10px;
+        }
+        .tt-report-container .empty-dash {
+            text-align: center;
+            color: #cbd5e1;
+            font-weight: bold;
+        }
+        /* === Compact info block === */
+        .tt-report-container .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.5rem;
+            background: #f8fafc;
+            border: 1px solid var(--tt-border);
+            border-radius: 8px;
+            padding: 0.875rem;
+        }
+        @media (min-width: 768px) {
+            .tt-report-container .info-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+        .tt-report-container .info-cell {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 5px;
+            padding: 0.55rem 0.75rem;
+        }
+        .tt-report-container .info-cell.full {
+            grid-column: 1 / -1;
+            border-left: 3px solid var(--tt-red);
+        }
+        .tt-report-container .info-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--tt-red);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.15rem;
+            display: block;
+        }
+        .tt-report-container .info-value {
+            font-size: 0.8rem;
+            color: #1f2937;
+            line-height: 1.45;
+        }
+        .tt-report-container .info-cell.full .info-value {
+            font-size: 0.85rem;
+            line-height: 1.55;
+        }
+        /* === Recommendation block trong phần I === */
+        .tt-report-container .rec-block {
+            margin-top: 0.5rem;
+            padding: 0.55rem 0.7rem;
+            background: #fff8f1;
+            border-left: 3px solid #d4af37;
+            border-radius: 4px;
+        }
+        .tt-report-container .rec-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #8a1319;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+        .tt-report-container .rec-line {
+            font-size: 0.8rem;
+            color: #1f2937;
+            line-height: 1.45;
+            margin: 0.1rem 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.4rem;
+        }
+        .tt-report-container .rec-tag {
+            flex-shrink: 0;
+            display: inline-block;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 0.1rem 0.45rem;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            line-height: 1.4;
+            white-space: nowrap;
+        }
+        .tt-report-container .rec-tag.tag-admin {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .tt-report-container .rec-tag.tag-eco {
+            background: #fee2e2;
+            color: #8a1319;
+        }
+        .tt-report-container .rec-tag.tag-crim {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .tt-report-container .rec-text {
+            flex: 1;
+        }
+        .tt-report-container .rec-text.eco-money {
+            font-weight: 600;
+            color: #8a1319;
+        }
+        /* "Chưa rõ" placeholder */
+        .tt-report-container .unknown {
+            color: #1f2937;
+            font-style: normal;
+            font-weight: 500;
+        }
+        .tt-report-container .field-line {
+            font-size: 0.8rem;
+            color: #1f2937;
+            margin: 0.15rem 0;
+            line-height: 1.45;
+        }
+        .tt-report-container .field-label {
+            font-weight: 700;
+            color: #8a1319;
+        }
+        @media print {
+            /* --- Khổ giấy A4 ngang, lề hẹp để có tối đa không gian --- */
+            @page {
+                size: A4 landscape;
+                margin: 8mm;
+            }
+
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            html, body {
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+            }
+
+            /* --- Bỏ các yếu tố không cần in --- */
+            .tt-report-container .no-print { display: none !important; }
+
+            /* --- Khung ngoài: bỏ padding, bo góc, đổ bóng --- */
+            .tt-report-container {
+                padding: 0 !important;
+                background: white !important;
+                font-size: 9pt !important;
+            }
+            .tt-report-container .max-w-\[1400px\] {
+                max-width: 100% !important;
+                box-shadow: none !important;
+                border: none !important;
+                border-radius: 0 !important;
+            }
+
+            /* --- Header gọn lại --- */
+            .tt-report-container header {
+                padding: 10px 8px !important;
+            }
+            .tt-report-container header img { width: 42px !important; margin-bottom: 4px !important; }
+            .tt-report-container header h1 { font-size: 13pt !important; }
+            .tt-report-container header p { font-size: 8pt !important; margin-top: 2px !important; }
+
+            .tt-report-container main { padding: 8px 6px !important; }
+            .tt-report-container section { margin-bottom: 10px !important; }
+            .tt-report-container .section-header {
+                color: var(--tt-red) !important;
+                font-size: 10.5pt !important;
+                margin-bottom: 8px !important;
+                padding-bottom: 3px !important;
+            }
+
+            /* --- Thông tin chung --- */
+            .tt-report-container .info-grid {
+                background: #f8fafc !important;
+                gap: 3px !important;
+                padding: 5px !important;
+                break-inside: avoid;
+            }
+            .tt-report-container .info-cell { padding: 3px 6px !important; }
+            .tt-report-container .info-label { font-size: 6pt !important; }
+            .tt-report-container .info-value { font-size: 7.5pt !important; line-height: 1.3 !important; }
+            .tt-report-container .info-cell.full .info-value { font-size: 8pt !important; }
+
+            /* --- Card Phần I: không bị cắt ngang trang --- */
+            .tt-report-container .grid.grid-cols-1 { gap: 6px !important; }
+            .tt-report-container .grid.grid-cols-1 > div {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                padding: 7px !important;
+            }
+            .tt-report-container .grid.grid-cols-1 > div span.flex-shrink-0 {
+                width: 22px !important;
+                height: 22px !important;
+                font-size: 8pt !important;
+            }
+            .tt-report-container .grid.grid-cols-1 > div p { font-size: 7.5pt !important; }
+            .tt-report-container .field-line { font-size: 7.5pt !important; }
+            .tt-report-container .rec-block { padding: 4px 6px !important; margin-top: 4px !important; }
+            .tt-report-container .rec-title { font-size: 6.5pt !important; }
+            .tt-report-container .rec-line { font-size: 7.5pt !important; }
+            .tt-report-container .rec-tag { font-size: 6pt !important; padding: 1px 4px !important; }
+
+            /* --- BẢNG CHI TIẾT VI PHẠM: ép vừa khít chiều ngang trang --- */
+            .tt-report-container .table-container {
+                overflow: visible !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
+            .tt-report-container .v-table {
+                min-width: 0 !important;
+                width: 100% !important;
+                table-layout: fixed !important;
+                font-size: 7pt !important;
+            }
+            .tt-report-container .v-table thead {
+                display: table-header-group; /* lặp lại tiêu đề mỗi trang */
+            }
+            .tt-report-container .v-table thead th {
+                background-color: var(--tt-red-dark) !important;
+                color: white !important;
+                padding: 4px 3px !important;
+                font-size: 7pt !important;
+                line-height: 1.2 !important;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+            .tt-report-container .v-table thead th.sub-th {
+                background-color: #b72028 !important;
+                font-size: 6.5pt !important;
+            }
+            .tt-report-container .v-table tbody td {
+                padding: 4px 5px !important;
+                font-size: 7pt !important;
+                line-height: 1.3 !important;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                hyphens: auto;
+            }
+            .tt-report-container .v-table tbody tr {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            .tt-report-container .v-table tbody tr:nth-child(even) {
+                background-color: #fafafa !important;
+            }
+            .tt-report-container .v-table tbody tr:hover { background-color: transparent !important; }
+            .tt-report-container .v-table .italic.text-\[13px\],
+            .tt-report-container .v-table .text-\[13px\] { font-size: 6.5pt !important; }
+            /* Cột STT hẹp cố định để fixed-layout chia đúng các cột còn lại */
+            .tt-report-container .v-table thead th:first-child,
+            .tt-report-container .v-table tbody td:first-child {
+                width: 28px !important;
+                padding-left: 2px !important;
+                padding-right: 2px !important;
+            }
+        }
+</style>
+</head>
+<body class="bg-transparent m-0 p-0">
+
+  <div class="tt-report-container antialiased w-full h-full p-2 md:p-6 bg-transparent">
+    <div class="max-w-[1400px] mx-auto bg-white shadow-lg border border-gray-200 rounded-lg overflow-hidden">
+
+      <!-- ============================================== -->
+      <!-- HEADER: Quốc huy + tiêu đề + số văn bản          -->
+      <!-- ============================================== -->
+      <header class="bg-gradient-to-b from-[#a3171e] to-[#8a1319] text-white p-6 md:p-8 flex flex-col items-center text-center relative border-b-4 border-[#d4af37]">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/a/a3/Emblem_of_Vietnam.svg" alt="Quốc huy Việt Nam" class="w-16 md:w-20 mb-3 drop-shadow-lg">
+        <h1 class="text-lg md:text-xl lg:text-2xl font-bold uppercase tracking-wide text-[#f8e5ad]">
+          Bảng Tóm Tắt Nội Dung Kết Luận Thanh Tra
+        </h1>
+        <p class="mt-2 text-white/80 text-sm font-medium">Số văn bản: …/KL-TTCP (dự thảo, tháng 5 năm 2026)</p>
+      </header>
+
+      <main class="p-6 md:p-8">
+
+        <!-- ============================================== -->
+        <!-- THÔNG TIN CHUNG (info-grid 4 cột)                -->
+        <!-- ============================================== -->
+        <section class="mb-8">
+          <h2 class="section-header text-base">Thông tin chung về cuộc thanh tra</h2>
+          <div class="info-grid">
+            <!-- Ô full-width đầu tiên: Tên/Nội dung thanh tra -->
+            <div class="info-cell full">
+              <span class="info-label">Tên / Nội dung thanh tra</span>
+              <p class="info-value">Thanh tra trách nhiệm trong việc thực hiện cơ chế tự chủ <strong>giai đoạn 2016-2022</strong> tại <strong>Viện Hàn lâm Khoa học và Công nghệ Việt Nam (VHL)</strong>. Nội dung tập trung: việc tổ chức, triển khai thực hiện cơ chế tự chủ của VHL; việc thực hiện 04 nội dung tự chủ của đơn vị trực thuộc (tổ chức bộ máy; tổ chức nhân sự; thực hiện nhiệm vụ; tài chính). Kiểm tra, xác minh trực tiếp tại 03 đơn vị chuyên môn giúp việc Chủ tịch VHL và 08 đơn vị sự nghiệp trực thuộc.</p>
+            </div>
+
+            <!-- 4 ô nhỏ -->
+            <div class="info-cell">
+              <span class="info-label">Quyết định / Kết luận</span>
+              <p class="info-value">Dự thảo Kết luận thanh tra số …/KL-TTCP; thực hiện theo Quyết định thanh tra số 336/QĐ-TTCP ngày 18/6/2024</p>
+            </div>
+            <div class="info-cell">
+              <span class="info-label">Ngày ban hành</span>
+              <p class="info-value">Tháng 5 năm 2026 (dự thảo); thanh tra trực tiếp từ 05/7/2024 đến 30/9/2024</p>
+            </div>
+            <div class="info-cell">
+              <span class="info-label">Đơn vị chủ trì</span>
+              <p class="info-value">Thanh tra Chính phủ</p>
+            </div>
+            <div class="info-cell">
+              <span class="info-label">Đối tượng</span>
+              <p class="info-value">Viện Hàn lâm Khoa học và Công nghệ Việt Nam (VHL) và 08 đơn vị sự nghiệp trực thuộc được kiểm tra, xác minh</p>
+            </div>
+
+            <!-- 2 ô rộng (span 2) -->
+            <div class="info-cell" style="grid-column: span 2 / span 2;">
+              <span class="info-label">Người ký</span>
+              <p class="info-value">Tổng Thanh tra Chính phủ <span class="text-gray-500">(Chưa rõ tên người ký — văn bản dự thảo)</span></p>
+            </div>
+            <div class="info-cell" style="grid-column: span 2 / span 2;">
+              <span class="info-label">Lĩnh vực</span>
+              <p class="info-value">Thanh tra trách nhiệm — Cơ chế tự chủ của đơn vị sự nghiệp công lập (tổ chức bộ máy, nhân sự, nhiệm vụ KHCN, tài chính)</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- PHẦN II: BẢNG CHI TIẾT VI PHẠM                   -->
+        <!-- ============================================== -->
+        <section class="mb-10">
+          <h2 class="section-header text-base">I. Bảng chi tiết vi phạm</h2>
+          <div class="table-container">
+            <table class="v-table">
+              <thead>
+                <tr>
+                  <th rowspan="2" class="w-12 border-r border-[#9c151b]">STT</th>
+                  <th rowspan="2" class="w-[12%] border-r border-[#9c151b]">Đối tượng vi phạm</th>
+                  <th rowspan="2" class="w-[22%] border-r border-[#9c151b]">Hành vi vi phạm</th>
+                  <th rowspan="2" class="w-[12%] border-r border-[#9c151b]">Điều khoản vi phạm</th>
+                  <th rowspan="2" class="w-[15%] border-r border-[#9c151b]">Hậu quả định tính/định lượng</th>
+                  <th rowspan="2" class="w-[12%] border-r border-[#9c151b]">Trách nhiệm</th>
+                  <th colspan="3" class="border-b-gold uppercase tracking-wider text-[0.8rem]">Kiến nghị xử lý</th>
+                </tr>
+                <tr>
+                  <th class="sub-th w-[8%] border-r border-[#c4252e]">Hình sự</th>
+                  <th class="sub-th w-[10%] border-r border-[#c4252e]">Hành chính</th>
+                  <th class="sub-th w-[9%]">Kinh tế</th>
+                </tr>
+              </thead>
+              <tbody>
+
+                <!-- ===== DÒNG 1 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">1</td>
+                  <td><strong>Viện Hàn lâm KHCN Việt Nam (VHL)</strong></td>
+                  <td>Số lượng tổ chức KHCN công lập trực thuộc nhiều hơn 01 đơn vị (Viện Nghiên cứu hệ Gen) so với quy hoạch; chưa có văn bản đề nghị Bộ KHCN trình Thủ tướng điều chỉnh Quyết định số 171/QĐ-TTg.</td>
+                  <td class="italic text-[13px] text-gray-600">Điểm b khoản 1 Mục IV Quyết định số 171/QĐ-TTg ngày 27/01/2016</td>
+                  <td>Số lượng tổ chức KHCN công lập không phù hợp quy hoạch mạng lưới đã phê duyệt.</td>
+                  <td>VHL; Lãnh đạo VHL phụ trách lĩnh vực</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Đề nghị Bộ KHCN trình Thủ tướng điều chỉnh quy hoạch; kiểm điểm trách nhiệm</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 2 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">2</td>
+                  <td><strong>VHL; 07 đơn vị trực thuộc</strong></td>
+                  <td>Thành lập mới 08 đơn vị cấp phòng của 07 đơn vị có thiếu sót: nhân sự lãnh đạo chưa đủ điều kiện; không lấy ý kiến Hội đồng khoa học bằng bỏ phiếu kín; chưa đủ số lượng viên chức; số Phó trưởng phòng nhiều hơn quy định.</td>
+                  <td class="italic text-[13px] text-gray-600">Điểm c khoản 1, điểm c và điểm d khoản 2 Điều 8 Quy chế ban hành kèm Quyết định số 07/QĐ-VHL ngày 19/02/2013</td>
+                  <td>Thành lập đơn vị cấp phòng không đảm bảo điều kiện, trình tự, thủ tục.</td>
+                  <td>VHL; 07 đơn vị trực thuộc (trừ Trường); lãnh đạo các đơn vị</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Xây dựng phương án sắp xếp, kiện toàn cơ cấu tổ chức; chấn chỉnh; kiểm điểm trách nhiệm</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 3 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">3</td>
+                  <td><strong>VHL</strong></td>
+                  <td>Không giao biên chế viên chức, không xác định số lượng người làm việc đúng quy định; không hướng dẫn Trường xây dựng Đề án vị trí việc làm; 04 và 08 đơn vị chưa xây dựng Đề án vị trí việc làm, cơ cấu viên chức.</td>
+                  <td class="italic text-[13px] text-gray-600">Khoản 1, 2 Điều 12 Nghị định số 41/2012/NĐ-CP; khoản 1 Điều 10 Thông tư số 14/2012/TT-BNV; điểm c khoản 2 Điều 16 Nghị định số 106/2020/NĐ-CP</td>
+                  <td>Quản lý nhân sự, vị trí việc làm thiếu cơ sở pháp lý; khó kiểm soát số lượng người làm việc.</td>
+                  <td>VHL; Ban TCCB; lãnh đạo VHL phụ trách</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Chấn chỉnh, hoàn thiện việc phê duyệt vị trí việc làm; chỉ đạo Trường xây dựng Đề án; kiểm điểm trách nhiệm</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 4 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">4</td>
+                  <td><strong>VHL</strong></td>
+                  <td>Chưa chỉ đạo đơn vị trực thuộc lập danh sách đối tượng tinh giản biên chế và dự toán kinh phí định kỳ 2 lần/năm; chưa chấn chỉnh việc ký HĐLĐ không xác định thời hạn với người đã ký HĐLĐ có thời hạn 2 lần.</td>
+                  <td class="italic text-[13px] text-gray-600">Khoản 3 Điều 18 Nghị định số 108/2014/NĐ-CP; khoản 2 Điều 22 Bộ luật Lao động 2012; điểm c khoản 2 Điều 20 Bộ luật Lao động 2019</td>
+                  <td>Thực hiện tinh giản biên chế và quản lý HĐLĐ chưa đúng quy định; ảnh hưởng quyền lợi người lao động.</td>
+                  <td>VHL; Ban TCCB; các đơn vị trực thuộc</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Chấn chỉnh, yêu cầu các đơn vị thực hiện đúng quy định về tinh giản biên chế và ký HĐLĐ; kiểm điểm trách nhiệm</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 5 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">5</td>
+                  <td><strong>VHL; các đơn vị trực thuộc</strong></td>
+                  <td>Quy hoạch viên chức lãnh đạo có nhiều thiếu sót: căn cứ quy định hết hiệu lực; quy hoạch 01 người/01 chức danh; phê duyệt chưa đạt trên 50% phiếu tán thành; quy hoạch chậm, không rà soát bổ sung; 07 đơn vị không báo cáo danh sách quy hoạch.</td>
+                  <td class="italic text-[13px] text-gray-600">Khoản 2 Điều 6 các Quy chế ban hành kèm Quyết định số 2357/QĐ-VHL, số 04/QĐ-VHL; Điều 7 Quy chế ban hành kèm Quyết định số 2396/QĐ-VHL, số 2357/QĐ-VHL</td>
+                  <td>Công tác quy hoạch cán bộ không đúng trình tự, thủ tục; là nguyên nhân dẫn đến bổ nhiệm viên chức chưa được quy hoạch.</td>
+                  <td>VHL; các đơn vị trực thuộc; lãnh đạo các đơn vị</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Chấn chỉnh công tác quy hoạch; rà soát, bổ sung quy hoạch; kiểm điểm trách nhiệm</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 6 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">6</td>
+                  <td><strong>VHL; 08 đơn vị được kiểm tra</strong></td>
+                  <td>Bổ nhiệm cấp trưởng, cấp phó có nhiều vi phạm: bổ nhiệm viên chức chưa được quy hoạch; thiếu bằng/chứng chỉ lý luận chính trị, quản lý nhà nước; thiếu trình độ tiến sĩ/NCV chính; hồ sơ bổ nhiệm không đầy đủ; 02 trường hợp văn bằng tiến sĩ nước ngoài chưa có bản công nhận của Bộ GD&ĐT.</td>
+                  <td class="italic text-[13px] text-gray-600">Khoản 2 Điều 44, khoản 6, 9, 10 Điều 48 Nghị định số 115/2020/NĐ-CP; điểm 3 Mục III Phần B Nghị quyết số 32-NQ/TW; khoản 4 Điều 10 Thông tư số 07/2019/TT-BNV; các Quy chế của VHL</td>
+                  <td>Có dấu hiệu buông lỏng công tác bổ nhiệm lãnh đạo cấp phòng; nhiều trường hợp không đảm bảo điều kiện, tiêu chuẩn, trình tự.</td>
+                  <td>VHL; Thủ trưởng 08 đơn vị được kiểm tra; cá nhân liên quan</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Kiểm điểm, xử lý nghiêm trách nhiệm; rà soát, xử lý các trường hợp không đáp ứng tiêu chuẩn; bổ sung, hoàn thiện hồ sơ</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 7 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">7</td>
+                  <td><strong>VHL; các Ban chuyên môn; đơn vị chủ trì đề tài</strong></td>
+                  <td>Phê duyệt thuyết minh, danh mục đề tài có vi phạm: thành lập Hội đồng thẩm định không đúng mẫu; không thành lập Hội đồng thẩm định tài chính; thẩm định trước khi xây dựng hồ sơ thuyết minh; phê duyệt thuyết minh dài 50 trang; không công khai kết quả mở hồ sơ đăng ký.</td>
+                  <td class="italic text-[13px] text-gray-600">Điểm c khoản 3 Điều 6 Quy chế kèm QĐ số 1786/QĐ-VHL; khoản 2 Điều 6 QĐ số 2703/QĐ-VHL; khoản 1, điểm c, e khoản 1, điểm b khoản 6, điểm e khoản 2 Điều 6 QĐ số 1061/QĐ-VHL</td>
+                  <td>Quy trình phê duyệt thuyết minh, danh mục đề tài không đúng quy định; thiếu minh bạch; nguy cơ lãng phí nguồn lực KHCN.</td>
+                  <td>VHL; Ban KHTC; đơn vị chủ trì đề tài</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Chấn chỉnh công tác phê duyệt thuyết minh, danh mục đề tài; thực hiện đúng quy định về hội đồng, thẩm định, công khai; kiểm điểm trách nhiệm</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 8 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">8</td>
+                  <td><strong>VHL; 08 đơn vị được kiểm tra</strong></td>
+                  <td>Phê duyệt dự toán, ký hợp đồng chưa chính xác: dự toán có nội dung tiền điện, nước ngoài mục Chi phí quản lý chung nhiệm vụ KHCN với số tiền 7.407,503 trđ.</td>
+                  <td class="italic text-[13px] text-gray-600">Khoản 8 Điều 7 Thông tư liên tịch số 55/2015/TTLT-BTC-BKHCN</td>
+                  <td>Phê duyệt dự toán đề tài KHCN chưa đúng quy định; nguy cơ lãng phí, thất thoát NSNN. Giá trị 7.407,503 triệu đồng.</td>
+                  <td>VHL; Ban KHTC; 08 đơn vị được kiểm tra</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Chấn chỉnh phê duyệt dự toán; yêu cầu 08 đơn vị rà soát, báo cáo nội dung tiền điện, nước</td>
+                  <td class="text-[#8a1319] font-bold text-[13px]">Rà soát, xác định, giảm trừ dự toán/quyết toán và thu hồi nộp NSNN số tiền 7.407,503 triệu đồng</td>
+                </tr>
+
+                <!-- ===== DÒNG 9 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">9</td>
+                  <td><strong>VHL; đơn vị chủ trì đề tài</strong></td>
+                  <td>Đấu thầu mua sắm vật tư, hóa chất có vi phạm: dùng 01 báo giá làm giá gói thầu; HSMT nêu nhãn hiệu, xuất xứ cụ thể; không lập KHLCNT, không Quyết định chỉ định thầu gói dưới 100 trđ; không thẩm định HSYC; tổ thẩm định không có tờ trình.</td>
+                  <td class="italic text-[13px] text-gray-600">Khoản 3 Điều 7 TTLT số 55/2015/TTLT; điểm a khoản 2 Điều 11 Thông tư số 58/2016/TT-BTC; khoản 7 Điều 12, khoản 1 Điều 58, khoản 3 Điều 20, Điều 19, khoản 2 Điều 92 Nghị định số 63/2014/NĐ-CP; Điều 16 Luật Đấu thầu 2013</td>
+                  <td>Công tác đấu thầu mua sắm vật tư, hóa chất phục vụ đề tài không đảm bảo quy định; hạn chế cạnh tranh; nguy cơ thất thoát.</td>
+                  <td>VHL; đơn vị chủ trì đề tài; tổ chuyên gia, tổ thẩm định</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Chấn chỉnh công tác đấu thầu; thực hiện đúng quy định về giá gói thầu, HSMT, HSDT, hợp đồng; kiểm điểm trách nhiệm</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 10 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">10</td>
+                  <td><strong>Cơ quan chủ trì đề tài thuộc VHL</strong></td>
+                  <td>Quản lý, sử dụng vật tư, hóa chất hạn chế: không có sổ theo dõi nhập, xuất, tồn; chưa lập hồ sơ theo dõi, nhật ký thí nghiệm; chưa thống kê số thí nghiệm; chưa xây dựng kho chứa hóa chất.</td>
+                  <td class="italic text-[13px] text-gray-600">Khoản 3 và khoản 10 Điều 8 Thông tư số 04/2019/TT-BKHCN; khoản 4 Điều 33 Luật Hóa chất năm 2007</td>
+                  <td>Chưa thực hiện đầy đủ trách nhiệm quản lý hóa chất; khó kiểm soát vật tư; rủi ro mất an toàn, lãng phí.</td>
+                  <td>Cơ quan chủ trì đề tài; chủ nhiệm đề tài</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Lập sổ theo dõi vật tư, hóa chất, nhật ký thí nghiệm; xây dựng kho chứa hóa chất; kiểm kê cuối năm</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 11 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">11</td>
+                  <td><strong>VHL; cơ quan chủ trì đề tài</strong></td>
+                  <td>Thẩm định, xác định giá trị tài sản là kết quả nhiệm vụ KHCN không đúng quy định: không thuê doanh nghiệp thẩm định giá; tự thẩm định không đúng thẩm quyền, phương pháp; tổ thẩm định không đủ năng lực. Phê duyệt xử lý tài sản cho 143 đề tài của 08 đơn vị chưa chính xác.</td>
+                  <td class="italic text-[13px] text-gray-600">Khoản 1 Điều 3, Điều 7 Thông tư số 10/2019/TT-BTC; khoản 2 Điều 28 Nghị định số 89/2013/NĐ-CP; khoản 1, 2, 3 Điều 6 TTLT số 39/2014/TTLT-BKHCN-BTC</td>
+                  <td>Phê duyệt xử lý giá trị tài sản cho 143 đề tài chưa chính xác. Giá trị phê duyệt 45.411,59 triệu đồng.</td>
+                  <td>VHL; cơ quan chủ trì đề tài; tổ thẩm định giá</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Chấn chỉnh công tác thẩm định giá trị tài sản; rà soát, xác định lại giá trị tài sản đúng quy định; kiểm điểm trách nhiệm</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 12 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">12</td>
+                  <td><strong>VHL (Ban KHTC, Ban UD, Ban Hợp tác quốc tế)</strong></td>
+                  <td>Chưa thực hiện đầy đủ trách nhiệm quản lý, sử dụng tài sản hình thành từ nhiệm vụ KHCN: chưa thu hồi quyền sở hữu tài sản đã giao đối với 58 đề tài; giao quyền sử dụng tài sản chậm; chưa xem xét việc chấp hành chế độ báo cáo của cơ quan chủ trì.</td>
+                  <td class="italic text-[13px] text-gray-600">Khoản 2 Điều 24, khoản 2 Điều 30, điểm e khoản 1 và điểm đ khoản 2 Điều 22, khoản 3 Điều 24 Nghị định số 70/2018/NĐ-CP</td>
+                  <td>Quản lý, sử dụng tài sản hình thành từ nhiệm vụ KHCN sử dụng vốn nhà nước chưa đúng quy định (58 đề tài).</td>
+                  <td>VHL (Ban KHTC, Ban UD, Ban Hợp tác quốc tế)</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Chấn chỉnh, thực hiện đầy đủ trách nhiệm quản lý tài sản KHCN; đôn đốc các đơn vị báo cáo việc ứng dụng, thương mại hóa kết quả</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 13 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">13</td>
+                  <td><strong>Viện Khoa học vật liệu (Viện KHVL)</strong></td>
+                  <td>Ký Hợp đồng số 112/KHVL ngày 09/6/2021 chuyển giao quy trình công nghệ sản xuất thực phẩm chức năng từ Ba kích cho Công ty CP Dược mỹ phẩm CVI nhưng Hợp đồng chưa có giá, phương thức thanh toán chuyển giao công nghệ; chưa phân chia lợi nhuận.</td>
+                  <td class="italic text-[13px] text-gray-600">Điều 4 Nghị định số 76/2018/NĐ-CP; Điều 42 Nghị định số 08/2014/NĐ-CP</td>
+                  <td>Hợp đồng chuyển giao công nghệ thiếu nội dung về giá, phương thức thanh toán, phân chia lợi nhuận; nguy cơ thất thoát tài sản nhà nước.</td>
+                  <td>Viện KHVL; VHL (chỉ đạo, kiểm tra)</td>
+                  <td class="text-[#92400e] font-medium text-[13px]">Trường hợp để xảy ra thất thoát, thiệt hại tiền, tài sản nhà nước thì VHL chuyển đến Bộ Công an xem xét, xử lý theo quy định</td>
+                  <td class="font-medium text-[13px]">VHL yêu cầu Viện KHVL kiểm tra, rà soát kỹ quá trình thực hiện hợp đồng, báo cáo VHL; VHL chỉ đạo, xử lý theo quy định</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 14 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">14</td>
+                  <td><strong>VHL; đơn vị chủ trì đề tài</strong></td>
+                  <td>Quản lý nhiệm vụ KHCN chưa nghiêm: nhiều đề tài điều chỉnh thời gian vượt số lần và thời gian gia hạn tối đa; báo cáo định kỳ không đầy đủ (đề tài: 86/175 lần — 49,14%; dự án SX thử nghiệm: 91/111 lần — 82%; dự án phát triển SP thương mại: 58/90 lần — 64,4%).</td>
+                  <td class="italic text-[13px] text-gray-600">Khoản 1 Điều 10, khoản 2 Điều 13, khoản 2 và khoản 3 Điều 14, khoản 2 Điều 15 các Quy chế ban hành kèm QĐ số 1820, 1970, 2185, 2408, 1892, 2366/QĐ-VHL</td>
+                  <td>Nhiều đề tài, nhiệm vụ KHCN không đạt hoặc chậm tiến độ; giám sát chưa hiệu quả; nguy cơ lãng phí nguồn lực.</td>
+                  <td>VHL; cơ quan quản lý đề tài; đơn vị chủ trì đề tài</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Tăng cường kiểm tra việc thực hiện đề tài; hạn chế gia hạn; chấm dứt sử dụng vượt 185 công/năm; chấn chỉnh báo cáo định kỳ</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 15 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">15</td>
+                  <td><strong>VHL; 08 đơn vị được kiểm tra</strong></td>
+                  <td>Công tác ứng dụng, triển khai, chuyển giao kết quả nghiên cứu, thương mại hóa sản phẩm KHCN hạn chế: 63 đề tài (kinh phí 95.962,96 trđ) đến thời điểm thanh tra chưa có sản phẩm được thương mại hóa; chưa có kế hoạch 5 năm, kiểm tra định kỳ chưa đầy đủ.</td>
+                  <td class="italic text-[13px] text-gray-600">—</td>
+                  <td>Kết quả ứng dụng, thương mại hóa sản phẩm KHCN rất thấp, chưa có hiệu quả; nguy cơ lãng phí nguồn lực NCKH. Liên quan kinh phí 95.962,96 triệu đồng.</td>
+                  <td>VHL; 08 đơn vị được kiểm tra</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Xây dựng kế hoạch 05 năm và hàng năm về ứng dụng, triển khai công nghệ; quy định sử dụng thương hiệu; tăng cường thương mại hóa sản phẩm</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 16 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">16</td>
+                  <td><strong>VHL; 7/8 đơn vị được kiểm tra (trừ Trường)</strong></td>
+                  <td>Lập, phân bổ dự toán có vi phạm: 7/8 đơn vị lập dự toán đề tài cấp cơ sở trong nguồn kinh phí thường xuyên với số tiền 43.810,5 trđ không đúng nguồn (toàn VHL: 144.280,6 trđ cho 39 đơn vị); giao dự toán không bao gồm dự toán thu sự nghiệp; giao dự toán lần đầu cho 4 đơn vị chậm.</td>
+                  <td class="italic text-[13px] text-gray-600">Thông tư liên tịch số 121/2014/TTLT; Thông tư liên tịch số 55/2015/TTLT-BTC-BKHCN</td>
+                  <td>Lập, phân bổ dự toán đề tài không đúng nguồn quy định. Số tiền 43.810,5 triệu đồng tại 7/8 đơn vị (trong tổng 144.280,6 triệu đồng).</td>
+                  <td>VHL; 7/8 đơn vị được kiểm tra (trừ Trường)</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Chấn chỉnh công tác lập, phân bổ dự toán; hướng dẫn lập dự toán đề tài cấp cơ sở đúng nguồn; kiểm điểm trách nhiệm</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 17 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">17</td>
+                  <td><strong>VHL; các đơn vị trực thuộc</strong></td>
+                  <td>Chế độ phụ cấp độc hại, bồi dưỡng bằng hiện vật chưa đúng: chưa có văn bản thỏa thuận cho 36/37 đơn vị; ban hành danh mục nghề độc hại không đúng thẩm quyền; tính phụ cấp cho toàn bộ thời gian làm việc mà không xác định rõ thời gian độc hại trên/dưới 50%.</td>
+                  <td class="italic text-[13px] text-gray-600">Điểm a khoản 3 Mục II và khoản 2 Mục II Thông tư số 07/2005/TT-BNV; khoản 1, 2, 3, 4 Điều 4, khoản 2 Điều 2, khoản 2 Điều 5 Thông tư số 25/2013/TT-BLĐTBXH</td>
+                  <td>Lập, phân bổ dự toán phụ cấp độc hại và bồi dưỡng hiện vật chưa chính xác, chưa đầy đủ cơ sở. Toàn VHL 72.276,106 trđ; 08 đơn vị 29.628,026 trđ.</td>
+                  <td>VHL; các đơn vị trực thuộc</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Đề nghị Bộ Nội vụ, Bộ Tài chính thỏa thuận chế độ phụ cấp độc hại; xác định lại mức phụ cấp và thời gian làm việc thực tế; chấn chỉnh</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 18 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">18</td>
+                  <td><strong>06 đơn vị: VHH, Trường, Viện HDH, Viện CNMT, Viện KHVL, Viện SHNĐ</strong></td>
+                  <td>Quy chế chi tiêu nội bộ có nội dung chưa đúng: chi hỗ trợ phụ cấp độc hại bằng tiền sai đối tượng; chia đều phụ cấp hiện vật; quy định chi quản lý phí thiếu dự toán; quy định nghỉ phép, giờ làm thêm, chi quỹ phúc lợi, trích lập quỹ chưa phù hợp.</td>
+                  <td class="italic text-[13px] text-gray-600">Mục I Thông tư số 07/2005/TT-BNV; khoản 2 Điều 2 Thông tư số 25/2013/TT-BLĐTBXH; điểm c khoản 1, khoản 8 Điều 7 TTLT số 55/2015; khoản 3 Điều 16 Thông tư số 45/2018/TT-BTC; Điều 9, Điều 14 Nghị định số 54/2016/NĐ-CP, Nghị định số 60/2021/NĐ-CP</td>
+                  <td>Quy chế chi tiêu nội bộ có nội dung chưa đúng quy định; ảnh hưởng tính minh bạch trong quản lý kinh phí.</td>
+                  <td>06 đơn vị: VHH, Trường, Viện HDH, Viện CNMT, Viện KHVL, Viện SHNĐ</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">06 đơn vị điều chỉnh các nội dung trong Quy chế chi tiêu nội bộ đảm bảo đúng quy định</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 19 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">19</td>
+                  <td><strong>VHL; 7/8 đơn vị được kiểm tra</strong></td>
+                  <td>Trích lập các quỹ chưa đúng: trích thiếu Quỹ PTHĐSN 1.715,615 trđ; hạch toán sai nguồn thu về quỹ PTHĐSN 2.159,77 trđ; bổ sung Quỹ phúc lợi sai 6.576,516 trđ; chi thu nhập tăng thêm trước khi trích lập quỹ; không ban hành quyết định phân bổ nguồn chênh lệch thu chi.</td>
+                  <td class="italic text-[13px] text-gray-600">Điểm a khoản 3 Điều 8 Nghị định số 54/2016/NĐ-CP</td>
+                  <td>Trích lập, hạch toán các quỹ không đúng quy định. Trích thiếu Quỹ PTHĐSN 1.715,615 trđ; hạch toán sai 2.159,77 trđ; bổ sung Quỹ phúc lợi sai 6.576,516 trđ.</td>
+                  <td>VHL; 7/8 đơn vị được kiểm tra; Viện HDH, Trường, Viện SHNĐ và đơn vị liên quan</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Trích lập các quỹ đầy đủ; hạch toán quỹ đúng quy định; ban hành đầy đủ quyết định phân bổ nguồn chênh lệch thu chi</td>
+                  <td class="text-[#8a1319] font-bold text-[13px]">Điều chỉnh trích bổ sung Quỹ PTHĐSN 1.715,615 trđ; điều chỉnh hạch toán sai nguồn 2.159,77 trđ và 6.576,516 trđ</td>
+                </tr>
+
+                <!-- ===== DÒNG 20 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">20</td>
+                  <td><strong>6/8 đơn vị: VHH, Trường, Viện CNMT, Viện SHNĐ, Trung tâm NCCG, Viện KHVL</strong></td>
+                  <td>Sử dụng các quỹ để chi một số nội dung không đúng nội dung chi của quỹ với số tiền 5.063,581 trđ (VHH: 1.080,974 trđ; Trường: 779,432 trđ; Viện CNMT: 70,945 trđ; Viện SHNĐ: 472,04 trđ; Trung tâm NCCG: 1.064,86 trđ; Viện KHVL: 1.595,33 trđ).</td>
+                  <td class="italic text-[13px] text-gray-600">Điều 20 Nghị định số 43/2006/NĐ-CP; khoản 6 Điều 18 Nghị định số 60/2021/NĐ-CP; điểm b khoản 3 Điều 9 Nghị định số 54/2016/NĐ-CP</td>
+                  <td>Sử dụng các quỹ chi sai nội dung quy định. Giá trị 5.063,581 triệu đồng.</td>
+                  <td>6/8 đơn vị được kiểm tra</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Chấn chỉnh việc sử dụng các quỹ đúng nội dung chi; kiểm điểm trách nhiệm</td>
+                  <td class="text-[#8a1319] font-bold text-[13px]">Rà soát, xử lý số tiền 5.063,581 triệu đồng đã sử dụng các quỹ chi không đúng nội dung quy định</td>
+                </tr>
+
+                <!-- ===== DÒNG 21 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">21</td>
+                  <td><strong>VHH; Viện CNMT; Viện SHNĐ</strong></td>
+                  <td>Hạch toán doanh thu hoạt động SXKD, dịch vụ vào nguồn thu hộ, chi hộ chưa đúng chế độ kế toán, dẫn đến thiếu doanh thu phải kê khai thuế GTGT, thuế TNDN 6.928,671 trđ; thu tiền bán HSMT 729,5 trđ chưa kê khai thuế.</td>
+                  <td class="italic text-[13px] text-gray-600">Quy định pháp luật về chế độ kế toán; Luật Thuế thu nhập doanh nghiệp năm 2008; pháp luật về kê khai thuế GTGT, TNDN</td>
+                  <td>Hạch toán doanh thu chưa đúng chế độ kế toán; thiếu doanh thu phải kê khai và nộp thuế; nguy cơ thất thu NSNN.</td>
+                  <td>VHH; Viện CNMT; Viện SHNĐ</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Chấn chỉnh công tác hạch toán doanh thu, kế toán; kê khai thuế đầy đủ; kiểm điểm trách nhiệm</td>
+                  <td class="text-[#8a1319] font-bold text-[13px]">Kê khai doanh thu SXKD 6.928,671 trđ và tiền bán HSMT 729,5 trđ; nộp thuế GTGT, TNDN theo quy định</td>
+                </tr>
+
+                <!-- ===== DÒNG 22 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">22</td>
+                  <td><strong>VHH; Viện CNMT; Trường Đại học KHCN Hà Nội</strong></td>
+                  <td>Chi hoạt động dịch vụ có nội dung chưa đầy đủ yếu tố để tính vào chi phí được trừ khi xác định thuế TNDN với tổng số tiền (tạm tính) 93.189,504 trđ; Trường sử dụng nguồn thu học phí gửi có kỳ hạn tại ngân hàng thương mại không đúng quy định (lãi thu được 3,499 tỷ đồng).</td>
+                  <td class="italic text-[13px] text-gray-600">Điểm b khoản 2 Điều 13 Nghị định số 86/2015/NĐ-CP; khoản 1 Điều 13 Nghị định số 81/2021/NĐ-CP; Luật Thuế thu nhập doanh nghiệp năm 2008</td>
+                  <td>Xác định thu nhập chịu thuế TNDN chưa chính xác; sử dụng nguồn thu học phí không đúng quy định.</td>
+                  <td>VHH; Viện CNMT; Trường Đại học KHCN Hà Nội</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Chấn chỉnh việc sử dụng nguồn thu học phí; rà soát các nội dung chi dịch vụ; kiểm điểm trách nhiệm</td>
+                  <td class="text-[#8a1319] font-bold text-[13px]">Xác định lại thu nhập chịu thuế sau khi trừ chi phí chưa đủ yếu tố 93.189,504 trđ; kê khai, nộp thuế TNDN theo quy định</td>
+                </tr>
+
+                <!-- ===== DÒNG 23 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">23</td>
+                  <td><strong>VHH; Viện CNMT; Viện SHNĐ; Viện KHVL; Viện CNSH; Trung tâm NCCG</strong></td>
+                  <td>Hạch toán kinh phí quản lý chung nhiệm vụ vào nguồn thu hộ, chi hộ chưa đúng quy định 19.859,84 trđ; Viện SHNĐ hạch toán một số nguồn thu vào tài khoản thu hộ, chi hộ sai 219,42 trđ; chi quản lý sinh viên thực tập 240,9 trđ không có trong Quy chế chi tiêu nội bộ.</td>
+                  <td class="italic text-[13px] text-gray-600">Điểm c khoản 1 Điều 10 Thông tư liên tịch số 27/2015/TTLT-BKHCN-BTC</td>
+                  <td>Hạch toán kinh phí quản lý chung nhiệm vụ KHCN và một số nguồn thu vào tài khoản thu hộ, chi hộ không đúng quy định.</td>
+                  <td>VHH; Viện CNMT; Viện SHNĐ; Viện KHVL; Viện CNSH; Trung tâm NCCG</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Hạch toán kinh phí quản lý chung nhiệm vụ vào nguồn thu của đơn vị đúng quy định; rà soát Quy chế chi tiêu nội bộ</td>
+                  <td class="text-[#8a1319] font-bold text-[13px]">Điều chỉnh hạch toán kinh phí quản lý chung 19.859,84 trđ; xử lý số tiền 219,42 trđ và 240,9 trđ theo quy định</td>
+                </tr>
+
+                <!-- ===== DÒNG 24 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">24</td>
+                  <td><strong>Viện KHVL; VHH; Viện SHNĐ (chủ đầu tư dự án)</strong></td>
+                  <td>Lập HSMT, HSDT, thực hiện hợp đồng tại 07 gói thầu thuộc 5 dự án có vi phạm (giá trúng thầu 183.784,07 trđ): Tổ chuyên gia thiếu chứng nhận nghiệp vụ; sửa đổi mẫu HSMT sai; nhà thầu không cung cấp Giấy bảo hành; cấp tạm ứng 50% không có Bảo lãnh tạm ứng.</td>
+                  <td class="italic text-[13px] text-gray-600">Điều 16 Luật Đấu thầu 2013; điểm d khoản 5 Điều 3 Thông tư số 05/2015/TT-BKHĐT; khoản 2 Điều 14, khoản 3 Điều 20, khoản 2 Điều 25, khoản 5 Điều 28, khoản 2 Điều 92 Nghị định số 63/2014/NĐ-CP; Mẫu số 02 Thông tư số 04/2017/TT-BKHĐT</td>
+                  <td>Công tác đấu thầu mua sắm trang thiết bị tại các dự án không đảm bảo quy định; nguy cơ thất thoát, lãng phí. Giá trị các gói thầu 183.784,07 triệu đồng.</td>
+                  <td>Viện KHVL; VHH; Viện SHNĐ; tổ chuyên gia, tổ thẩm định</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Chấn chỉnh công tác đấu thầu theo đúng quy định pháp luật về đấu thầu; kiểm điểm trách nhiệm</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 25 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">25</td>
+                  <td><strong>VHL (Ban KHTC)</strong></td>
+                  <td>Sử dụng số liệu của Kiểm toán Nhà nước để phê duyệt quyết toán các năm 2016 (10 đơn vị), 2018 (16 đơn vị), 2021 (24 đơn vị) không đảm bảo trình tự, thủ tục; chưa kiểm tra tiến độ thực hiện đề tài trong các đợt duyệt quyết toán; phê duyệt quyết toán nhiệm vụ chậm.</td>
+                  <td class="italic text-[13px] text-gray-600">Khoản 2 Điều 8 Quy chế ban hành kèm Quyết định số 1786/QĐ-VHL; khoản 3 Điều 14 Thông tư liên tịch số 27/2015/TTLT-BKHCN-BTC</td>
+                  <td>Công tác phê duyệt quyết toán chưa đảm bảo trình tự, thủ tục; thiếu kiểm tra tiến độ trong quá trình duyệt quyết toán.</td>
+                  <td>VHL (Ban KHTC)</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Chấn chỉnh công tác phê duyệt quyết toán; kiểm tra tiến độ thực hiện đề tài trong các đợt duyệt quyết toán; kiểm điểm trách nhiệm</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+                <!-- ===== DÒNG 26 ===== -->
+                <tr>
+                  <td class="text-center font-bold text-gray-500">26</td>
+                  <td><strong>Các đơn vị trực thuộc VHL</strong></td>
+                  <td>Thực hiện công tác tự chủ chưa đầy đủ: 7 đơn vị không báo cáo định kỳ hàng năm về kết quả thực hiện chế độ tự chủ với VHL; 8 đơn vị xác định mức tự chủ chi thường xuyên chưa đúng; 4 đơn vị thực hiện công khai chưa đầy đủ.</td>
+                  <td class="italic text-[13px] text-gray-600">—</td>
+                  <td>Thực hiện chế độ báo cáo, công khai về tự chủ chưa đầy đủ; xác định mức tự chủ chi thường xuyên chưa đúng; ảnh hưởng tính minh bạch.</td>
+                  <td>Các đơn vị trực thuộc VHL được kiểm tra</td>
+                  <td class="empty-dash">—</td>
+                  <td class="font-medium text-[13px]">Định kỳ hằng năm báo cáo chính xác kết quả thực hiện cơ chế tự chủ; xác định mức tự chủ chi thường xuyên đúng quy định; công khai đầy đủ</td>
+                  <td class="empty-dash">—</td>
+                </tr>
+
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- PHẦN I: TRÍCH LƯỢC VI PHẠM (DẠNG CARD)           -->
+        <!-- ============================================== -->
+        <section class="mb-10">
+          <h2 class="section-header text-base">II. Trích lược vi phạm</h2>
+          <div class="grid grid-cols-1 gap-4">
+
+            <!-- ===== VI PHẠM 1 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">1</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Số lượng tổ chức khoa học và công nghệ công lập trực thuộc VHL nhiều hơn 01 đơn vị (Viện Nghiên cứu hệ Gen) so với quy hoạch; VHL chưa có văn bản đề nghị Bộ KHCN trình Thủ tướng Chính phủ điều chỉnh Quyết định số 171/QĐ-TTg để số lượng tổ chức KHCN công lập trực thuộc phù hợp với Nghị định số 60/2017/NĐ-CP.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Điểm b khoản 1 Mục IV Quyết định số 171/QĐ-TTg ngày 27/01/2016 của Thủ tướng Chính phủ</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Số lượng tổ chức KHCN công lập trực thuộc không phù hợp quy hoạch mạng lưới đã được phê duyệt; chưa kịp thời kiến nghị điều chỉnh quy hoạch.</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">VHL có văn bản đề nghị Bộ KHCN trình Thủ tướng Chính phủ điều chỉnh số lượng các tổ chức KHCN công lập trực thuộc tại Quyết định số 171/QĐ-TTg; tổ chức kiểm điểm trách nhiệm.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 2 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">2</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Việc thành lập mới 08 đơn vị cấp phòng của 07 đơn vị có thiếu sót, vi phạm: thành lập phòng có nhân sự Phó trưởng phòng chỉ có trình độ thạc sĩ (chưa đủ điều kiện cán bộ chủ chốt); thành lập phòng/trung tâm không lấy ý kiến Hội đồng khoa học bằng hình thức bỏ phiếu kín; thành lập phòng chưa đáp ứng điều kiện về số lượng viên chức; số lượng Phó trưởng phòng nhiều hơn quy định.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Điểm c khoản 1, điểm c và điểm d khoản 2 Điều 8 Quy chế tổ chức và hoạt động của đơn vị sự nghiệp nghiên cứu khoa học ban hành kèm theo Quyết định số 07/QĐ-VHL ngày 19/02/2013 của VHL</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Việc thành lập đơn vị cấp phòng không đảm bảo điều kiện, trình tự, thủ tục theo quy chế của VHL.</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">07 đơn vị (trừ Trường) xây dựng phương án sắp xếp, kiện toàn cơ cấu tổ chức trình VHL quyết định; chấn chỉnh, khắc phục các thiếu sót, vi phạm; kiểm điểm trách nhiệm.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 3 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">3</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Giai đoạn 2016-2022, VHL không giao biên chế viên chức, không xác định số lượng người làm việc cho các đơn vị đúng quy định; không hướng dẫn Trường Đại học Khoa học và Công nghệ Hà Nội xây dựng Đề án vị trí việc làm; 04 đơn vị (đến 14/11/2020) và 08 đơn vị (15/11/2020 đến hết 2022) chưa xây dựng Đề án vị trí việc làm, cơ cấu viên chức theo chức danh nghề nghiệp.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Khoản 1, khoản 2 Điều 12 Nghị định số 41/2012/NĐ-CP; khoản 1 Điều 10 Thông tư số 14/2012/TT-BNV; điểm c khoản 2 Điều 16 Nghị định số 106/2020/NĐ-CP</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Quản lý nhân sự, vị trí việc làm thiếu cơ sở pháp lý; khó kiểm soát số lượng người làm việc tại các đơn vị trực thuộc.</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Chấn chỉnh, hoàn thiện việc phê duyệt vị trí việc làm và cơ cấu viên chức; kiểm điểm trách nhiệm; chỉ đạo Trường xây dựng Đề án vị trí việc làm.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 4 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">4</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> VHL chưa chỉ đạo người đứng đầu đơn vị trực thuộc lập danh sách đối tượng tinh giản biên chế và dự toán kinh phí thực hiện tinh giản biên chế theo định kỳ 2 lần/năm; VHL chưa chấn chỉnh, yêu cầu các đơn vị thực hiện đúng quy định về ký hợp đồng lao động không xác định thời hạn đối với người đã ký HĐLĐ có thời hạn 2 lần.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Khoản 3 Điều 18 Nghị định số 108/2014/NĐ-CP; khoản 2 Điều 22 Bộ luật Lao động năm 2012; điểm c khoản 2 Điều 20 Bộ luật Lao động năm 2019</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Thực hiện chế độ tinh giản biên chế và quản lý hợp đồng lao động chưa đúng quy định; ảnh hưởng quyền lợi người lao động.</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Chấn chỉnh, yêu cầu các đơn vị trực thuộc thực hiện đúng quy định về tinh giản biên chế và ký HĐLĐ; kiểm điểm trách nhiệm.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 5 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">5</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Công tác quy hoạch viên chức lãnh đạo có nhiều thiếu sót: ban hành quy hoạch căn cứ vào quy định đã hết hiệu lực; quy hoạch 01 người cho 01 chức danh; phê duyệt quy hoạch chưa đạt trên 50% số phiếu tán thành; quy hoạch chậm, không rà soát bổ sung; 07 đơn vị không báo cáo Chủ tịch VHL danh sách quy hoạch viên chức.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Khoản 2 Điều 6 Quy chế ban hành kèm Quyết định số 2357/QĐ-VHL ngày 22/12/2020; khoản 2 Điều 6 Quy chế ban hành kèm Quyết định số 04/QĐ-VHL ngày 19/02/2013; Điều 7 Quy chế ban hành kèm Quyết định số 2396/QĐ-VHL, Quyết định số 2357/QĐ-VHL</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Công tác quy hoạch cán bộ lãnh đạo không đúng trình tự, thủ tục; là nguyên nhân dẫn đến bổ nhiệm viên chức chưa được quy hoạch.</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Chấn chỉnh công tác quy hoạch cán bộ; rà soát, bổ sung quy hoạch đúng quy định; kiểm điểm trách nhiệm tập thể, cá nhân liên quan.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 6 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">6</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Công tác bổ nhiệm cấp trưởng, cấp phó của 08 đơn vị được kiểm tra có nhiều thiếu sót, vi phạm: bổ nhiệm viên chức chưa được quy hoạch; thiếu Bằng tốt nghiệp cao cấp/trung cấp lý luận chính trị, chứng chỉ quản lý nhà nước; thiếu trình độ tiến sĩ/nghiên cứu viên chính; hồ sơ bổ nhiệm không đầy đủ (bằng cấp, chứng chỉ photo chưa sao y, lý lịch không theo mẫu, thiếu nhận xét chi ủy nơi cư trú, thiếu Bản kê khai tài sản); 02 trường hợp có văn bằng tiến sĩ nước ngoài chưa có bản công nhận của Bộ GD&ĐT; quyết định bổ nhiệm căn cứ văn bản hết hiệu lực.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Khoản 2 Điều 44, khoản 6 và khoản 10 Điều 48, khoản 9 Điều 48 Nghị định số 115/2020/NĐ-CP; điểm 3 Mục III Phần B Nghị quyết số 32-NQ/TW ngày 26/5/2014 của Bộ Chính trị; các Quy chế ban hành kèm Quyết định số 303/QĐ-VHL, số 2356/QĐ-VHL, số 2396/QĐ-VHL, số 2397/QĐ-VHL của VHL; khoản 4 Điều 10 Thông tư số 07/2019/TT-BNV</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Có dấu hiệu buông lỏng công tác bổ nhiệm lãnh đạo quản lý cấp phòng thuộc thẩm quyền của đơn vị; nhiều trường hợp bổ nhiệm không đảm bảo điều kiện, tiêu chuẩn, trình tự, thủ tục.</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Tổ chức kiểm điểm, xử lý nghiêm trách nhiệm; rà soát, xử lý theo thẩm quyền các trường hợp không đáp ứng điều kiện, tiêu chuẩn; bổ sung, hoàn thiện hồ sơ bổ nhiệm; yêu cầu bổ sung bản công nhận văn bằng do cơ sở đào tạo nước ngoài cấp.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 7 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">7</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Hạn chế, thiếu sót trong việc phê duyệt thuyết minh, phê duyệt Danh mục đề tài: ban hành quyết định thành lập Hội đồng thẩm định đề cương dự án không đúng mẫu; không thành lập Hội đồng thẩm định tài chính; Hội đồng họp thẩm định trước khi đơn vị xây dựng hồ sơ thuyết minh; phê duyệt thuyết minh dài 50 trang (quy định không quá 20 trang); không có thông báo về hồ sơ đề xuất đề tài; không lưu hồ sơ đăng ký dự tuyển, không công khai kết quả mở hồ sơ đăng ký.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Điểm c khoản 3 Điều 6 Quy chế ban hành kèm Quyết định số 1786/QĐ-VHL; khoản 2 Điều 6 Quy chế ban hành kèm Quyết định số 2703/QĐ-VHL; khoản 1, điểm c và điểm e khoản 1, điểm b khoản 6, điểm e khoản 2 Điều 6 Quy chế ban hành kèm Quyết định số 1061/QĐ-VHL của VHL</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Quy trình phê duyệt thuyết minh và danh mục đề tài KHCN không đúng quy định; thiếu minh bạch trong tuyển chọn đề tài; tiềm ẩn nguy cơ lãng phí nguồn lực đầu tư cho KHCN.</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Chấn chỉnh công tác phê duyệt thuyết minh, danh mục đề tài; thực hiện đúng quy định về thành lập hội đồng, thẩm định, công khai; kiểm điểm trách nhiệm.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 8 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">8</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> VHL phê duyệt dự toán, ký hợp đồng chưa đảm bảo chính xác đối với một số đề tài của 08 đơn vị được kiểm tra: trong dự toán có nội dung tiền điện, nước ngoài mục <em>Chi phí quản lý chung nhiệm vụ KHCN</em> với số tiền 7.407,503 triệu đồng (VHH: 1.795,487 trđ; Viện HDH: 122,8 trđ; Trường: 99,459 trđ; Viện CNMT: 1.033,18 trđ; Viện KHVL: 533,204 trđ; Viện SHNĐ: 137,48 trđ; Trung tâm NCCGCN: 1.106,893 trđ; Viện CNSH: 2.579 trđ).</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Khoản 8 Điều 7 Thông tư liên tịch số 55/2015/TTLT-BTC-BKHCN</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Phê duyệt dự toán đề tài KHCN chưa đúng quy định; có nguy cơ lãng phí, thất thoát NSNN. (Giá trị: <strong>7.407,503 triệu đồng</strong>)</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Chấn chỉnh công tác phê duyệt dự toán đề tài; yêu cầu 08 đơn vị rà soát, báo cáo nội dung tiền điện, nước trong mục chi phí quản lý chung.</span></p>
+                  <p class="rec-line"><span class="rec-tag tag-eco">Kinh tế</span><span class="rec-text eco-money">VHL rà soát, xác định số tiền 7.407,503 triệu đồng đã chi đúng mục đích hay không; giảm trừ dự toán/quyết toán và thu hồi nộp NSNN theo quy định.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 9 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">9</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Hạn chế, thiếu sót trong đấu thầu mua sắm vật tư, hóa chất: phê duyệt đề tài có dự toán chi phí nghiệp vụ chuyên môn xây dựng căn cứ vào 01 báo giá, dùng làm giá gói thầu; HSMT/E-HSMT/HSYC nêu yêu cầu về nhãn hiệu, xuất xứ cụ thể của hàng hóa; không lập và phê duyệt KHLCNT, không thương thảo hợp đồng, không ban hành Quyết định chỉ định thầu các gói dưới 100 trđ; không thẩm định HSYC; tổ thẩm định HSYC/KQLCNT không có tờ trình thẩm định; biên bản thương thảo hợp đồng không đúng trình tự.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Khoản 3 Điều 7 Thông tư liên tịch số 55/2015/TTLT-BTC-BKHCN; điểm a khoản 2 Điều 11 Thông tư số 58/2016/TT-BTC; khoản 7 Điều 12, điểm a và điểm b khoản 1 Điều 58, khoản 3 Điều 20, Điều 19, khoản 2 Điều 92 Nghị định số 63/2014/NĐ-CP; khoản 2 Điều 4 Thông tư số 11/2015/TT-BKHĐT; Điều 16 Luật Đấu thầu năm 2013</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Công tác đấu thầu mua sắm vật tư, hóa chất phục vụ đề tài KHCN không đảm bảo quy định pháp luật về đấu thầu; hạn chế cạnh tranh; tiềm ẩn nguy cơ thất thoát, lãng phí.</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Chấn chỉnh công tác đấu thầu mua sắm vật tư, hóa chất, thiết bị; thực hiện đúng quy định về xây dựng giá gói thầu, lập HSMT, đánh giá HSDT, thực hiện hợp đồng; kiểm điểm trách nhiệm.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 10 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">10</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Việc quản lý, sử dụng vật tư, hóa chất phục vụ đề tài còn hạn chế: không có sổ theo dõi nhập, xuất, tồn; cá nhân sử dụng vật tư, hóa chất chưa lập hồ sơ theo dõi, chưa có nhật ký thí nghiệm; chưa thống kê số thí nghiệm và vật tư, hóa chất thực hiện cho mỗi lần thí nghiệm; cơ quan chủ trì đề tài chưa xây dựng kho chứa hóa chất, chưa có hồ sơ theo dõi hóa chất.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Khoản 3 và khoản 10 Điều 8 Thông tư số 04/2019/TT-BKHCN; khoản 4 Điều 33 Luật Hóa chất năm 2007</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Chưa thực hiện đầy đủ trách nhiệm quản lý, sử dụng hóa chất; khó kiểm soát vật tư, hóa chất; tiềm ẩn rủi ro mất an toàn và lãng phí.</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Yêu cầu chủ nhiệm đề tài lập sổ theo dõi vật tư, hóa chất, nhật ký thí nghiệm; xây dựng kho chứa hóa chất, lập hồ sơ theo dõi hóa chất; thực hiện kiểm kê cuối năm.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 11 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">11</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> VHL và các cơ quan chủ trì đề tài thẩm định, xác định giá trị tài sản là kết quả của nhiệm vụ KHCN không đúng quy định: không thuê doanh nghiệp thẩm định giá hoặc tổ chức có chức năng tư vấn về giá; cơ quan chủ trì đề tài tự thẩm định giá không đúng thẩm quyền, không đúng phương pháp; Tổ thẩm định giá không đủ điều kiện năng lực, không có người được đào tạo nghiệp vụ thẩm định giá. Việc phê duyệt xử lý tài sản cho 143 đề tài của 08 đơn vị chưa chính xác (giá trị phê duyệt 45.411,59 triệu đồng).</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Khoản 1 Điều 3, Điều 7 Thông tư số 10/2019/TT-BTC; khoản 2 Điều 28 Nghị định số 89/2013/NĐ-CP; khoản 1, 2, 3 Điều 6 Thông tư liên tịch số 39/2014/TTLT-BKHCN-BTC</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Phê duyệt xử lý giá trị tài sản cho 143 đề tài của 08 đơn vị chưa chính xác. (Giá trị: <strong>45.411,59 triệu đồng</strong>)</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Chấn chỉnh công tác thẩm định, xác định giá trị tài sản là kết quả nhiệm vụ KHCN; rà soát, xác định lại giá trị tài sản theo đúng quy định; kiểm điểm trách nhiệm.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 12 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">12</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> VHL chưa thực hiện đầy đủ trách nhiệm quản lý, sử dụng tài sản hình thành thông qua thực hiện nhiệm vụ KHCN: chưa thực hiện thu hồi quyền sở hữu tài sản đã giao đối với 58 đề tài được phê duyệt giá trị tài sản; giao quyền sử dụng tài sản chậm thời gian quy định; chưa xem xét việc chấp hành chế độ báo cáo và việc ứng dụng, thương mại hóa của cơ quan chủ trì đề tài.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Khoản 2 Điều 24, khoản 2 Điều 30, điểm e khoản 1 và điểm đ khoản 2 Điều 22, khoản 3 Điều 24 Nghị định số 70/2018/NĐ-CP</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Quản lý, sử dụng tài sản hình thành từ nhiệm vụ KHCN sử dụng vốn nhà nước chưa đúng quy định (58 đề tài: năm 2016: 07; năm 2017: 03; năm 2018: 09; năm 2019: 39).</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Chấn chỉnh, thực hiện đầy đủ trách nhiệm quản lý, sử dụng tài sản hình thành từ nhiệm vụ KHCN; đôn đốc các đơn vị báo cáo việc tiếp tục nghiên cứu, ứng dụng, thương mại hóa kết quả nghiên cứu.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 13 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">13</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Tài sản hình thành từ kết quả đề tài được Viện KHVL ký Hợp đồng số 112/KHVL ngày 09/6/2021 chuyển giao quy trình công nghệ sản xuất thực phẩm chức năng hỗ trợ phòng chống loãng xương từ Ba kích cho Công ty Cổ phần Dược mỹ phẩm CVI nhưng Hợp đồng chưa có giá và phương thức thanh toán chuyển giao công nghệ; chưa phân chia lợi nhuận theo quy định.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Điều 4 Nghị định số 76/2018/NĐ-CP; Điều 42 Nghị định số 08/2014/NĐ-CP</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Hợp đồng chuyển giao công nghệ thiếu nội dung về giá, phương thức thanh toán và phân chia lợi nhuận; tiềm ẩn nguy cơ thất thoát tài sản nhà nước.</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-crim">Hình sự</span><span class="rec-text">Trường hợp để xảy ra thất thoát, thiệt hại tiền, tài sản nhà nước thì VHL chuyển đến Bộ Công an để xem xét, xử lý theo quy định.</span></p>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">VHL yêu cầu Viện KHVL kiểm tra, rà soát kỹ quá trình thực hiện hợp đồng (chuyển giao quy trình, giá hợp đồng, giá trị tài sản, phân chia lợi nhuận), báo cáo VHL; VHL chỉ đạo, xử lý theo đúng quy định pháp luật.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 14 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">14</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Việc quản lý nhiệm vụ KHCN chưa nghiêm: nhiều đề tài, dự án phải điều chỉnh thời gian thực hiện vượt số lần và thời gian gia hạn tối đa; đơn vị chủ trì đề tài báo cáo định kỳ không đầy đủ (đề tài KHCN: 86/175 lần — 49,14%; dự án sản xuất thử nghiệm: 91/111 lần — 82%; dự án phát triển sản phẩm thương mại: 58/90 lần — 64,4%); kiểm tra tiến độ thực hiện không đủ số lần/năm theo quy định.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Khoản 1 Điều 10, khoản 2 Điều 13, khoản 2 Điều 14, khoản 3 Điều 14, khoản 2 Điều 15 các Quy chế ban hành kèm Quyết định số 1820/QĐ-VHL, 1970/QĐ-VHL, 2185/QĐ-VHL, 2408/QĐ-VHL, 1892/QĐ-VHL, 2366/QĐ-VHL của VHL</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Nhiều đề tài, nhiệm vụ KHCN không đạt hoặc chậm tiến độ; công tác giám sát, kiểm tra tiến độ chưa hiệu quả; tiềm ẩn nguy cơ lãng phí nguồn lực.</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Tăng cường kiểm tra việc thực hiện đề tài; hạn chế tối đa việc gia hạn; chấm dứt tình trạng chủ nhiệm, thành viên chính sử dụng vượt quá 185 công/năm; chấn chỉnh chế độ báo cáo định kỳ; kiểm điểm trách nhiệm.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 15 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">15</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Công tác ứng dụng, triển khai, chuyển giao kết quả nghiên cứu KHCN, thương mại hóa sản phẩm KHCN còn nhiều hạn chế: 63 đề tài thuộc loại hình hướng ứng dụng và triển khai công nghệ (tổng kinh phí 95.962,96 triệu đồng) đến thời điểm thanh tra chưa có sản phẩm được thương mại hóa; chưa có kế hoạch 5 năm về hoạt động ứng dụng, kiểm tra định kỳ, báo cáo định kỳ chưa đầy đủ, chưa có quy định sử dụng thương hiệu.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> <span class="unknown">Chưa rõ</span> (KLTT đánh giá là hạn chế, khuyết điểm trong công tác quản lý, không viện dẫn điều khoản cụ thể)</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Kết quả ứng dụng, thương mại hóa sản phẩm KHCN rất thấp, chưa có hiệu quả; tiềm ẩn nguy cơ lãng phí nguồn lực đầu tư cho nghiên cứu khoa học. (Giá trị liên quan: <strong>95.962,96 triệu đồng</strong> kinh phí 63 đề tài)</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Xây dựng, ban hành kế hoạch 05 năm và hàng năm về hoạt động ứng dụng, triển khai công nghệ; quy định sử dụng thương hiệu; có giải pháp tăng cường thương mại hóa sản phẩm, bảo đảm không lãng phí, sử dụng hiệu quả tài sản công.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 16 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">16</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Công tác lập, phân bổ dự toán có vi phạm: 7/8 đơn vị (trừ Trường) lập dự toán kinh phí đề tài cấp cơ sở/đề tài cơ sở chọn lọc trong nguồn kinh phí thường xuyên/nhiệm vụ thường xuyên theo chức năng với số tiền 43.810,5 triệu đồng không đúng nguồn kinh phí đối với nhiệm vụ KHCN có sử dụng NSNN (tổng số toàn VHL là 144.280,6 triệu đồng cho 39 đơn vị); giao dự toán không bao gồm dự toán thu hoạt động sự nghiệp; giao dự toán lần đầu cho 4 đơn vị chậm.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Thông tư liên tịch số 121/2014/TTLT; Thông tư liên tịch số 55/2015/TTLT-BTC-BKHCN</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Lập, phân bổ dự toán kinh phí đề tài không đúng nguồn quy định; xây dựng mức tự chủ chi thường xuyên được phê duyệt thấp hơn mức bình quân thực tế 8,9%. (Giá trị: <strong>43.810,5 triệu đồng</strong> tại 7/8 đơn vị, trong tổng số 144.280,6 triệu đồng)</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Chấn chỉnh công tác lập, phân bổ dự toán; hướng dẫn đơn vị lập dự toán đề tài cấp cơ sở đúng nguồn kinh phí; giao dự toán đảm bảo thời gian, giảm tối đa việc điều chỉnh phân bổ; kiểm điểm trách nhiệm.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 17 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">17</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Về chế độ phụ cấp độc hại, nguy hiểm và bồi dưỡng bằng hiện vật: VHL chưa có văn bản thỏa thuận áp dụng chế độ phụ cấp độc hại cho 36/37 đơn vị trực thuộc; ban hành các quyết định phê duyệt danh mục nghề độc hại không đúng thẩm quyền; các đơn vị (trừ Viện HDH) tính phụ cấp, bồi dưỡng bằng hiện vật cho toàn bộ thời gian làm việc trong năm mà không xác định rõ thời gian làm việc trong điều kiện độc hại trên hay dưới 50%. Tổng số tiền lập, phân bổ dự toán chưa đảm bảo cơ sở là 72.276,106 triệu đồng (trong đó 08 đơn vị được kiểm tra: 29.628,026 triệu đồng).</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Điểm a khoản 3 Mục II và khoản 2 Mục II Thông tư số 07/2005/TT-BNV; khoản 1, 2, 3, 4 Điều 4 và khoản 2 Điều 2, khoản 2 Điều 5 Thông tư số 25/2013/TT-BLĐTBXH</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Lập, phân bổ dự toán chế độ phụ cấp độc hại, nguy hiểm và bồi dưỡng bằng hiện vật chưa đảm bảo chính xác, chưa đầy đủ cơ sở thực hiện. (Giá trị: <strong>72.276,106 triệu đồng</strong> toàn VHL; <strong>29.628,026 triệu đồng</strong> tại 08 đơn vị được kiểm tra)</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">VHL có văn bản đề nghị Bộ Nội vụ phối hợp Bộ Tài chính thỏa thuận áp dụng chế độ phụ cấp độc hại; chỉ đạo các đơn vị xác định lại mức phụ cấp và thời gian làm việc thực tế trong điều kiện độc hại; chấn chỉnh, khắc phục.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 18 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">18</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> 06 đơn vị ban hành Quy chế chi tiêu nội bộ có một số nội dung chưa đúng quy định: chi hỗ trợ phụ cấp độc hại bằng tiền không đúng đối tượng; chia đều phụ cấp độc hại hiện vật cho tất cả viên chức; quy định nội dung chi quản lý phí thiếu dự toán; quy định tiêu chuẩn nghỉ phép, tổng số giờ làm thêm, chi từ quỹ phúc lợi, trích lập quỹ chưa phù hợp quy định.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Mục I Thông tư số 07/2005/TT-BNV; khoản 2 Điều 2 Thông tư số 25/2013/TT-BLĐTBXH; điểm c khoản 1, khoản 8 Điều 7 Thông tư liên tịch số 55/2015/TTLT; khoản 3 Điều 8 Thông tư số 04/2019/TT-BKHCN; khoản 3 Điều 16 Thông tư số 45/2018/TT-BTC; điểm a khoản 2 và khoản 3 Điều 9, điểm d khoản 2 Điều 14 Nghị định số 54/2016/NĐ-CP, Nghị định số 60/2021/NĐ-CP; khoản 1 Điều 111 Bộ luật Lao động năm 2012</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Quy chế chi tiêu nội bộ của các đơn vị trực thuộc có nội dung chưa đúng quy định; ảnh hưởng tính minh bạch, đúng đắn trong quản lý, sử dụng kinh phí.</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">06 đơn vị (VHH, Trường, Viện HDH, Viện CNMT, Viện KHVL, Viện SHNĐ) điều chỉnh các nội dung trong Quy chế chi tiêu nội bộ đảm bảo đúng quy định.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 19 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">19</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Trích lập các quỹ chưa đúng quy định: 7/8 đơn vị trích thiếu Quỹ phát triển hoạt động sự nghiệp số tiền 1.715,615 triệu đồng; hạch toán một số nội dung là nguồn thu về quỹ PTHĐSN không đúng quy định 2.159,77 triệu đồng; bổ sung Quỹ phúc lợi chưa đúng quy định 6.576,516 triệu đồng; thực hiện chi thu nhập tăng thêm trước khi trích lập các quỹ; không ban hành quyết định phân bổ nguồn chênh lệch thu chi.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Điểm a khoản 3 Điều 8 Nghị định số 54/2016/NĐ-CP</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Trích lập, hạch toán các quỹ không đúng quy định, ảnh hưởng tính chính xác của số liệu tài chính. (Trích thiếu Quỹ PTHĐSN: <strong>1.715,615 triệu đồng</strong>; hạch toán sai về quỹ PTHĐSN: <strong>2.159,77 triệu đồng</strong>; bổ sung Quỹ phúc lợi sai: <strong>6.576,516 triệu đồng</strong>)</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Trích lập các quỹ đầy đủ theo quy định; hạch toán quỹ đúng quy định; ban hành đầy đủ quyết định phân bổ nguồn chênh lệch thu chi để trích lập các quỹ.</span></p>
+                  <p class="rec-line"><span class="rec-tag tag-eco">Kinh tế</span><span class="rec-text eco-money">Rà soát, điều chỉnh trích bổ sung Quỹ PTHĐSN còn thiếu 1.715,615 triệu đồng; điều chỉnh hạch toán sai nguồn 2.159,77 triệu đồng và 6.576,516 triệu đồng theo đúng quy định.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 20 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">20</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> 6/8 đơn vị được kiểm tra sử dụng các quỹ để chi một số nội dung không đúng nội dung chi của quỹ với số tiền 5.063,581 triệu đồng (VHH: 1.080,974 trđ; Trường: 779,432 trđ; Viện CNMT: 70,945 trđ; Viện SHNĐ: 472,04 trđ; Trung tâm NCCG: 1.064,86 trđ; Viện KHVL: 1.595,33 trđ).</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Điều 20 Nghị định số 43/2006/NĐ-CP; khoản 6 Điều 18 Nghị định số 60/2021/NĐ-CP; điểm b khoản 3 Điều 9 Nghị định số 54/2016/NĐ-CP</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Sử dụng các quỹ chi sai nội dung quy định. (Giá trị: <strong>5.063,581 triệu đồng</strong>)</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Chấn chỉnh việc sử dụng các quỹ đảm bảo đúng nội dung chi quy định; kiểm điểm trách nhiệm các đơn vị liên quan.</span></p>
+                  <p class="rec-line"><span class="rec-tag tag-eco">Kinh tế</span><span class="rec-text eco-money">Rà soát, xử lý số tiền 5.063,581 triệu đồng đã sử dụng các quỹ chi không đúng nội dung quy định theo đúng quy định pháp luật.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 21 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">21</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Một số đơn vị hạch toán doanh thu hoạt động SXKD, dịch vụ vào nguồn thu hộ, chi hộ chưa đúng chế độ kế toán, dẫn đến thiếu doanh thu phải kê khai thuế GTGT, thuế TNDN số tiền 6.928,671 triệu đồng (VHH: 1.819,812 trđ; Viện CNMT: 2.712,069 trđ; Viện SHNĐ: 2.396,79 trđ); thu tiền bán HSMT 729,5 triệu đồng chưa kê khai thuế GTGT, thuế TNDN.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Quy định pháp luật về chế độ kế toán và kê khai thuế GTGT, thuế TNDN (Luật Thuế thu nhập doanh nghiệp năm 2008)</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Hạch toán doanh thu chưa đúng chế độ kế toán, thiếu doanh thu phải kê khai và nộp thuế; nguy cơ thất thu NSNN. (Giá trị: <strong>6.928,671 triệu đồng</strong> doanh thu SXKD và <strong>729,5 triệu đồng</strong> tiền bán HSMT chưa kê khai)</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Chấn chỉnh công tác hạch toán doanh thu, kế toán; thực hiện kê khai thuế đầy đủ; kiểm điểm trách nhiệm.</span></p>
+                  <p class="rec-line"><span class="rec-tag tag-eco">Kinh tế</span><span class="rec-text eco-money">Kê khai doanh thu hoạt động SXKD, dịch vụ 6.928,671 triệu đồng và tiền bán HSMT 729,5 triệu đồng; thực hiện nộp thuế GTGT, thuế TNDN theo quy định.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 22 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">22</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Chi hoạt động dịch vụ còn một số nội dung chi chưa đầy đủ yếu tố để tính vào chi phí được trừ khi xác định thuế TNDN với tổng số tiền (tạm tính) 93.189,504 triệu đồng (VHH: 2.623,9 trđ; Viện CNMT: 90.565,604 trđ); Trường sử dụng nguồn thu học phí gửi có kỳ hạn tại ngân hàng thương mại không đúng quy định (số tiền lãi thu được 3,499 tỷ đồng).</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Điểm b khoản 2 Điều 13 Nghị định số 86/2015/NĐ-CP; khoản 1 Điều 13 Nghị định số 81/2021/NĐ-CP; Luật Thuế thu nhập doanh nghiệp năm 2008</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Xác định thu nhập chịu thuế TNDN chưa chính xác; sử dụng nguồn thu học phí không đúng quy định. (Giá trị: <strong>93.189,504 triệu đồng</strong> chi phí cần xác định lại; <strong>3,499 tỷ đồng</strong> tiền lãi gửi học phí)</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Chấn chỉnh việc sử dụng nguồn thu học phí; rà soát các nội dung chi hoạt động dịch vụ; kiểm điểm trách nhiệm.</span></p>
+                  <p class="rec-line"><span class="rec-tag tag-eco">Kinh tế</span><span class="rec-text eco-money">Xác định lại thu nhập chịu thuế sau khi trừ chi phí chưa đủ yếu tố 93.189,504 triệu đồng; kê khai, nộp thuế TNDN theo quy định.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 23 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">23</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Hạch toán kinh phí <em>quản lý chung nhiệm vụ</em> vào nguồn thu hộ, chi hộ của đơn vị chưa đúng quy định với số tiền 19.859,84 triệu đồng (VHH: 4.194,117 trđ; Viện CNMT: 1.625,583 trđ; Viện SHNĐ: 2.885,99 trđ; Viện KHVL: 5.797,79 trđ; Viện CNSH: 4.223,09 trđ; Trung tâm NCCG: 1.133,27 trđ); Viện SHNĐ hạch toán một số nguồn thu vào tài khoản thu hộ, chi hộ không đúng quy định 219,42 triệu đồng; chi quản lý sinh viên thực tập 240,9 triệu đồng không có trong Quy chế chi tiêu nội bộ.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Điểm c khoản 1 Điều 10 Thông tư liên tịch số 27/2015/TTLT-BKHCN-BTC</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Hạch toán kinh phí quản lý chung nhiệm vụ KHCN và một số nguồn thu vào tài khoản thu hộ, chi hộ không đúng quy định. (Giá trị: <strong>19.859,84 triệu đồng</strong>; Viện SHNĐ: <strong>219,42 triệu đồng</strong> và <strong>240,9 triệu đồng</strong>)</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Hạch toán kinh phí quản lý chung nhiệm vụ vào nguồn thu của đơn vị đúng quy định; chấn chỉnh việc hạch toán các nguồn thu; rà soát Quy chế chi tiêu nội bộ.</span></p>
+                  <p class="rec-line"><span class="rec-tag tag-eco">Kinh tế</span><span class="rec-text eco-money">Điều chỉnh hạch toán kinh phí quản lý chung nhiệm vụ 19.859,84 triệu đồng vào nguồn thu của đơn vị; xử lý số tiền 219,42 triệu đồng và 240,9 triệu đồng theo đúng quy định.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 24 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">24</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Hạn chế, thiếu sót, vi phạm trong lập hồ sơ mời thầu (HSMT), hồ sơ dự thầu (HSDT), thực hiện hợp đồng tại 07 gói thầu thuộc 5 dự án của 03 đơn vị làm chủ đầu tư (Viện KHVL, VHH, Viện SHNĐ) — giá trúng thầu và ký hợp đồng 183.784,07 triệu đồng: Tổ chuyên gia đấu thầu thiếu chứng nhận nghiệp vụ; sửa đổi mẫu HSMT không đúng quy định; nhà thầu không cung cấp Giấy bảo hành hàng hóa; hàng hóa cung cấp thiếu mã hiệu nhãn mác; cấp tạm ứng 50% mà không có Bảo lãnh tạm ứng tương đương.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Điều 16 Luật Đấu thầu năm 2013; điểm d khoản 5 Điều 3 Thông tư số 05/2015/TT-BKHĐT; khoản 2 Điều 14 và khoản 2 Điều 92 Nghị định số 63/2014/NĐ-CP; Mục 37 Chương I và Mục 15.1 Chương VI Mẫu số 02 ban hành kèm Thông tư số 04/2017/TT-BKHĐT; khoản 3 Điều 20, khoản 2 Điều 25, khoản 5 Điều 28 Nghị định số 63/2014/NĐ-CP</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Công tác đấu thầu mua sắm trang thiết bị tại các dự án đầu tư không đảm bảo quy định; tiềm ẩn nguy cơ thất thoát, lãng phí. (Giá trị các gói thầu: <strong>183.784,07 triệu đồng</strong>)</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Chấn chỉnh công tác đấu thầu, đảm bảo thực hiện theo đúng quy định pháp luật về đấu thầu (xây dựng giá gói thầu, lập HSMT, đánh giá HSDT, thực hiện hợp đồng); kiểm điểm trách nhiệm.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 25 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">25</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> VHL (Ban KHTC) sử dụng số liệu của Kiểm toán Nhà nước để phê duyệt quyết toán các năm 2016 (10 đơn vị), năm 2018 (16 đơn vị) và năm 2021 (24 đơn vị) mà không đảm bảo trình tự, thủ tục quyết toán đúng quy định; chưa tổ chức kiểm tra tiến độ thực hiện Đề tài trong các đợt duyệt quyết toán; phê duyệt quyết toán nhiệm vụ chậm.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> Khoản 2 Điều 8 Quy chế ban hành kèm Quyết định số 1786/QĐ-VHL; khoản 3 Điều 14 Thông tư liên tịch số 27/2015/TTLT-BKHCN-BTC</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Công tác phê duyệt quyết toán chưa đảm bảo trình tự, thủ tục; thiếu kiểm tra tiến độ trong quá trình duyệt quyết toán.</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Chấn chỉnh công tác phê duyệt quyết toán; thực hiện kiểm tra tiến độ thực hiện đề tài trong các đợt duyệt quyết toán đúng quy định; kiểm điểm trách nhiệm.</span></p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== VI PHẠM 26 ===== -->
+            <div class="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-md shadow-sm hover:border-[#a3171e] transition-colors">
+              <span class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-[#fef2f2] text-[#a3171e] font-bold rounded-full text-sm border border-[#fca5a5]">26</span>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hành vi:</span> Một số đơn vị thực hiện công tác tự chủ chưa đầy đủ: 7 đơn vị không thực hiện báo cáo định kỳ hàng năm về kết quả thực hiện chế độ tự chủ với VHL; 8 đơn vị xác định mức tự chủ chi thường xuyên chưa đúng quy định; 4 đơn vị thực hiện công khai chưa đầy đủ việc giao dự toán, mua sắm tài sản, thực hiện đề tài, SXKD dịch vụ, kết luận thanh tra, kiểm tra, kiểm toán.</p>
+                <p class="field-line"><span class="field-label">Điều khoản vi phạm:</span> <span class="unknown">Chưa rõ</span> (KLTT nêu là chưa thực hiện đầy đủ chế độ báo cáo, công khai theo quy định về cơ chế tự chủ, không viện dẫn điều khoản cụ thể)</p>
+                <p class="text-sm text-gray-800"><span class="font-bold text-[#8a1319]">Hậu quả:</span> Thực hiện chế độ báo cáo, công khai về tự chủ chưa đầy đủ; xác định mức tự chủ chi thường xuyên chưa đúng; ảnh hưởng tính minh bạch.</p>
+                <div class="rec-block">
+                  <span class="rec-title">Kiến nghị xử lý</span>
+                  <p class="rec-line"><span class="rec-tag tag-admin">Hành chính</span><span class="rec-text">Định kỳ hằng năm báo cáo chính xác về kết quả thực hiện cơ chế tự chủ; xác định mức tự chủ chi thường xuyên đúng quy định; thực hiện công khai đầy đủ theo quy định.</span></p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+      </main>
+
+      <!-- ============================================== -->
+      <!-- FOOTER: Nút in/PDF                               -->
+      <!-- ============================================== -->
+      <footer class="bg-[#f8fafc] p-6 border-t border-gray-200 text-center no-print rounded-b-lg">
+        <button onclick="window.focus(); window.print();" class="bg-[#a3171e] hover:bg-[#8a1319] text-white font-bold py-2.5 px-8 rounded shadow transition-all inline-flex items-center gap-2 border-b-4 border-[#7a1015] active:border-b-0 active:translate-y-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+          In / Xuất PDF báo cáo
+        </button>
+        <p class="mt-4 text-[11px] text-gray-500 uppercase tracking-widest font-semibold">
+          Tài liệu lưu hành nội bộ — Dự thảo KL-TTCP về cơ chế tự chủ tại VHL — tháng 5 năm 2026
+        </p>
+      </footer>
+
+    </div>
+  </div>
+
+</body>
+</html>
