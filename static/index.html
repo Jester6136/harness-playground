@@ -117,6 +117,19 @@ body { font-family: var(--font); background: var(--bg); color: var(--text);
 .msg-user .bubble { background: var(--primary); color: #fff; border-radius: 12px 12px 4px 12px; }
 .msg-ai  .bubble  { background: var(--bg2); border: 1px solid var(--border); border-radius: 4px 12px 12px 12px; }
 
+/* Time + copy hành động dưới mỗi bubble (mục 1: thẩm mỹ kiểu ChatGPT) */
+.msg-foot { display: flex; align-items: center; gap: 6px; margin-top: 4px;
+            padding: 0 4px; font-size: 11px; color: var(--muted); }
+.msg-user .msg-foot { justify-content: flex-end; }
+.msg-ai   .msg-foot { justify-content: flex-start; }
+.msg-time { opacity: .7; font-family: var(--mono); }
+.msg-copy { background: none; border: none; color: var(--muted); cursor: pointer;
+            padding: 2px 6px; font-size: 12px; border-radius: 4px;
+            opacity: 0; transition: opacity .12s, color .12s, background .12s; }
+.msg:hover .msg-copy { opacity: .75; }
+.msg-copy:hover { opacity: 1; background: var(--bg3); color: var(--text); }
+.msg-copy.copied { opacity: 1; color: var(--success); background: rgba(16,185,129,.1); }
+
 .tool-block { background: var(--bg2); border: 1px solid var(--purple);
               border-radius: var(--r); max-width: 88%; align-self: flex-start;
               animation: fadeIn .2s ease; overflow: hidden; }
@@ -536,17 +549,17 @@ async function loadMessages() {
   }
 }
 
-function addHistoryMsg(type, content, name) {
+function addHistoryMsg(type, content, name, ts = null) {
   const el = document.getElementById('messages');
   if (type === 'human') {
     const node = document.createElement('div');
     node.className = 'msg msg-user';
-    node.innerHTML = `<div class="msg-label">You</div><div class="bubble">${esc(content)}</div>`;
+    node.innerHTML = `<div class="msg-label">You</div><div class="bubble">${esc(content)}</div>${_msgFoot({time: ts})}`;
     el.appendChild(node);
   } else if (type === 'ai') {
     const node = document.createElement('div');
     node.className = 'msg msg-ai';
-    node.innerHTML = `<div class="msg-label">Assistant</div><div class="bubble md">${md(content)}</div>`;
+    node.innerHTML = `<div class="msg-label">Assistant</div><div class="bubble md">${md(content)}</div>${_msgFoot({ai: true, time: ts})}`;
     el.appendChild(node);
   } else if (type === 'tool') {
     // Lịch sử: không còn cặp call để khớp → render thẻ standalone (fallback
@@ -655,7 +668,7 @@ async function sendMessage() {
     setSessLabel();
   }
 
-  addHistoryMsg('human', displayMsg);
+  addHistoryMsg('human', displayMsg, null, new Date());
   inp.value = ''; inp.style.height = 'auto';
   showTyping();
   setDisabled(true);
@@ -756,7 +769,7 @@ function onEvent(type, raw) {
     if (!S.streamBubble) {
       const n = document.createElement('div');
       n.className = 'msg msg-ai';
-      n.innerHTML = '<div class="msg-label">Assistant</div><div class="bubble md"></div>';
+      n.innerHTML = `<div class="msg-label">Assistant</div><div class="bubble md"></div>${_msgFoot({ai: true, time: new Date()})}`;
       msgs.appendChild(n);
       S.streamBubble = n;
       S.streamContent = '';
@@ -790,7 +803,7 @@ function onEvent(type, raw) {
     if (payload.type === 'ai' && payload.content?.trim()) {
       const n = document.createElement('div');
       n.className = 'msg msg-ai';
-      n.innerHTML = `<div class="msg-label">Assistant</div><div class="bubble md">${md(payload.content)}</div>`;
+      n.innerHTML = `<div class="msg-label">Assistant</div><div class="bubble md">${md(payload.content)}</div>${_msgFoot({ai: true, time: new Date()})}`;
       msgs.appendChild(n);
     }
     for (const tc of payload.tool_calls || []) {
@@ -1049,6 +1062,45 @@ function esc(s) {
 function enc(s) { return encodeURIComponent(s); }
 function xuid() { return { 'X-User-Id': S.user }; }
 function tryJSON(s) { try { return JSON.parse(s); } catch { return null; } }
+
+function fmtTime(d) {
+  if (!d) return '';
+  const t = (d instanceof Date) ? d : new Date(d);
+  return String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
+}
+
+// HTML cho footer dưới bubble — time (optional) + copy (chỉ msg AI).
+function _msgFoot({ai = false, time = null} = {}) {
+  const t = time ? `<span class="msg-time">${fmtTime(time)}</span>` : '';
+  const c = ai ? `<button class="msg-copy" onclick="copyBubble(this)" title="Sao chép">📋</button>` : '';
+  return (t || c) ? `<div class="msg-foot">${c}${t}</div>` : '';
+}
+
+function copyBubble(btn) {
+  const bubble = btn.closest('.msg')?.querySelector('.bubble');
+  if (!bubble) return;
+  const text = bubble.innerText;   // giữ xuống dòng, bỏ HTML
+  const done = () => {
+    btn.classList.add('copied');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✓';
+    setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = orig; }, 1200);
+  };
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+  } else {
+    fallbackCopy(text, done);
+  }
+}
+
+function fallbackCopy(text, cb) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); cb && cb(); }
+  catch(e) { alert('Copy thất bại'); }
+  ta.remove();
+}
 </script>
 </body>
 </html>
