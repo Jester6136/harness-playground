@@ -29,6 +29,7 @@ litellm_logger.propagate = False
 from litellm import acompletion
 from src.extentions.multimodal.prompt import ttcp_extract_prompt,ttcp_system_prompt
 from src.extentions.multimodal.make import pdf_to_corrected_images
+from src.extentions.multimodal.detect_phu_luc import prepare_main_pdf_bytes
 from harness.tools.ttcp_report import _build_html, _safe_filename
 
 VLLM_BASE_URL = os.getenv("VLLM_BASE_URL", "http://192.168.120.12:2900/v1")
@@ -39,6 +40,21 @@ ENABLE_THINKING = os.getenv("ENABLE_THINKING", "true").strip().lower() == "true"
 
 async def process_pdf(pdf_bytesio: io.BytesIO, gcn_id: str = None) -> list[dict]:
     loop = asyncio.get_running_loop()
+
+    # Cắt bỏ phụ lục TRƯỚC khi render/trích xuất: tài liệu thanh tra có thể
+    # 600+ trang nhưng chỉ ~30 trang đầu là nội dung chính. An toàn tuyệt đối
+    # — lỗi detect/cắt sẽ tự fallback về PDF gốc, không làm hỏng extract.
+    pdf_bytesio, _pl = await prepare_main_pdf_bytes(pdf_bytesio)
+    if _pl.get("boundary") is not None:
+        print(
+            f"[phụ lục] tổng {_pl['total']} trang → giữ {_pl['kept']} trang đầu "
+            f"(phụ lục từ trang {_pl['boundary']})"
+        )
+    elif _pl.get("skipped") or _pl.get("error"):
+        print(f"[phụ lục] bỏ qua trim ({_pl.get('skipped') or _pl.get('error')})")
+    else:
+        print(f"[phụ lục] không phát hiện phụ lục — giữ toàn bộ {_pl.get('total')} trang")
+
     images = await loop.run_in_executor(None, pdf_to_corrected_images, pdf_bytesio)
 
     # Gom tất cả ảnh vào 1 request

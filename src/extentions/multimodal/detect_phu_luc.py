@@ -258,6 +258,48 @@ async def prepare_main_pdf(pdf_path: str, chunk_size: int = DETECT_CHUNK_SIZE):
     return trimmed, {"total": total, "boundary": boundary, "kept": kept}
 
 
+# Cờ tắt toàn cục — đặt PHU_LUC_ENABLED=false để bỏ qua detect (debug/so sánh).
+PHU_LUC_ENABLED = os.getenv("PHU_LUC_ENABLED", "true").strip().lower() == "true"
+
+
+async def prepare_main_pdf_bytes(
+    data, chunk_size: int = DETECT_CHUNK_SIZE
+) -> tuple[io.BytesIO, dict]:
+    """Như `prepare_main_pdf` nhưng nhận bytes / BytesIO (nguồn từ MinIO,
+    file đọc sẵn...). Tự ghi temp file vì PDFium thao tác theo đường dẫn.
+
+    An toàn tuyệt đối cho pipeline trích xuất: mọi lỗi detect/cắt đều nuốt và
+    trả về PDF GỐC nguyên vẹn — không bao giờ làm hỏng/đứng quá trình extract.
+    Trả (BytesIO sẵn sàng feed process_pdf, info-dict).
+    """
+    raw = data.getvalue() if isinstance(data, io.BytesIO) else bytes(data)
+
+    if not PHU_LUC_ENABLED:
+        return io.BytesIO(raw), {"total": None, "boundary": None,
+                                 "kept": None, "skipped": "disabled"}
+
+    import tempfile
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp.write(raw)
+            tmp.flush()
+            tmp_path = tmp.name
+        trimmed, info = await prepare_main_pdf(tmp_path, chunk_size=chunk_size)
+        return trimmed, info
+    except Exception as exc:  # detect/cắt hỏng → giữ nguyên bản gốc
+        log.warning("detect: bỏ qua trim do lỗi (%s) — dùng PDF gốc", exc)
+        return io.BytesIO(raw), {"total": None, "boundary": None,
+                                 "kept": None, "error": str(exc)}
+    finally:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+
 async def _main():
     if len(sys.argv) < 2:
         print("Cách dùng: python src/extentions/multimodal/detect_phu_luc.py <file.pdf> [chunk_size]")
