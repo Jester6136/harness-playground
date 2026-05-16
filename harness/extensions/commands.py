@@ -127,15 +127,15 @@ def _cmd_clear(args: str) -> str:
     return "Đã xoá lịch sử session."
 
 
-@register_command("list-skills", "List all loaded skill sub-agents", handler="direct")
-def _cmd_list_skills(args: str) -> str:
-    skills = load_skills()
-    if not skills:
-        return "Hiện chưa phát triển"
-    lines = ["**Các skills:**\n"]
-    for s in skills:
-        lines.append(f"  `{s['name']}` — {s['description']}")
-    return "\n".join(lines)
+# @register_command("list-skills", "List all loaded skill sub-agents", handler="direct")
+# def _cmd_list_skills(args: str) -> str:
+#     skills = load_skills()
+#     if not skills:
+#         return "Hiện chưa phát triển"
+#     lines = ["**Các skills:**\n"]
+#     for s in skills:
+#         lines.append(f"  `{s['name']}` — {s['description']}")
+#     return "\n".join(lines)
 
 
 _LOAI_DOI_TUONG = {
