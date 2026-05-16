@@ -15,7 +15,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import tool
 from PIL import Image
 
-from harness.config import settings
+from harness import tenant
 from harness.llm import make_llm
 from harness.logging_config import log_tool_call
 from src.extentions.multimodal.make import pdf_to_corrected_images
@@ -91,7 +91,7 @@ def _derive_minio_key(path: str) -> str | None:
         return None
     if p.parent.name != "uploads":
         return None
-    prefix = settings.ttcp_prefix.rstrip("/") + "/"
+    prefix = tenant.ttcp_prefix().rstrip("/") + "/"
     return f"{prefix}{p.name}"
 
 

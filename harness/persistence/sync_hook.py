@@ -21,6 +21,7 @@ import threading
 
 import httpx
 
+from harness import tenant
 from harness.config import settings
 
 log = logging.getLogger(__name__)
@@ -33,7 +34,9 @@ def notify_ttcp_sync(reason: str = "", *, block: bool = False) -> None:
     (e.g. "save_ttcp", "delete_ttcp", "batch"). No-op if no URL configured.
     Never raises.
     """
-    url = settings.ttcp_sync_url
+    # Read in the calling thread/context (before any daemon thread spawn) so
+    # the active tenant's webhook is used; "" in the account disables it.
+    url = tenant.ttcp_sync_url()
     if not url:
         return
 

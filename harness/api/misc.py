@@ -6,9 +6,10 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
+from harness import tenant
 from harness.api.deps import get_user
 from harness.config import settings
 from harness.extensions.commands import COMMANDS
@@ -84,7 +85,7 @@ async def serve_ttcp_file(key: str):
     MinIO, clients reach the API. Guarded to the TTCP prefix so it can't be
     used to read arbitrary bucket objects.
     """
-    if ".." in key or not key.startswith(settings.ttcp_prefix):
+    if ".." in key or not key.startswith(tenant.ttcp_prefix()):
         raise HTTPException(status_code=400, detail="invalid key")
     try:
         from harness.persistence.minio_store import get_ttcp_object
@@ -119,5 +120,10 @@ async def get_report(name: str):
 
 
 @router.get("/ui", response_class=HTMLResponse, include_in_schema=False)
-async def ui():
+async def ui(request: Request):
+    # Hard auth-gate the UI page itself so unauthenticated users get a clean
+    # redirect to /login (rather than seeing the SPA fail every fetch with 401).
+    from harness.auth import COOKIE_NAME, read_session
+    if not read_session(request.cookies.get(COOKIE_NAME)):
+        return RedirectResponse("/login?next=/ui", status_code=303)
     return HTMLResponse(_STATIC_INDEX.read_text())

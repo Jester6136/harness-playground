@@ -24,10 +24,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from harness.agent import make_agent
+from harness.api.auth import router as auth_router
 from harness.api.chat import router as chat_router
 from harness.api.misc import router as misc_router
 from harness.api.pipelines import register_pipeline_routes, router as pipelines_router
 from harness.api.threads import router as threads_router
+from harness.auth import bootstrap_default_account
 from harness.logging_config import setup_logging
 from harness.persistence.checkpoints import make_async_checkpointer
 from harness.persistence.mongo import close_mongo
@@ -45,6 +47,13 @@ async def lifespan(app: FastAPI):
         checkpointer=app.state.checkpointer,
         store=app.state.store,
     )
+    # Seed the default account on a fresh install so the box is usable
+    # immediately. No-op once any account exists. Mongo flakiness here must
+    # not block the agent from coming up — log and continue.
+    try:
+        bootstrap_default_account()
+    except Exception as exc:
+        logger.warning("auth: bootstrap_default_account failed (%s)", exc)
     logger.info("Agent ready")
     yield
     await close_store()
@@ -61,6 +70,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(threads_router)
 app.include_router(pipelines_router)

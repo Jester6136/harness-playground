@@ -114,7 +114,14 @@ def s3():
             endpoint_url=MINIO_ENDPOINT,
             aws_access_key_id=MINIO_KEY,
             aws_secret_access_key=MINIO_SECRET,
-            config=Config(signature_version="s3v4", retries={"max_attempts": 3}),
+            config=Config(
+                signature_version="s3v4",
+                retries={"max_attempts": 3},
+                # botocore mặc định chỉ 10 HTTP connection → với _IO_POOL
+                # (CONCURRENCY+8) tải MinIO song song sẽ bị "connection pool is
+                # full, discarding connection". Cho khớp mức song song.
+                max_pool_connections=CONCURRENCY + 8,
+            ),
         )
     return _s3_client
 
@@ -478,7 +485,9 @@ async def main() -> None:
         WORKER_ID, BUCKET, PREFIX, MONGO_DB, MONGO_COLL, CONCURRENCY, TIMEOUT_SEC, THINKING, VERSION,
     )
 
-    ensure_indexes()
+    ensure_indexes()  # also creates the Mongo client once (single-thread)
+    s3()               # pre-warm the boto3 client before parallel downloads
+                       # race-create it (40 concurrent _io calls at startup).
 
     if args.stats_only:
         log.info("stats: %s", await asyncio.to_thread(stats))

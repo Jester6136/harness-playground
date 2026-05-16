@@ -27,13 +27,23 @@ from pathlib import Path
 
 from langchain_core.tools import tool
 
+from functools import lru_cache
+
+from harness import tenant
 from harness.config import settings
 from harness.logging_config import log_tool_call
 from harness.persistence.mongo import MongoStore
 
 log = logging.getLogger(__name__)
 
-_store = MongoStore(db_name=settings.mongo_db_name, collection=settings.ttcp_collection)
+@lru_cache(maxsize=None)
+def _store_for(collection: str) -> MongoStore:
+    return MongoStore(db_name=settings.mongo_db_name, collection=collection)
+
+
+def _store() -> MongoStore:
+    """MongoStore for the active tenant's collection (per request)."""
+    return _store_for(tenant.ttcp_collection())
 
 # Same nested path used by ttcp_db — content lives under `result`.
 _P_SO_VB = "result.thông tin chung.số văn bản"
@@ -850,7 +860,7 @@ def render_ttcp_report(so_van_ban: str) -> str:
     Lỗi → `{error, message}`.
     """
     try:
-        doc = _store.find_one({"status": "done", _P_SO_VB: so_van_ban})
+        doc = _store().find_one({"status": "done", _P_SO_VB: so_van_ban})
         if not doc:
             return json.dumps(
                 {"error": "not_found",

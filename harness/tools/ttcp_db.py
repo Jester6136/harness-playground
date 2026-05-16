@@ -27,10 +27,12 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
+from functools import lru_cache
 from typing import Any
 
 from langchain_core.tools import tool
 
+from harness import tenant
 from harness.config import settings
 from harness.logging_config import log_tool_call
 from harness.persistence.mongo import MongoStore
@@ -75,10 +77,17 @@ _INDEX_FIELDS = [
 ]
 _INDEX_NAME = "ttcp_text_idx_v2"
 
-_store = MongoStore(
-    db_name=settings.mongo_db_name,
-    collection=settings.ttcp_collection,
-)
+@lru_cache(maxsize=None)
+def _store_for(collection: str) -> MongoStore:
+    """One MongoStore per distinct collection (pymongo is thread-safe;
+    cached so we don't rebuild a client per request)."""
+    return MongoStore(db_name=settings.mongo_db_name, collection=collection)
+
+
+def _store() -> MongoStore:
+    """MongoStore for the ACTIVE tenant's collection (per request); falls
+    back to the env default collection when no tenant is bound."""
+    return _store_for(tenant.ttcp_collection())
 
 
 # ── helpers ────────────────────────────────────────────────────────────────
@@ -214,7 +223,7 @@ def find_ttcp(so_van_ban: str) -> str:
     quát, ưu tiên `search_ttcp` / `list_ttcp`.
     """
     try:
-        doc = _store.find_one(_so_vb_filter(so_van_ban))
+        doc = _store().find_one(_so_vb_filter(so_van_ban))
         return json.dumps(doc or {}, ensure_ascii=False, default=str)
     except Exception as exc:
         log.exception("find_ttcp failed")
@@ -234,10 +243,10 @@ def search_ttcp(query: str, limit: int = 10) -> str:
     số văn bản chính xác, dùng `find_ttcp` thay vì search.
     """
     try:
-        _store.ensure_text_index(_INDEX_FIELDS, name=_INDEX_NAME)
+        _store().ensure_text_index(_INDEX_FIELDS, name=_INDEX_NAME)
         # Pre-filter status=done is tricky with text search ranking; we filter
         # client-side because the result set is small (≤ limit).
-        docs = [d for d in _store.text_search(query, limit=limit * 2)
+        docs = [d for d in _store().text_search(query, limit=limit * 2)
                 if d.get("status") == "done"][:limit]
         return json.dumps(
             {"hits": [_summarize(d) for d in docs], "count": len(docs)},
@@ -279,7 +288,7 @@ def list_ttcp(
             year_to=year_to or None,
             has_criminal=_parse_tri(has_criminal),
         )
-        docs = _store.find_many(f, limit=limit)
+        docs = _store().find_many(f, limit=limit)
         return json.dumps(
             {"items": [_summarize(d) for d in docs], "count": len(docs)},
             ensure_ascii=False, default=str,
@@ -317,7 +326,7 @@ def count_ttcp(
             has_criminal=_parse_tri(has_criminal),
         )
         return json.dumps(
-            {"count": _store.count(f), "filters": f},
+            {"count": _store().count(f), "filters": f},
             ensure_ascii=False, default=str,
         )
     except Exception as exc:
@@ -409,7 +418,7 @@ def aggregate_ttcp(
     ]
 
     try:
-        rows = _store.aggregate(pipeline)
+        rows = _store().aggregate(pipeline)
         buckets = [{"key": r["_id"], "value": r.get("value")} for r in rows]
         return json.dumps(
             {
@@ -489,18 +498,18 @@ def save_ttcp(ttcp_json: str, minio_key: str = "") -> str:
         # as a batch doc) + carry `bucket`. Bonus: a later `ttcp_batch sync`
         # finds this _id already exists with status=done and skips re-
         # extracting — no duplicate doc for the same file.
-        doc = {"_id": mk, "bucket": settings.ttcp_bucket, **base}
+        doc = {"_id": mk, "bucket": tenant.ttcp_bucket(), **base}
     else:
         # No MinIO key (e.g. a web upload that didn't thread it) — fall back
         # to a synthetic id so the save still works; no bucket/file ref.
         doc = {"_id": f"agent/{so_vb}", **base}
 
     try:
-        _store.ensure_text_index(_INDEX_FIELDS, name=_INDEX_NAME)
+        _store().ensure_text_index(_INDEX_FIELDS, name=_INDEX_NAME)
         # Upsert by _id. With a MinIO-key _id, re-uploading the SAME file
         # (same key) overwrites; a fresh upload of the same kết luận gets a
         # new key → new doc (same behaviour as the batch keys by object key).
-        result = _store.upsert_one({"_id": doc["_id"]}, doc)
+        result = _store().upsert_one({"_id": doc["_id"]}, doc)
         notify_ttcp_sync("save_ttcp")
         return json.dumps({"số văn bản": so_vb, **result}, ensure_ascii=False)
     except Exception as exc:
@@ -549,7 +558,7 @@ def update_ttcp(so_van_ban: str, updates_json: str) -> str:
     try:
         prefixed = _prefix_result_keys(updates)
         prefixed["updated_at"] = _now()
-        result = _store.update_one(_so_vb_filter(so_van_ban), prefixed)
+        result = _store().update_one(_so_vb_filter(so_van_ban), prefixed)
         if result.get("modified"):
             notify_ttcp_sync("update_ttcp")
         return json.dumps({"số văn bản": so_van_ban, **result}, ensure_ascii=False)
@@ -569,7 +578,7 @@ def delete_ttcp(so_van_ban: str) -> str:
     `{deleted}`.
     """
     try:
-        deleted = _store.delete_one(_so_vb_filter(so_van_ban))
+        deleted = _store().delete_one(_so_vb_filter(so_van_ban))
         if deleted:
             notify_ttcp_sync("delete_ttcp")
         return json.dumps(
@@ -595,7 +604,7 @@ def _minio_key_of(doc: dict) -> str:
     if isinstance(k, str) and k.strip():
         return k.strip()
     _id = doc.get("_id")
-    if isinstance(_id, str) and _id.startswith(settings.ttcp_prefix):
+    if isinstance(_id, str) and _id.startswith(tenant.ttcp_prefix()):
         return _id
     return ""
 
@@ -614,7 +623,7 @@ def get_ttcp_file(so_van_ban: str) -> str:
     tìm thấy kết luận / kết luận không có file gốc.
     """
     try:
-        doc = _store.find_one({"status": "done", P_SO_VB: so_van_ban})
+        doc = _store().find_one({"status": "done", P_SO_VB: so_van_ban})
         if not doc:
             return json.dumps(
                 {"error": "not_found",

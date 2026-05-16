@@ -16,6 +16,7 @@ from functools import lru_cache
 import boto3
 from botocore.config import Config
 
+from harness import tenant
 from harness.config import settings
 
 log = logging.getLogger(__name__)
@@ -46,15 +47,16 @@ def put_ttcp_object(
     """
     # Normalise the prefix: exactly one trailing slash, so a misconfigured
     # TTCP_PREFIX without "/" doesn't produce keys like "ttcp/ttcp-botX.pdf".
-    prefix = settings.ttcp_prefix.rstrip("/") + "/"
+    prefix = tenant.ttcp_prefix().rstrip("/") + "/"
     key = f"{prefix}{key_suffix}"
+    bucket = tenant.ttcp_bucket()
     _client().put_object(
-        Bucket=settings.ttcp_bucket,
+        Bucket=bucket,
         Key=key,
         Body=data,
         ContentType=content_type,
     )
-    log.info("mirrored upload to MinIO: s3://%s/%s", settings.ttcp_bucket, key)
+    log.info("mirrored upload to MinIO: s3://%s/%s", bucket, key)
     return key
 
 
@@ -65,5 +67,5 @@ def get_ttcp_object(key: str) -> bytes:
     endpoint) maps that to a 404. PDFs in this corpus are a few MB, so
     reading fully into memory is fine.
     """
-    resp = _client().get_object(Bucket=settings.ttcp_bucket, Key=key)
+    resp = _client().get_object(Bucket=tenant.ttcp_bucket(), Key=key)
     return resp["Body"].read()

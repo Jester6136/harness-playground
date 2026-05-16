@@ -11,13 +11,15 @@ import json
 import httpx
 from langchain_core.tools import tool
 
+from harness import tenant
 from harness.config import settings
 from harness.logging_config import log_tool_call
 from harness.utils.async_utils import run_async
 
 
 async def _retrieve(query: str) -> str:
-    if not settings.datalens_chatbot_code:
+    chatbot_code = tenant.datalens_chatbot_code()
+    if not chatbot_code:
         return json.dumps(
             {"error": "config_missing", "message": "DATALENS_CHATBOT_CODE is not set."},
             ensure_ascii=False,
@@ -25,7 +27,7 @@ async def _retrieve(query: str) -> str:
 
     payload = {
         "query": query,
-        "chatbot_code": settings.datalens_chatbot_code,
+        "chatbot_code": chatbot_code,
         "allowed_ids": None,
         "history": [],
     }
