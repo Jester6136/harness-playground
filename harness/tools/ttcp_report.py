@@ -192,7 +192,7 @@ def _narrative_section(vi_pham: list) -> str:
             f'{_NOT_STATED}.</p></div>'
         )
         return f"""        <section class="mb-10">
-          <h2 class="section-header text-base">I. Trích lược vi phạm</h2>
+          <h2 class="section-header text-base">II. Trích lược vi phạm</h2>
           <div class="grid grid-cols-1 gap-4">
 {body}
           </div>
@@ -255,7 +255,7 @@ def _narrative_section(vi_pham: list) -> str:
           </div>""")
 
     return f"""        <section class="mb-10">
-          <h2 class="section-header text-base">I. Trích lược vi phạm</h2>
+          <h2 class="section-header text-base">II. Trích lược vi phạm</h2>
           <div class="grid grid-cols-1 gap-4">
 {chr(10).join(cards)}
           </div>
@@ -320,7 +320,7 @@ def _detail_table(vi_pham: list) -> str:
         '                <tr><td colspan="9" class="empty-dash">' + _NOT_STATED + "</td></tr>"
     )
     return f"""        <section class="mb-14">
-          <h2 class="section-header text-base">II. Bảng chi tiết vi phạm</h2>
+          <h2 class="section-header text-base">I. Bảng chi tiết vi phạm</h2>
           <div class="table-container">
             <table class="v-table">
               <thead>
@@ -416,7 +416,7 @@ _CSS = """        .tt-report-container {
             --tt-gold: #d4af37;
             --tt-text: #333333;
             --tt-border: #e2e8f0;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: 'Times New Roman', 'Tinos', 'Liberation Serif', Times, serif;
             color: var(--tt-text);
             line-height: 1.6;
         }
@@ -636,15 +636,17 @@ def _build_html(doc: dict) -> str:
     result = doc.get("result", {}) or {}
     tic = result.get("thông tin chung", {}) or {}
     vi_pham = result.get("vi phạm", []) or []
-    kien_nghi = result.get("kiến nghị xử lý", {}) or {}
 
     so_vb = tic.get("số văn bản", "") or "(không rõ số văn bản)"
     generated = datetime.now().strftime("%d/%m/%Y")
 
     info = _info_section(tic)
-    narrative = _narrative_section(vi_pham)
-    detail = _detail_table(vi_pham)
-    recommendations = _recommendations_section(kien_nghi)
+    detail = _detail_table(vi_pham)        # Mục I — bảng chi tiết
+    narrative = _narrative_section(vi_pham)  # Mục II — trích lược (cards)
+    # Form V2 (bang_tom_tat_KLTT_VienHanLamKHCN) chỉ có Thông tin chung + I + II,
+    # KHÔNG có "III. Kiến nghị xử lý (chung)". Kiến nghị doc-level đã gộp vào
+    # rec-block của từng vi phạm. `_recommendations_section` giữ lại trong file
+    # để khôi phục nhanh nếu cần.
 
     return f"""<!DOCTYPE html>
 <html lang="vi">
@@ -653,7 +655,6 @@ def _build_html(doc: dict) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bảng tóm tắt Kết luận thanh tra - {html.escape(so_vb)}</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 {_CSS}
 </style>
@@ -674,11 +675,9 @@ def _build_html(doc: dict) -> str:
       <main class="p-6 md:p-8">
 {info}
 
-{narrative}
-
 {detail}
 
-{recommendations}
+{narrative}
       </main>
 
       <footer class="bg-[#f8fafc] p-6 border-t border-gray-200 text-center no-print rounded-b-lg">

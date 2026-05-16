@@ -44,16 +44,7 @@ async def process_pdf(pdf_bytesio: io.BytesIO, gcn_id: str = None) -> list[dict]
     # Cắt bỏ phụ lục TRƯỚC khi render/trích xuất: tài liệu thanh tra có thể
     # 600+ trang nhưng chỉ ~30 trang đầu là nội dung chính. An toàn tuyệt đối
     # — lỗi detect/cắt sẽ tự fallback về PDF gốc, không làm hỏng extract.
-    pdf_bytesio, _pl = await prepare_main_pdf_bytes(pdf_bytesio)
-    if _pl.get("boundary") is not None:
-        print(
-            f"[phụ lục] tổng {_pl['total']} trang → giữ {_pl['kept']} trang đầu "
-            f"(phụ lục từ trang {_pl['boundary']})"
-        )
-    elif _pl.get("skipped") or _pl.get("error"):
-        print(f"[phụ lục] bỏ qua trim ({_pl.get('skipped') or _pl.get('error')})")
-    else:
-        print(f"[phụ lục] không phát hiện phụ lục — giữ toàn bộ {_pl.get('total')} trang")
+    pdf_bytesio, _ = await prepare_main_pdf_bytes(pdf_bytesio)
 
     images = await loop.run_in_executor(None, pdf_to_corrected_images, pdf_bytesio)
 
