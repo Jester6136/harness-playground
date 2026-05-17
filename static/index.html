@@ -557,6 +557,10 @@ function addHistoryMsg(type, content, name, ts = null) {
     node.innerHTML = `<div class="msg-label">You</div><div class="bubble">${esc(content)}</div>${_msgFoot({time: ts})}`;
     el.appendChild(node);
   } else if (type === 'ai') {
+    // Bỏ qua tin AI rỗng: đó là tin chỉ "mang" tool_call (content="") —
+    // thẻ tool đã render riêng từ tin `tool`. Nếu không chặn, reload trang
+    // sẽ đẻ ra một bóng "Assistant" trắng phía trên mỗi thẻ tool.
+    if (!content || !String(content).trim()) return;
     const node = document.createElement('div');
     node.className = 'msg msg-ai';
     node.innerHTML = `<div class="msg-label">Assistant</div><div class="bubble md">${md(content)}</div>${_msgFoot({ai: true, time: ts})}`;
