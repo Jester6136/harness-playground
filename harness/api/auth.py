@@ -45,7 +45,7 @@ border:0;border-radius:6px;font-weight:700;font-size:.95rem;cursor:pointer}}
 button:hover{{background:#8a1319}}.err{{color:#b91c1c;font-size:.82rem;
 margin-top:.8rem;text-align:center}}</style></head>
 <body><form class="card" method="post" action="/login">
-<h1>Hệ thống Tra cứu Thanh tra</h1>
+<h1>Trợ lí AI Agent hỗ trợ thanh tra</h1>
 <label>Tài khoản</label>
 <input name="username" autocomplete="username" autofocus required>
 <label>Mật khẩu</label>

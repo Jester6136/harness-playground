@@ -61,11 +61,37 @@ def put_ttcp_object(
 
 
 def get_ttcp_object(key: str) -> bytes:
-    """Download an object's bytes from the TTCP bucket by full object key.
+    """Download an object's bytes fully into memory by full object key.
 
-    Raises on a missing object or transport error — the caller (the /files
-    endpoint) maps that to a 404. PDFs in this corpus are a few MB, so
-    reading fully into memory is fine.
+    Kept for callers that genuinely need the whole blob. The /files endpoint
+    does NOT use this — TTCP PDFs run to 500MB / 600+ pages, so it streams
+    via `open_ttcp_object` instead. Raises on missing object / transport error.
     """
     resp = _client().get_object(Bucket=tenant.ttcp_bucket(), Key=key)
     return resp["Body"].read()
+
+
+def open_ttcp_object(key: str, *, byte_range: str | None = None) -> dict:
+    """Open an object for *streaming* (no full-buffer read).
+
+    Returns ``{body, length, total, content_range, status}`` where ``body`` is
+    a botocore StreamingBody the caller must read in chunks and close. A
+    500MB / 600-page Thanh tra PDF must never be slurped into RAM nor block
+    the event loop while a single client downloads it.
+
+    `byte_range` (the raw HTTP ``Range`` header, e.g. ``bytes=0-1048575``) is
+    passed straight through to S3 so the browser PDF viewer can fetch one page
+    of a 600-page file without pulling the whole object; when honoured, S3
+    answers with ``ContentRange`` and we report HTTP 206.
+    """
+    kwargs: dict = {"Bucket": tenant.ttcp_bucket(), "Key": key}
+    if byte_range:
+        kwargs["Range"] = byte_range
+    resp = _client().get_object(**kwargs)
+    content_range = resp.get("ContentRange")
+    return {
+        "body": resp["Body"],
+        "length": resp["ContentLength"],   # bytes in THIS response
+        "content_range": content_range,
+        "status": 206 if content_range else 200,
+    }

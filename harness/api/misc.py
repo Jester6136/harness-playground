@@ -6,8 +6,14 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Request, UploadFile
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    RedirectResponse,
+    StreamingResponse,
+)
+from starlette.concurrency import run_in_threadpool
 
 from harness import tenant
 from harness.api.deps import get_user
@@ -77,27 +83,59 @@ async def upload_file(
 
 
 @router.get("/files/{key:path}")
-async def serve_ttcp_file(key: str, _user: str = Depends(get_user)):
+async def serve_ttcp_file(
+    key: str,
+    _user: str = Depends(get_user),
+    range_header: str | None = Header(default=None, alias="Range"),
+):
     """Stream an object from the TTCP MinIO bucket.
 
     `key` is the full object key (e.g. ttcp/ttcp-bot/abc.pdf). MinIO isn't
     publicly reachable, so this endpoint proxies it: the API server can reach
     MinIO, clients reach the API. Guarded to the TTCP prefix so it can't be
     used to read arbitrary bucket objects.
+
+    Streamed in 256KB chunks off the event loop (TTCP PDFs run to 500MB / 600+
+    pages — buffering the whole blob would stall the server and spike RAM).
+    The browser's `Range` header is forwarded to MinIO so the PDF viewer can
+    open a 600-page file instantly and fetch only the pages it needs.
     """
     if ".." in key or not key.startswith(tenant.ttcp_prefix()):
         raise HTTPException(status_code=400, detail="invalid key")
     try:
-        from harness.persistence.minio_store import get_ttcp_object
-        data = get_ttcp_object(key)
+        from harness.persistence.minio_store import open_ttcp_object
+        obj = await run_in_threadpool(open_ttcp_object, key, byte_range=range_header)
     except Exception:
         log.warning("could not fetch MinIO object %s", key, exc_info=True)
         raise HTTPException(status_code=404, detail="file not found")
+
+    body = obj["body"]
     filename = key.rsplit("/", 1)[-1] or "file.pdf"
-    return Response(
-        content=data,
+    headers = {
+        "Content-Disposition": f'inline; filename="{filename}"',
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(obj["length"]),
+    }
+    if obj["content_range"]:
+        headers["Content-Range"] = obj["content_range"]
+
+    _CHUNK = 256 * 1024
+
+    async def _iter():
+        try:
+            while True:
+                chunk = await run_in_threadpool(body.read, _CHUNK)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            body.close()
+
+    return StreamingResponse(
+        _iter(),
+        status_code=obj["status"],
         media_type="application/pdf",
-        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        headers=headers,
     )
 
 
