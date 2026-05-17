@@ -386,7 +386,16 @@ async def _maybe_send_tool_file(chat, payload: dict) -> bool:
     if not isinstance(data, dict) or "url" not in data:
         return False  # error result → normal error path handles it
 
-    url = f"{settings.agent_api_url.rstrip('/')}{data['url']}"
+    # `render_ttcp_report` returns an API-relative url ("/reports/..") to
+    # resolve against the harness API; `get_ttcp_file` now returns an absolute
+    # presigned MinIO url (bytes come straight from MinIO, never proxied) —
+    # use it as-is rather than prefixing the API base.
+    raw_url = data["url"]
+    url = (
+        raw_url
+        if raw_url.startswith(("http://", "https://"))
+        else f"{settings.agent_api_url.rstrip('/')}{raw_url}"
+    )
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             r = await client.get(url)

@@ -615,9 +615,9 @@ def get_ttcp_file(so_van_ban: str) -> str:
     """Lấy file PDF gốc của một kết luận thanh tra.
 
     Tra doc theo số văn bản, xác định MinIO key (từ `result._minio_key` với
-    doc upload qua agent, hoặc từ `_id` với doc do batch tạo), trả về URL để
-    tải file gốc. MinIO không public — URL do harness API serve: web mở
-    trực tiếp, Telegram bot tự đính kèm file.
+    doc upload qua agent, hoặc từ `_id` với doc do batch tạo), trả về URL
+    presigned (TTL 1h) để tải file gốc THẲNG từ MinIO. Harness API KHÔNG
+    proxy file (PDF thanh tra tới 500MB sẽ nghẽn băng thông web) — chỉ ký URL.
 
     Trả về `{url, filename, số văn bản}` hoặc `{error, message}` nếu không
     tìm thấy kết luận / kết luận không có file gốc.
@@ -638,9 +638,11 @@ def get_ttcp_file(so_van_ban: str) -> str:
                 ensure_ascii=False,
             )
         filename = key.rsplit("/", 1)[-1] or "file.pdf"
+        from harness.persistence.minio_store import presign_ttcp_object
+        url = presign_ttcp_object(key)
         return json.dumps(
             {
-                "url": f"/files/{key}",
+                "url": url,
                 "filename": filename,
                 "caption": f"📎 File gốc — {so_van_ban}",
                 "số văn bản": so_van_ban,
