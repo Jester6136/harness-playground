@@ -542,7 +542,7 @@ async function loadMessages() {
       el.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;padding:40px;">No messages yet — say hello!</div>';
       return;
     }
-    for (const m of d.messages) addHistoryMsg(m.type, m.content, m.name);
+    for (const m of d.messages) addHistoryMsg(m.type, m.content, m.name, m.ts || null);
     scrollBot();
   } catch {
     el.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;padding:40px;">Start a new conversation!</div>';

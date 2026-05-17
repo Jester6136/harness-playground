@@ -52,12 +52,33 @@ async def get_messages(
     tid = thread_id(user_id, session_id)
     config = {"configurable": {"thread_id": tid}}
     state = await agent.aget_state(config)
+    final_msgs = state.values.get("messages", []) if state.values else []
+
+    # LangChain messages carry no timestamp, but the checkpointer stamps each
+    # superstep. Reconstruct per-message time ≈ the checkpoint a message first
+    # appeared in (walk history oldest→newest). Failure here just drops times
+    # — the UI degrades to no clock rather than erroring.
+    first_seen: dict[str, str] = {}
+    try:
+        snaps = [s async for s in agent.aget_state_history(config)]
+        for snap in reversed(snaps):  # oldest first
+            ts = getattr(snap, "created_at", None)
+            if not ts:
+                continue
+            for m in (snap.values.get("messages", []) if snap.values else []):
+                mid = getattr(m, "id", None)
+                if mid and mid not in first_seen:
+                    first_seen[mid] = ts
+    except Exception:
+        first_seen = {}
+
     msgs = []
-    for msg in (state.values.get("messages", []) if state.values else []):
+    for msg in final_msgs:
         msgs.append({
             "type": getattr(msg, "type", "unknown"),
             "content": getattr(msg, "content", ""),
             "name": getattr(msg, "name", None),
+            "ts": first_seen.get(getattr(msg, "id", None)),
         })
     return {"messages": msgs}
 
