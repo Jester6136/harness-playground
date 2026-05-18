@@ -43,7 +43,8 @@ harness-playground/
 │   ├── extensions/           ← agent plug-in mechanisms
 │   │   ├── commands.py       ←   slash command dispatcher
 │   │   ├── pipelines.py      ←   pipeline registry + run_pipeline
-│   │   └── skills.py         ←   skill loader (folder-based SKILL.md)
+│   │   ├── skills.py         ←   skill loader (folder-based SKILL.md)
+│   │   └── tool_compaction.py ←  semantic tool-output compaction middleware
 │   └── utils/                ← cross-cutting helpers (no I/O, no state)
 │       ├── async_utils.py    ←   run_async() bridge
 │       └── paths.py          ←   resolve_relative_path()
@@ -89,6 +90,7 @@ VLLM_BASE_URL=http://192.168.120.11:2900/v1
 VLLM_MODEL_NAME=cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit
 POSTGRES_DSN=postgresql://harness:harness@localhost:5432/harness
 ENABLE_THINKING=false   # set true if model supports reasoning tokens
+MAX_MODEL_LEN=32768     # MUST match vLLM --max-model-len (context compaction)
 ```
 
 Copy `.env.example` and adjust as needed.
@@ -329,6 +331,35 @@ When enabled, `make_agent()` swaps the default `StateBackend` (in-memory) for `F
 For a sandboxed setup, use `virtual_mode=True` with a `root_dir` (blocks `..` and `~`), or compose deny rules in the permissions list — see [`harness/agent.py`](harness/agent.py) and [deepagents backends docs](https://docs.langchain.com/oss/python/deepagents/backends).
 
 **Security:** this gives the LLM real read/write on the host. Only enable inside a sandbox (container, restricted user, chrooted volume mount). Do not enable on a shared multi-tenant server.
+
+## Context management
+
+`create_deep_agent` always wires deepagents' `SummarizationMiddleware`, but its
+trigger is derived from the model's LangChain *profile*. A custom vLLM model
+name has no profile, so it falls back to a fixed **170 000-token** trigger — if
+vLLM serves a smaller `--max-model-len`, the summarizer never fires and the
+model hard-overflows first. The real pressure here is also **bulky tool
+results** (full TTCP docs, `aggregate_ttcp` tables, LIS rows, `analyze_image`
+output), not long chat, which window-summarization handles poorly.
+
+So `make_agent()` adds two composable, idempotent middlewares (order-independent
+— each only shrinks *old* `ToolMessage`s and recognises the other's marker):
+
+| Middleware | Trigger | What it does |
+|---|---|---|
+| `SemanticToolCompactionMiddleware` ([tool_compaction.py](harness/extensions/tool_compaction.py)) | age — keeps last `CONTEXT_EDIT_KEEP` tool results | Replaces older results > `CONTEXT_COMPACT_MIN_CHARS` with a tool-agnostic stub: `⟦compacted <tool>⟧ N KB · <list count / dict keys / text head>` |
+| deepagents `ContextEditingMiddleware` | tokens — `CONTEXT_EDIT_TRIGGER_FRACTION × MAX_MODEL_LEN` | Anthropic-style clear-tool-uses backstop under extreme pressure |
+
+The stub is derived generically from the result shape — **a new tool added to
+`ALL_TOOLS` needs no change here.** Both run via `wrap_model_call` (messages
+are deep-copied, never permanently mutated).
+
+| Env var | Default | Purpose |
+|---|---|---|
+| `MAX_MODEL_LEN` | `32768` | **Must match vLLM `--max-model-len`** — the token trigger is sized from it |
+| `CONTEXT_EDIT_TRIGGER_FRACTION` | `0.6` | Token backstop fires at this fraction of `MAX_MODEL_LEN` |
+| `CONTEXT_EDIT_KEEP` | `4` | Most-recent tool results kept verbatim |
+| `CONTEXT_COMPACT_MIN_CHARS` | `600` | Smaller tool results are left fully readable |
 
 ## Reasoning / thinking
 

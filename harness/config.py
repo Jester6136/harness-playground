@@ -36,6 +36,24 @@ class Settings(BaseSettings):
     # Reasoning tokens stream as `event: thinking` (separate from `event: token`).
     enable_thinking: bool = False
 
+    # Context window of the SERVED vLLM model. deepagents always wires a
+    # SummarizationMiddleware, but for a custom model name LangChain has no
+    # profile, so it falls back to a fixed 170k-token trigger — unreachable
+    # when vLLM serves a smaller context, i.e. the summarizer never fires and
+    # the model hard-overflows first. We add ContextEditingMiddleware and size
+    # it from this value, so it MUST match vLLM's --max-model-len (set in .env).
+    max_model_len: int = 32768
+    # Clear old tool outputs once prompt tokens exceed this fraction of
+    # max_model_len. Tool-result bloat (full TTCP docs, aggregate tables, LIS
+    # rows, analyze_image output) is the real context pressure here, not chat
+    # length — so we clear well before the (dead) summarization trigger.
+    context_edit_trigger_fraction: float = 0.6
+    # Number of most-recent tool results kept verbatim (never cleared).
+    context_edit_keep: int = 4
+    # Tool results shorter than this (chars) are left untouched by the
+    # semantic compactor — small outputs cost little and stay fully readable.
+    context_compact_min_chars: int = 600
+
     # Postgres (checkpointer + long-term store)
     postgres_dsn: str = "postgresql://harness:harness@localhost:5432/harness"
 

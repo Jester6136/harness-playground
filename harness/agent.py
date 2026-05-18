@@ -9,9 +9,14 @@ capabilities live in custom tools and skills.
 from deepagents import create_deep_agent, FilesystemPermission
 from deepagents.backends import FilesystemBackend
 from deepagents.middleware.subagents import GENERAL_PURPOSE_SUBAGENT
+from langchain.agents.middleware.context_editing import (
+    ClearToolUsesEdit,
+    ContextEditingMiddleware,
+)
 
 from harness.config import get_instructions, settings
 from harness.extensions.skills import load_skills
+from harness.extensions.tool_compaction import SemanticToolCompactionMiddleware
 from harness.llm import make_llm
 from harness.tools import ALL_TOOLS
 
@@ -49,6 +54,34 @@ _GP_SUBAGENT_OVERRIDE: dict = {
         "single-step tasks, or anything you can answer directly."
     ),
 }
+
+
+def _context_editing_middleware() -> ContextEditingMiddleware:
+    """Clear stale tool outputs before they overflow the context window.
+
+    deepagents always wires a SummarizationMiddleware, but a custom vLLM model
+    name has no LangChain profile so it falls back to a fixed 170k-token
+    trigger — unreachable when vLLM serves a smaller --max-model-len, meaning
+    the summarizer never fires and the model hard-overflows first. The dominant
+    pressure here is large tool results (find_ttcp full doc, aggregate_ttcp
+    tables, LIS rows, analyze_image output), not long chat. This Anthropic-style
+    clear-tool-uses middleware replaces old tool outputs with a placeholder once
+    prompt tokens cross a fraction of the REAL context window, keeping the most
+    recent `keep` results verbatim. Sized from settings.max_model_len so it
+    actually triggers; SummarizationMiddleware stays as a rarely-hit backstop.
+    Runs via wrap_model_call (deep-copies messages — no permanent state mutation),
+    so it composes safely with deepagents' own middleware regardless of order.
+    """
+    trigger = int(settings.max_model_len * settings.context_edit_trigger_fraction)
+    return ContextEditingMiddleware(
+        edits=[
+            ClearToolUsesEdit(
+                trigger=trigger,
+                keep=settings.context_edit_keep,
+                clear_tool_inputs=False,  # keep call args — small, and aid recall
+            ),
+        ],
+    )
 
 
 def make_agent(checkpointer=None, store=None, enable_thinking: bool | None = None):
@@ -89,6 +122,10 @@ def make_agent(checkpointer=None, store=None, enable_thinking: bool | None = Non
         system_prompt=get_instructions(ALL_TOOLS, skills),
         model=make_llm(enable_thinking=enable_thinking),
         subagents=subagents,
+        middleware=[
+            SemanticToolCompactionMiddleware(),
+            _context_editing_middleware(),
+        ],
         interrupt_on=_collect_hitl(ALL_TOOLS, skill_tools),
         checkpointer=checkpointer,
         store=store,
